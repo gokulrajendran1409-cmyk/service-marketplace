@@ -5,7 +5,7 @@ const createUser = async (userData) => {
 
     const sql = `
         INSERT INTO users
-        (full_name, phone, email, password, role)
+        (name, phone, email, password, role)
         VALUES (?, ?, ?, ?, ?)
     `;
 
