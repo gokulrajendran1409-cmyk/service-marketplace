@@ -5,24 +5,16 @@ import { useState } from "react";
 const problems = [
   { title: "Water Leak", subtitle: "Fix leaks & drips", icon: Droplet, color: "bg-blue-100 text-blue-700" },
   { title: "Power Failure", subtitle: "Electrical issues", icon: Bolt, color: "bg-yellow-100 text-yellow-700" },
-  { title: "AC Not Cooling", subtitle: "AC repair & service", icon: Snowflake, color: "bg-sky-100 text-sky-700" },
-  { title: "Car Problem", subtitle: "Repair & diagnostics", icon: Car, color: "bg-rose-100 text-rose-700" },
-  { title: "Need Cleaning", subtitle: "Home or office", icon: Sparkles, color: "bg-emerald-100 text-emerald-700" },
   { title: "More Problems", subtitle: "Explore all", icon: Wrench, color: "bg-violet-100 text-violet-700" },
 ];
 
 const serviceCards = [
   { title: "Electrical", description: "Wiring, lights, switches", price: "Starting at ₹249", iconColor: "text-amber-700 bg-amber-100", badge: "Most Popular", badgeColor: "bg-amber-600", image: "/images/electrical.png" },
-  { title: "Painting", description: "Home, office, walls", price: "Starting at ₹199", iconColor: "text-rose-700 bg-rose-100", badge: "Trending", badgeColor: "bg-rose-600", image: "/images/painting.png" },
-  { title: "Cleaning", description: "Home, office, deep clean", price: "Starting at ₹249", iconColor: "text-emerald-700 bg-emerald-100", badge: "Fastest", badgeColor: "bg-emerald-600", image: "/images/cleaning.png" },
-  { title: "AC Repair", description: "Installation, service", price: "Starting at ₹249", iconColor: "text-sky-700 bg-sky-100", badge: "High Demand", badgeColor: "bg-sky-600", image: "/images/ac_repair.png" },
 ];
 
 const professionals = [
   { name: "Arun Plumber", role: "Plumbing Specialist", rating: "4.9", reviews: "320", jobs: "1.2k jobs", experience: "10+ years", color: "bg-emerald-50" },
   { name: "Jose Electrician", role: "Electrical Expert", rating: "4.8", reviews: "280", jobs: "960 jobs", experience: "8+ years", color: "bg-amber-50" },
-  { name: "Navas AC Technician", role: "AC Repair Specialist", rating: "4.9", reviews: "250", jobs: "700 jobs", experience: "7+ years", color: "bg-sky-50" },
-  { name: "Sumeesh Painter", role: "Painting Specialist", rating: "4.7", reviews: "200", jobs: "600 jobs", experience: "5+ years", color: "bg-rose-50" },
 ];
 
 const reviews = [
@@ -96,7 +88,7 @@ export default function HomeSections() {
 
                 <div className="mt-5 flex flex-wrap gap-3 text-sm text-slate-600">
                   <span>Popular right now:</span>
-                  {['Plumber', 'Electrician', 'AC Repair', 'Cleaning', 'Painting'].map((item) => (
+                  {['Plumber', 'Electrician'].map((item) => (
                     <button key={item} className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-slate-700 transition hover:bg-emerald-700 hover:text-white">
                       {item}
                     </button>
@@ -236,57 +228,7 @@ export default function HomeSections() {
         </div>
       </section>
 
-      {/* How It Works Section */}
-      <section id="how-it-works" className="bg-slate-50 py-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <p className="text-sm uppercase tracking-[0.28em] text-emerald-700 font-semibold">Simple Process</p>
-            <h2 className="mt-4 text-4xl font-extrabold text-slate-950">How Worksy makes it easy</h2>
-            <p className="mt-4 text-lg text-slate-600">Get your tasks done in three simple steps without any hassle.</p>
-          </div>
 
-          <div className="relative grid gap-8 lg:grid-cols-3">
-            {/* Connecting line for desktop */}
-            <div className="hidden lg:block absolute top-1/2 left-[16%] right-[16%] h-0.5 bg-emerald-200/50 -translate-y-1/2 z-0"></div>
-
-            {/* Step 1 */}
-            <div className="relative z-10 group">
-              <div className="flex flex-col items-center text-center rounded-[32px] bg-white p-8 shadow-sm transition duration-300 hover:shadow-xl hover:-translate-y-2 border border-slate-100">
-                <div className="w-20 h-20 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center mb-6 shadow-inner relative">
-                  <Search size={32} />
-                  <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-slate-900 text-white text-sm font-bold flex items-center justify-center border-4 border-white">1</div>
-                </div>
-                <h3 className="text-2xl font-bold text-slate-900">Find a Service</h3>
-                <p className="mt-3 text-slate-600 leading-relaxed">Search for the service you need or browse our categories. Read reviews and compare prices upfront.</p>
-              </div>
-            </div>
-
-            {/* Step 2 */}
-            <div className="relative z-10 group">
-              <div className="flex flex-col items-center text-center rounded-[32px] bg-white p-8 shadow-sm transition duration-300 hover:shadow-xl hover:-translate-y-2 border border-slate-100">
-                <div className="w-20 h-20 rounded-full bg-sky-50 text-sky-700 flex items-center justify-center mb-6 shadow-inner relative">
-                  <Star size={32} />
-                  <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-slate-900 text-white text-sm font-bold flex items-center justify-center border-4 border-white">2</div>
-                </div>
-                <h3 className="text-2xl font-bold text-slate-900">Book a Pro</h3>
-                <p className="mt-3 text-slate-600 leading-relaxed">Select a trusted, verified professional that fits your schedule. Confirm your booking instantly.</p>
-              </div>
-            </div>
-
-            {/* Step 3 */}
-            <div className="relative z-10 group">
-              <div className="flex flex-col items-center text-center rounded-[32px] bg-white p-8 shadow-sm transition duration-300 hover:shadow-xl hover:-translate-y-2 border border-slate-100">
-                <div className="w-20 h-20 rounded-full bg-rose-50 text-rose-700 flex items-center justify-center mb-6 shadow-inner relative">
-                  <CheckCircle size={32} />
-                  <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-slate-900 text-white text-sm font-bold flex items-center justify-center border-4 border-white">3</div>
-                </div>
-                <h3 className="text-2xl font-bold text-slate-900">Relax & Pay</h3>
-                <p className="mt-3 text-slate-600 leading-relaxed">The professional gets the job done. Release payment securely only after you are completely satisfied.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="rounded-[36px] bg-slate-950 p-8 text-white shadow-[0_30px_80px_rgba(15,23,42,0.25)]">

@@ -22,7 +22,9 @@ export default function Navbar() {
           <NavLink to="/register" className={({ isActive }) => `${linkClass} ${isActive ? "text-emerald-700" : ""}`}>
             Become a Pro
           </NavLink>
-          <a href="/#how-it-works" className={linkClass}>How It Works</a>
+          <NavLink to="/how-it-works" className={({ isActive }) => `${linkClass} ${isActive ? "text-emerald-700" : ""}`}>
+            How It Works
+          </NavLink>
           <NavLink to="/about" className={({ isActive }) => `${linkClass} ${isActive ? "text-emerald-700" : ""}`}>
             About Us
           </NavLink>
@@ -54,7 +56,7 @@ export default function Navbar() {
         <div className="mt-4 flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-lg md:hidden">
           <Link to="/services" onClick={() => setOpen(false)} className="font-medium text-slate-700">Find Services</Link>
           <Link to="/register" className="font-medium text-slate-700">Become a Pro</Link>
-          <a href="/#how-it-works" className="font-medium text-slate-700">How It Works</a>
+          <Link to="/how-it-works" onClick={() => setOpen(false)} className="font-medium text-slate-700">How It Works</Link>
           <Link to="/about" onClick={() => setOpen(false)} className="font-medium text-slate-700">About Us</Link>
           <Link to="/help" onClick={() => setOpen(false)} className="font-medium text-slate-700">Help</Link>
           <Link to="/login" className="rounded-full border border-slate-200 px-4 py-2 text-center font-semibold text-slate-700">Log in</Link>

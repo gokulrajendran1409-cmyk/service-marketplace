@@ -33,34 +33,6 @@ const professionalsList = [
     skills: ["Wiring", "Appliance Installation", "Panel Upgrade"]
   },
   { 
-    id: "p3", 
-    name: "Navas AC Technician", 
-    role: "HVAC Specialist", 
-    category: "AC Repair",
-    rating: 4.9, 
-    reviews: 250, 
-    experience: "7+ years", 
-    price: 349, 
-    distance: "4.0 km away", 
-    availability: "Available in 2 hrs",
-    image: "https://ui-avatars.com/api/?name=Navas&background=ea580c&color=fff&size=256",
-    skills: ["AC Installation", "Gas Refill", "Deep Cleaning"]
-  },
-  { 
-    id: "p4", 
-    name: "Sumeesh Painter", 
-    role: "Professional Painter", 
-    category: "Painting",
-    rating: 4.7, 
-    reviews: 200, 
-    experience: "5+ years", 
-    price: 199, 
-    distance: "3.1 km away", 
-    availability: "Available Today",
-    image: "https://ui-avatars.com/api/?name=Sumeesh&background=be123c&color=fff&size=256",
-    skills: ["Interior Painting", "Exterior Painting", "Waterproofing"]
-  },
-  { 
     id: "p5", 
     name: "Ravi Shankar", 
     role: "Plumbing Specialist", 
@@ -85,7 +57,7 @@ export default function ProfessionalListing() {
   const [sortBy, setSortBy] = useState("Recommended");
   const [showSort, setShowSort] = useState(false);
 
-  const categories = ["All", "Plumbing", "Electrical", "AC Repair", "Painting", "Cleaning"];
+  const categories = ["All", "Plumbing", "Electrical"];
   const sortOptions = ["Recommended", "Rating: High to Low", "Price: Low to High", "Distance: Nearest"];
 
   const filteredPros = professionalsList

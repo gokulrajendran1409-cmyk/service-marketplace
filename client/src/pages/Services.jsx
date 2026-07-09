@@ -25,29 +25,13 @@ const allCategories = [
   { name: "All", icon: null },
   { name: "Plumbing", icon: Droplet, color: "text-blue-700 bg-blue-100" },
   { name: "Electrical", icon: Bolt, color: "text-amber-700 bg-amber-100" },
-  { name: "Cleaning", icon: Sparkles, color: "text-emerald-700 bg-emerald-100" },
-  { name: "AC Repair", icon: Snowflake, color: "text-sky-700 bg-sky-100" },
-  { name: "Painting", icon: Paintbrush, color: "text-rose-700 bg-rose-100" },
-  { name: "Carpentry", icon: Hammer, color: "text-orange-700 bg-orange-100" },
-  { name: "Vehicle Repair", icon: Car, color: "text-red-700 bg-red-100" },
-  { name: "Appliance Repair", icon: Monitor, color: "text-violet-700 bg-violet-100" },
-  { name: "Tutoring", icon: GraduationCap, color: "text-indigo-700 bg-indigo-100" },
-  { name: "Business", icon: Briefcase, color: "text-slate-700 bg-slate-200" },
 ];
 
 const allServices = [
   { id: 1, title: "Pipe Repair & Fitting", category: "Plumbing", price: 299, rating: 4.8, reviews: 320, image: "/images/plumbing.png", description: "Fix leaking pipes, taps, and bathroom fittings.", professionals: 45 },
   { id: 2, title: "Wiring & Switch Repair", category: "Electrical", price: 249, rating: 4.7, reviews: 280, image: "/images/electrical.png", description: "Complete electrical wiring, switches, and light installation.", professionals: 38 },
-  { id: 3, title: "Home Deep Cleaning", category: "Cleaning", price: 499, rating: 4.9, reviews: 410, image: "/images/cleaning.png", description: "Full home deep cleaning including kitchen, bathroom, and floors.", professionals: 52 },
-  { id: 4, title: "AC Service & Repair", category: "AC Repair", price: 349, rating: 4.8, reviews: 250, image: "/images/ac_repair.png", description: "AC installation, gas refill, cleaning, and full service.", professionals: 30 },
-  { id: 5, title: "Wall & Room Painting", category: "Painting", price: 199, rating: 4.6, reviews: 200, image: "/images/painting.png", description: "Interior and exterior wall painting for homes and offices.", professionals: 28 },
   { id: 6, title: "Bathroom Renovation", category: "Plumbing", price: 1499, rating: 4.9, reviews: 150, image: "/images/plumbing.png", description: "Complete bathroom renovation including tiles, fittings, and plumbing.", professionals: 20 },
   { id: 7, title: "Ceiling Fan Installation", category: "Electrical", price: 199, rating: 4.5, reviews: 190, image: "/images/electrical.png", description: "Fan installation, replacement, and speed regulator fitting.", professionals: 35 },
-  { id: 8, title: "Office Cleaning", category: "Cleaning", price: 799, rating: 4.7, reviews: 120, image: "/images/cleaning.png", description: "Professional office and workspace cleaning service.", professionals: 25 },
-  { id: 9, title: "AC Installation", category: "AC Repair", price: 999, rating: 4.8, reviews: 180, image: "/images/ac_repair.png", description: "Split and window AC installation with copper piping.", professionals: 22 },
-  { id: 10, title: "Waterproofing", category: "Painting", price: 599, rating: 4.6, reviews: 95, image: "/images/painting.png", description: "Roof and wall waterproofing to prevent leakage and dampness.", professionals: 18 },
-  { id: 11, title: "Door & Window Repair", category: "Carpentry", price: 349, rating: 4.5, reviews: 110, image: "/images/plumbing.png", description: "Repair and installation of wooden doors, windows, and frames.", professionals: 15 },
-  { id: 12, title: "Bike Service", category: "Vehicle Repair", price: 399, rating: 4.7, reviews: 230, image: "/images/electrical.png", description: "Full bike service including oil change, brakes, and chain.", professionals: 32 },
 ];
 
 const sortOptions = ["Relevance", "Price: Low to High", "Price: High to Low", "Rating", "Most Reviews"];
