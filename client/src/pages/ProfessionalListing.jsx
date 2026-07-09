@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Star, MapPin, Clock, ArrowRight, Filter, ChevronDown, CheckCircle2 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 // Mock professionals data for the listing
 const professionalsList = [
@@ -50,6 +52,8 @@ const professionalsList = [
 
 export default function ProfessionalListing() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const searchParams = new URLSearchParams(location.search);
   const categoryParam = searchParams.get("category") || "All";
   
@@ -59,6 +63,14 @@ export default function ProfessionalListing() {
 
   const categories = ["All", "Plumbing", "Electrical"];
   const sortOptions = ["Recommended", "Rating: High to Low", "Price: Low to High", "Distance: Nearest"];
+
+  const handleBookNow = (proId) => {
+    if (!user) {
+      navigate("/login", { state: { returnTo: `/book/${proId}` } });
+    } else {
+      navigate(`/book/${proId}`);
+    }
+  };
 
   const filteredPros = professionalsList
     .filter(pro => activeCategory === "All" || pro.category === activeCategory)
@@ -189,12 +201,12 @@ export default function ProfessionalListing() {
                   >
                     View Profile
                   </Link>
-                  <Link 
-                    to={`/book/${pro.id}`}
+                  <button 
+                    onClick={() => handleBookNow(pro.id)}
                     className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-emerald-800 hover:shadow-lg"
                   >
                     Book Now <ArrowRight size={16} />
-                  </Link>
+                  </button>
                 </div>
               </div>
             </div>

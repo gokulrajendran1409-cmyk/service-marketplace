@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Eye, EyeOff, Phone, Lock, AlertCircle, CheckCircle2 } from "lucide-react";
 import { loginUser } from "../../api/auth";
 import { useAuth } from "../../context/AuthContext";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
+  const returnTo = location.state?.returnTo;
 
   const [form, setForm] = useState({ phone: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
@@ -36,7 +38,9 @@ export default function LoginPage() {
         login(res.user, res.token);
         setSuccess("Login successful! Redirecting...");
         setTimeout(() => {
-          if (res.user.role === "professional") {
+          if (returnTo) {
+            navigate(returnTo);
+          } else if (res.user.role === "professional") {
             navigate("/professional/dashboard");
           } else {
             navigate("/customer/dashboard");
@@ -125,7 +129,7 @@ export default function LoginPage() {
 
           <p className="mt-6 text-center text-sm text-slate-500">
             New here?{" "}
-            <Link to="/register" className="font-semibold text-emerald-700 hover:underline">
+            <Link to="/register" state={{ returnTo }} className="font-semibold text-emerald-700 hover:underline">
               Create an account
             </Link>
           </p>

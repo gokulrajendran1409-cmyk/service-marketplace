@@ -1,6 +1,7 @@
 import { ArrowRight, MapPin, Star, Wrench, Sparkles, Droplet, Bolt, Snowflake, Car, Search, CheckCircle, CreditCard } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { useAuth } from "../context/AuthContext";
 
 const problems = [
   { title: "Water Leak", subtitle: "Fix leaks & drips", icon: Droplet, color: "bg-blue-100 text-blue-700" },
@@ -13,8 +14,8 @@ const serviceCards = [
 ];
 
 const professionals = [
-  { name: "Arun Plumber", role: "Plumbing Specialist", rating: "4.9", reviews: "320", jobs: "1.2k jobs", experience: "10+ years", color: "bg-emerald-50" },
-  { name: "Jose Electrician", role: "Electrical Expert", rating: "4.8", reviews: "280", jobs: "960 jobs", experience: "8+ years", color: "bg-amber-50" },
+  { id: "p1", name: "Arun Plumber", role: "Plumbing Specialist", rating: "4.9", reviews: "320", jobs: "1.2k jobs", experience: "10+ years", color: "bg-emerald-50" },
+  { id: "p2", name: "Jose Electrician", role: "Electrical Expert", rating: "4.8", reviews: "280", jobs: "960 jobs", experience: "8+ years", color: "bg-amber-50" },
 ];
 
 const reviews = [
@@ -25,12 +26,21 @@ const reviews = [
 export default function HomeSections() {
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
       navigate(`/services?search=${encodeURIComponent(searchQuery.trim())}`);
     } else {
       navigate("/services");
+    }
+  };
+
+  const handleBookNow = (proId) => {
+    if (!user) {
+      navigate("/login", { state: { returnTo: `/book/${proId}` } });
+    } else {
+      navigate(`/book/${proId}`);
     }
   };
 
@@ -281,7 +291,7 @@ export default function HomeSections() {
                     <span>{pro.jobs}</span>
                   </div>
                   <p className="mt-4 text-sm text-slate-700">{pro.experience}</p>
-                  <button className="mt-6 w-full rounded-3xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800">Book Now</button>
+                  <button onClick={() => handleBookNow(pro.id)} className="mt-6 w-full rounded-3xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800">Book Now</button>
                 </div>
               ))}
             </div>

@@ -4,6 +4,8 @@ import {
   Star, MapPin, Clock, ShieldCheck, Award, Briefcase, 
   ThumbsUp, Calendar, ChevronRight, MessageSquare, CheckCircle2 
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 // Mock specific professional data
 const proData = {
@@ -44,7 +46,17 @@ const proData = {
 
 export default function ProfessionalProfile() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("about");
+
+  const handleBookNow = () => {
+    if (!user) {
+      navigate("/login", { state: { returnTo: `/book/${id}` } });
+    } else {
+      navigate(`/book/${id}`);
+    }
+  };
 
   // In a real app, you would fetch data based on `id`
   const pro = proData; // Mocked for now
@@ -84,12 +96,12 @@ export default function ProfessionalProfile() {
                   <p className="text-lg font-medium text-slate-600">{pro.role}</p>
                 </div>
                 <div className="flex flex-col gap-2 pb-2 w-full sm:w-auto">
-                  <Link 
-                    to={`/book/${pro.id}`}
+                  <button 
+                    onClick={handleBookNow}
                     className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-full bg-emerald-700 px-8 py-4 font-bold text-white shadow-lg transition hover:bg-emerald-800 hover:shadow-xl hover:-translate-y-0.5"
                   >
                     Book Now <ChevronRight size={20} />
-                  </Link>
+                  </button>
                 </div>
               </div>
 

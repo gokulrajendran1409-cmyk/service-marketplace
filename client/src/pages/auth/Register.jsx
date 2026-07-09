@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Eye, EyeOff, Phone, Lock, User, Mail, AlertCircle, CheckCircle2 } from "lucide-react";
 import { registerUser } from "../../api/auth";
 import { useAuth } from "../../context/AuthContext";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
+  const returnTo = location.state?.returnTo;
 
   const [form, setForm] = useState({
     full_name: "",
@@ -45,7 +47,7 @@ export default function RegisterPage() {
       const res = await registerUser(form);
       if (res.success) {
         setSuccess("Account created! Redirecting to login...");
-        setTimeout(() => navigate("/login"), 1200);
+        setTimeout(() => navigate("/login", { state: { returnTo } }), 1200);
       } else {
         setError(res.message || "Registration failed. Please try again.");
       }
@@ -182,7 +184,7 @@ export default function RegisterPage() {
 
           <p className="mt-6 text-center text-sm text-slate-500">
             Already have an account?{" "}
-            <Link to="/login" className="font-semibold text-emerald-700 hover:underline">
+            <Link to="/login" state={{ returnTo }} className="font-semibold text-emerald-700 hover:underline">
               Log in
             </Link>
           </p>
