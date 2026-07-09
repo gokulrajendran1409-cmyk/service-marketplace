@@ -4,6 +4,10 @@
   color-scheme: light;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   font-family: "Plus Jakarta Sans", Inter, Arial, sans-serif;
   background-color: #f8fafc;

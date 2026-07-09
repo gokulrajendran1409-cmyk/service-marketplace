@@ -8,6 +8,8 @@ import ProfessionalDashboard from "./pages/professional/Dashboard";
 import BookingPage from "./pages/BookingPage";
 import NotFoundPage from "./pages/NotFound";
 import ServicesPage from "./pages/Services";
+import AboutPage from "./pages/About";
+import HelpPage from "./pages/Help";
 
 
 function App() {
@@ -17,6 +19,8 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/services" element={<ServicesPage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/help" element={<HelpPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/customer/dashboard" element={<CustomerDashboard />} />

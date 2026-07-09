@@ -1,5 +1,6 @@
-import { ArrowRight, MapPin, Star, Wrench, Sparkles, Droplet, Bolt, Snowflake, Car } from "lucide-react";
-import { Link } from "react-router-dom";
+import { ArrowRight, MapPin, Star, Wrench, Sparkles, Droplet, Bolt, Snowflake, Car, Search, CheckCircle, CreditCard } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
 
 const problems = [
   { title: "Water Leak", subtitle: "Fix leaks & drips", icon: Droplet, color: "bg-blue-100 text-blue-700" },
@@ -11,10 +12,10 @@ const problems = [
 ];
 
 const serviceCards = [
-  { title: "Electrical", description: "Wiring, lights, switches", price: "Starting at ₹249", iconColor: "text-amber-700 bg-amber-100", image: "/images/electrical.png" },
-  { title: "Painting", description: "Home, office, walls", price: "Starting at ₹199", iconColor: "text-rose-700 bg-rose-100", image: "/images/painting.png" },
-  { title: "Cleaning", description: "Home, office, deep clean", price: "Starting at ₹249", iconColor: "text-emerald-700 bg-emerald-100", image: "/images/cleaning.png" },
-  { title: "AC Repair", description: "Installation, service", price: "Starting at ₹249", iconColor: "text-sky-700 bg-sky-100", image: "/images/ac_repair.png" },
+  { title: "Electrical", description: "Wiring, lights, switches", price: "Starting at ₹249", iconColor: "text-amber-700 bg-amber-100", badge: "Most Popular", badgeColor: "bg-amber-600", image: "/images/electrical.png" },
+  { title: "Painting", description: "Home, office, walls", price: "Starting at ₹199", iconColor: "text-rose-700 bg-rose-100", badge: "Trending", badgeColor: "bg-rose-600", image: "/images/painting.png" },
+  { title: "Cleaning", description: "Home, office, deep clean", price: "Starting at ₹249", iconColor: "text-emerald-700 bg-emerald-100", badge: "Fastest", badgeColor: "bg-emerald-600", image: "/images/cleaning.png" },
+  { title: "AC Repair", description: "Installation, service", price: "Starting at ₹249", iconColor: "text-sky-700 bg-sky-100", badge: "High Demand", badgeColor: "bg-sky-600", image: "/images/ac_repair.png" },
 ];
 
 const professionals = [
@@ -30,6 +31,23 @@ const reviews = [
 ];
 
 export default function HomeSections() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const navigate = useNavigate();
+
+  const handleSearch = () => {
+    if (searchQuery.trim()) {
+      navigate(`/services?search=${encodeURIComponent(searchQuery.trim())}`);
+    } else {
+      navigate("/services");
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  };
+
   return (
     <main className="space-y-16 bg-slate-50 pt-28 sm:pt-32">
       <section className="relative overflow-hidden bg-emerald-50 pb-24 pt-24 sm:pt-28">
@@ -56,13 +74,22 @@ export default function HomeSections() {
               <div className="rounded-[36px] bg-white p-6 shadow-[0_25px_80px_rgba(15,23,42,0.08)] sm:p-8">
                 <div className="grid gap-4 grid-cols-1 md:grid-cols-[1.7fr_0.9fr_auto] md:items-center">
                   <div className="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4 shadow-inner shadow-slate-100">
-                    <input className="w-full bg-transparent text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400" placeholder="Search any problem or service..." />
+                    <input 
+                      className="w-full bg-transparent text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400" 
+                      placeholder="Search any problem or service..." 
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                    />
                   </div>
                   <div className="min-w-0 flex items-center gap-3 rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
                     <MapPin size={18} className="text-emerald-700" />
                     <span className="text-sm font-medium text-slate-700">Kochi, Kerala</span>
                   </div>
-                  <button className="inline-flex h-full min-h-[56px] items-center justify-center rounded-3xl bg-emerald-700 px-6 py-4 text-sm font-semibold text-white shadow-lg shadow-emerald-700/20 transition hover:bg-emerald-800">
+                  <button 
+                    onClick={handleSearch}
+                    className="inline-flex h-full min-h-[56px] items-center justify-center rounded-3xl bg-emerald-700 px-6 py-4 text-sm font-semibold text-white shadow-lg shadow-emerald-700/20 transition hover:bg-emerald-800"
+                  >
                     <ArrowRight size={18} />
                   </button>
                 </div>
@@ -142,8 +169,8 @@ export default function HomeSections() {
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2">
-            <div className="rounded-[36px] bg-white p-6 shadow-[0_25px_60px_rgba(15,23,42,0.08)]">
-              <div className="mb-5 inline-flex rounded-3xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white">Best Rated</div>
+            <div className="relative rounded-[36px] bg-white p-6 pt-8 shadow-[0_25px_60px_rgba(15,23,42,0.08)] mt-4 sm:mt-0">
+              <div className="absolute -top-4 left-6 z-10 inline-flex rounded-3xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-lg">Best Rated</div>
               <div className="aspect-[4/3] overflow-hidden rounded-[28px] bg-slate-100">
                 <img src="/images/plumbing.png" alt="Plumbing" className="h-full w-full object-cover transition duration-500 hover:scale-105" />
               </div>
@@ -159,7 +186,12 @@ export default function HomeSections() {
               <p className="mt-6 text-sm font-semibold text-slate-900">Starting at ₹299</p>
             </div>
             {serviceCards.map((card) => (
-              <div key={card.title} className="group flex flex-col rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+              <div key={card.title} className="relative group flex flex-col rounded-[32px] border border-slate-200 bg-white p-6 pt-8 mt-4 sm:mt-0 shadow-sm transition hover:shadow-md">
+                {card.badge && (
+                  <div className={`absolute -top-4 left-6 z-10 inline-flex rounded-3xl ${card.badgeColor} px-4 py-2 text-sm font-semibold text-white shadow-lg`}>
+                    {card.badge}
+                  </div>
+                )}
                 <div className="aspect-[4/3] mb-6 overflow-hidden rounded-[28px] bg-slate-100">
                   <img src={card.image} alt={card.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                 </div>
@@ -200,6 +232,58 @@ export default function HomeSections() {
           <div className="rounded-[32px] bg-white p-6 text-center shadow-sm shadow-slate-200/80">
             <p className="font-semibold text-slate-900">24/7 Support</p>
             <p className="mt-3 text-sm text-slate-600">Emergency support whenever you need us.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section id="how-it-works" className="bg-slate-50 py-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <p className="text-sm uppercase tracking-[0.28em] text-emerald-700 font-semibold">Simple Process</p>
+            <h2 className="mt-4 text-4xl font-extrabold text-slate-950">How Worksy makes it easy</h2>
+            <p className="mt-4 text-lg text-slate-600">Get your tasks done in three simple steps without any hassle.</p>
+          </div>
+
+          <div className="relative grid gap-8 lg:grid-cols-3">
+            {/* Connecting line for desktop */}
+            <div className="hidden lg:block absolute top-1/2 left-[16%] right-[16%] h-0.5 bg-emerald-200/50 -translate-y-1/2 z-0"></div>
+
+            {/* Step 1 */}
+            <div className="relative z-10 group">
+              <div className="flex flex-col items-center text-center rounded-[32px] bg-white p-8 shadow-sm transition duration-300 hover:shadow-xl hover:-translate-y-2 border border-slate-100">
+                <div className="w-20 h-20 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center mb-6 shadow-inner relative">
+                  <Search size={32} />
+                  <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-slate-900 text-white text-sm font-bold flex items-center justify-center border-4 border-white">1</div>
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900">Find a Service</h3>
+                <p className="mt-3 text-slate-600 leading-relaxed">Search for the service you need or browse our categories. Read reviews and compare prices upfront.</p>
+              </div>
+            </div>
+
+            {/* Step 2 */}
+            <div className="relative z-10 group">
+              <div className="flex flex-col items-center text-center rounded-[32px] bg-white p-8 shadow-sm transition duration-300 hover:shadow-xl hover:-translate-y-2 border border-slate-100">
+                <div className="w-20 h-20 rounded-full bg-sky-50 text-sky-700 flex items-center justify-center mb-6 shadow-inner relative">
+                  <Star size={32} />
+                  <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-slate-900 text-white text-sm font-bold flex items-center justify-center border-4 border-white">2</div>
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900">Book a Pro</h3>
+                <p className="mt-3 text-slate-600 leading-relaxed">Select a trusted, verified professional that fits your schedule. Confirm your booking instantly.</p>
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div className="relative z-10 group">
+              <div className="flex flex-col items-center text-center rounded-[32px] bg-white p-8 shadow-sm transition duration-300 hover:shadow-xl hover:-translate-y-2 border border-slate-100">
+                <div className="w-20 h-20 rounded-full bg-rose-50 text-rose-700 flex items-center justify-center mb-6 shadow-inner relative">
+                  <CheckCircle size={32} />
+                  <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-slate-900 text-white text-sm font-bold flex items-center justify-center border-4 border-white">3</div>
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900">Relax & Pay</h3>
+                <p className="mt-3 text-slate-600 leading-relaxed">The professional gets the job done. Release payment securely only after you are completely satisfied.</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>

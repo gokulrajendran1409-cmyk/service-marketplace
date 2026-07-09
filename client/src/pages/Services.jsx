@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
 import {
   Search,
   MapPin,
@@ -53,10 +53,24 @@ const allServices = [
 const sortOptions = ["Relevance", "Price: Low to High", "Price: High to Low", "Rating", "Most Reviews"];
 
 export default function ServicesPage() {
-  const [searchQuery, setSearchQuery] = useState("");
+  const location = useLocation();
+  const [searchQuery, setSearchQuery] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get("search") || "";
+  });
+
   const [activeCategory, setActiveCategory] = useState("All");
   const [sortBy, setSortBy] = useState("Relevance");
   const [showSortDropdown, setShowSortDropdown] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const query = params.get("search");
+    if (query !== null) {
+      setSearchQuery(query);
+    }
+  }, [location.search]);
+
 
   const filteredServices = allServices
     .filter((s) => {

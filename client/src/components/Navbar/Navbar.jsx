@@ -22,9 +22,13 @@ export default function Navbar() {
           <NavLink to="/register" className={({ isActive }) => `${linkClass} ${isActive ? "text-emerald-700" : ""}`}>
             Become a Pro
           </NavLink>
-          <a href="#how-it-works" className={linkClass}>How It Works</a>
-          <a href="#about" className={linkClass}>About Us</a>
-          <a href="#help" className={linkClass}>Help</a>
+          <a href="/#how-it-works" className={linkClass}>How It Works</a>
+          <NavLink to="/about" className={({ isActive }) => `${linkClass} ${isActive ? "text-emerald-700" : ""}`}>
+            About Us
+          </NavLink>
+          <NavLink to="/help" className={({ isActive }) => `${linkClass} ${isActive ? "text-emerald-700" : ""}`}>
+            Help
+          </NavLink>
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
@@ -50,9 +54,9 @@ export default function Navbar() {
         <div className="mt-4 flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-lg md:hidden">
           <Link to="/services" onClick={() => setOpen(false)} className="font-medium text-slate-700">Find Services</Link>
           <Link to="/register" className="font-medium text-slate-700">Become a Pro</Link>
-          <a href="#how-it-works" className="font-medium text-slate-700">How It Works</a>
-          <a href="#about" className="font-medium text-slate-700">About Us</a>
-          <a href="#help" className="font-medium text-slate-700">Help</a>
+          <a href="/#how-it-works" className="font-medium text-slate-700">How It Works</a>
+          <Link to="/about" onClick={() => setOpen(false)} className="font-medium text-slate-700">About Us</Link>
+          <Link to="/help" onClick={() => setOpen(false)} className="font-medium text-slate-700">Help</Link>
           <Link to="/login" className="rounded-full border border-slate-200 px-4 py-2 text-center font-semibold text-slate-700">Log in</Link>
           <Link to="/register" className="rounded-full bg-emerald-700 px-4 py-2 text-center font-semibold text-white">Sign up</Link>
         </div>
