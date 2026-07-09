@@ -228,10 +228,10 @@ export default function ServicesPage() {
                     <p className="text-xl font-extrabold text-slate-900">₹{service.price}</p>
                   </div>
                   <Link
-                    to="/book-service"
+                    to={`/professionals?category=${service.category}`}
                     className="inline-flex items-center gap-2 rounded-full bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800"
                   >
-                    Book Now
+                    View Pros
                     <ArrowRight size={14} />
                   </Link>
                 </div>

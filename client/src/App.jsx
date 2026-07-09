@@ -5,11 +5,13 @@ import LoginPage from "./pages/auth/Login";
 import RegisterPage from "./pages/auth/Register";
 import CustomerDashboard from "./pages/customer/Dashboard";
 import ProfessionalDashboard from "./pages/professional/Dashboard";
-import BookingPage from "./pages/BookingPage";
 import NotFoundPage from "./pages/NotFound";
 import ServicesPage from "./pages/Services";
 import AboutPage from "./pages/About";
 import HelpPage from "./pages/Help";
+import ProfessionalListing from "./pages/ProfessionalListing";
+import ProfessionalProfile from "./pages/ProfessionalProfile";
+import BookingFlow from "./pages/BookingFlow";
 
 
 function App() {
@@ -25,7 +27,9 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/customer/dashboard" element={<CustomerDashboard />} />
         <Route path="/professional/dashboard" element={<ProfessionalDashboard />} />
-        <Route path="/book-service" element={<BookingPage />} />
+        <Route path="/professionals" element={<ProfessionalListing />} />
+        <Route path="/professional/:id" element={<ProfessionalProfile />} />
+        <Route path="/book/:id" element={<BookingFlow />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </div>
