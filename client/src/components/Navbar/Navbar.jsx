@@ -16,7 +16,7 @@ export default function Navbar() {
         </Link>
 
         <div className="hidden items-center gap-8 font-medium text-slate-700 md:flex">
-          <NavLink to="/" className={({ isActive }) => `${linkClass} ${isActive ? "text-emerald-700" : ""}`}>
+          <NavLink to="/services" className={({ isActive }) => `${linkClass} ${isActive ? "text-emerald-700" : ""}`}>
             Find Services
           </NavLink>
           <NavLink to="/register" className={({ isActive }) => `${linkClass} ${isActive ? "text-emerald-700" : ""}`}>
@@ -48,7 +48,7 @@ export default function Navbar() {
 
       {open && (
         <div className="mt-4 flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-lg md:hidden">
-          <Link to="/" className="font-medium text-slate-700">Find Services</Link>
+          <Link to="/services" onClick={() => setOpen(false)} className="font-medium text-slate-700">Find Services</Link>
           <Link to="/register" className="font-medium text-slate-700">Become a Pro</Link>
           <a href="#how-it-works" className="font-medium text-slate-700">How It Works</a>
           <a href="#about" className="font-medium text-slate-700">About Us</a>

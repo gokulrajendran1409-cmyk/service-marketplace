@@ -7,6 +7,8 @@ import CustomerDashboard from "./pages/customer/Dashboard";
 import ProfessionalDashboard from "./pages/professional/Dashboard";
 import BookingPage from "./pages/BookingPage";
 import NotFoundPage from "./pages/NotFound";
+import ServicesPage from "./pages/Services";
+
 
 function App() {
   return (
@@ -14,6 +16,7 @@ function App() {
       <Navbar />
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/services" element={<ServicesPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/customer/dashboard" element={<CustomerDashboard />} />
