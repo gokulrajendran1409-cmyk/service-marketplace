@@ -19,9 +19,7 @@ export default function Navbar() {
           <NavLink to="/services" className={({ isActive }) => `${linkClass} ${isActive ? "text-emerald-700" : ""}`}>
             Find Services
           </NavLink>
-          <NavLink to="/register" className={({ isActive }) => `${linkClass} ${isActive ? "text-emerald-700" : ""}`}>
-            Become a Pro
-          </NavLink>
+
           <NavLink to="/how-it-works" className={({ isActive }) => `${linkClass} ${isActive ? "text-emerald-700" : ""}`}>
             How It Works
           </NavLink>
@@ -55,7 +53,7 @@ export default function Navbar() {
       {open && (
         <div className="mt-4 flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-lg md:hidden">
           <Link to="/services" onClick={() => setOpen(false)} className="font-medium text-slate-700">Find Services</Link>
-          <Link to="/register" className="font-medium text-slate-700">Become a Pro</Link>
+
           <Link to="/how-it-works" onClick={() => setOpen(false)} className="font-medium text-slate-700">How It Works</Link>
           <Link to="/about" onClick={() => setOpen(false)} className="font-medium text-slate-700">About Us</Link>
           <Link to="/help" onClick={() => setOpen(false)} className="font-medium text-slate-700">Help</Link>

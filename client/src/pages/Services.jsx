@@ -43,15 +43,22 @@ export default function ServicesPage() {
     return params.get("search") || "";
   });
 
-  const [activeCategory, setActiveCategory] = useState("All");
+  const [activeCategory, setActiveCategory] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get("category") || "All";
+  });
   const [sortBy, setSortBy] = useState("Relevance");
   const [showSortDropdown, setShowSortDropdown] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const query = params.get("search");
+    const category = params.get("category");
     if (query !== null) {
       setSearchQuery(query);
+    }
+    if (category) {
+      setActiveCategory(category);
     }
   }, [location.search]);
 

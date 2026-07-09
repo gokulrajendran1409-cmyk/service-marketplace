@@ -88,11 +88,14 @@ export default function HomeSections() {
 
                 <div className="mt-5 flex flex-wrap gap-3 text-sm text-slate-600">
                   <span>Popular right now:</span>
-                  {['Plumber', 'Electrician'].map((item) => (
-                    <button key={item} className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-slate-700 transition hover:bg-emerald-700 hover:text-white">
-                      {item}
-                    </button>
-                  ))}
+                  {['Plumber', 'Electrician'].map((item) => {
+                    const categoryMap = { 'Plumber': 'Plumbing', 'Electrician': 'Electrical' };
+                    return (
+                      <button key={item} onClick={() => navigate(`/services?category=${categoryMap[item]}`)} className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-slate-700 transition hover:bg-emerald-700 hover:text-white">
+                        {item}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -133,7 +136,7 @@ export default function HomeSections() {
             {problems.map((problem) => {
               const Icon = problem.icon;
               return (
-                <Link to="/services" key={problem.title} className="group rounded-[30px] border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50">
+                <Link to={problem.title === 'Water Leak' ? '/services?category=Plumbing' : problem.title === 'Power Failure' ? '/services?category=Electrical' : '/services'} key={problem.title} className="group rounded-[30px] border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50">
                   <div className={`${problem.color} inline-flex h-14 w-14 items-center justify-center rounded-3xl`}>
                     <Icon size={24} />
                   </div>
@@ -161,7 +164,7 @@ export default function HomeSections() {
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2">
-            <div className="relative rounded-[36px] bg-white p-6 pt-8 shadow-[0_25px_60px_rgba(15,23,42,0.08)] mt-4 sm:mt-0">
+            <Link to="/services?category=Plumbing" className="relative rounded-[36px] bg-white p-6 pt-8 shadow-[0_25px_60px_rgba(15,23,42,0.08)] mt-4 sm:mt-0 block">
               <div className="absolute -top-4 left-6 z-10 inline-flex rounded-3xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-lg">Best Rated</div>
               <div className="aspect-[4/3] overflow-hidden rounded-[28px] bg-slate-100">
                 <img src="/images/plumbing.png" alt="Plumbing" className="h-full w-full object-cover transition duration-500 hover:scale-105" />
@@ -176,9 +179,9 @@ export default function HomeSections() {
                 </div>
               </div>
               <p className="mt-6 text-sm font-semibold text-slate-900">Starting at ₹299</p>
-            </div>
+            </Link>
             {serviceCards.map((card) => (
-              <div key={card.title} className="relative group flex flex-col rounded-[32px] border border-slate-200 bg-white p-6 pt-8 mt-4 sm:mt-0 shadow-sm transition hover:shadow-md">
+              <Link to={`/services?category=${card.title}`} key={card.title} className="relative group flex flex-col rounded-[32px] border border-slate-200 bg-white p-6 pt-8 mt-4 sm:mt-0 shadow-sm transition hover:shadow-md">
                 {card.badge && (
                   <div className={`absolute -top-4 left-6 z-10 inline-flex rounded-3xl ${card.badgeColor} px-4 py-2 text-sm font-semibold text-white shadow-lg`}>
                     {card.badge}
@@ -201,7 +204,7 @@ export default function HomeSections() {
                     <p className="text-sm font-semibold text-slate-900">{card.price}</p>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -229,7 +232,6 @@ export default function HomeSections() {
       </section>
 
 
-
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="rounded-[36px] bg-slate-950 p-8 text-white shadow-[0_30px_80px_rgba(15,23,42,0.25)]">
           <div className="grid gap-6 lg:grid-cols-4">
@@ -253,6 +255,9 @@ export default function HomeSections() {
           </div>
         </div>
       </section>
+
+
+
 
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid gap-8 xl:grid-cols-[1.4fr_0.8fr]">
