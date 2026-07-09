@@ -114,7 +114,7 @@ export default function HomeSections() {
             {problems.map((problem) => {
               const Icon = problem.icon;
               return (
-                <button key={problem.title} className="group rounded-[30px] border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50">
+                <Link to="/services" key={problem.title} className="group rounded-[30px] border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50">
                   <div className={`${problem.color} inline-flex h-14 w-14 items-center justify-center rounded-3xl`}>
                     <Icon size={24} />
                   </div>
@@ -123,7 +123,7 @@ export default function HomeSections() {
                   <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-emerald-700">
                     Explore <ArrowRight size={16} />
                   </span>
-                </button>
+                </Link>
               );
             })}
           </div>
@@ -135,10 +135,10 @@ export default function HomeSections() {
           <div className="self-start rounded-[32px] bg-slate-950 p-6 text-white shadow-[0_30px_80px_rgba(15,23,42,0.18)] xl:sticky xl:top-32">
             <p className="text-xs uppercase tracking-[0.24em] text-emerald-300">Popular Services</p>
             <h2 className="mt-3 text-2xl font-extrabold leading-tight lg:text-3xl">Top-rated services to keep your home running smoothly.</h2>
-            <button className="mt-6 inline-flex items-center gap-2 rounded-3xl bg-emerald-700 px-5 py-3 text-sm font-semibold transition hover:bg-emerald-800">
+            <Link to="/services" className="mt-6 inline-flex items-center gap-2 rounded-3xl bg-emerald-700 px-5 py-3 text-sm font-semibold transition hover:bg-emerald-800">
               View all services
               <ArrowRight size={16} />
-            </button>
+            </Link>
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2">
