@@ -167,7 +167,28 @@ export default function CustomerDashboard() {
           </div>
 
           <div className="grid gap-6 xl:grid-cols-[1.5fr_0.9fr]">
-            <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+            <article className="xl:order-2 rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-700">Quick Services</p>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                {quickServices.map((service) => {
+                  const Icon = service.icon;
+                  return (
+                    <button key={service.label} className="flex items-center gap-4 rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4 text-left transition hover:bg-white">
+                      <span className={`inline-flex h-12 w-12 items-center justify-center rounded-3xl ${service.color}`}>
+                        <Icon size={20} />
+                      </span>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">{service.label}</p>
+                        <p className="text-sm text-slate-500">Book instantly</p>
+                      </div>
+                      <ChevronRight className="ml-auto text-slate-400" />
+                    </button>
+                  );
+                })}
+              </div>
+            </article>
+
+            <article className="xl:order-1 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-700">Upcoming Booking</p>
@@ -197,27 +218,6 @@ export default function CustomerDashboard() {
               <div className="mt-6 flex flex-wrap gap-3">
                 <button className="inline-flex items-center justify-center rounded-2xl bg-emerald-700 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800">Track</button>
                 <button className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">Chat</button>
-              </div>
-            </article>
-
-            <article className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-700">Quick Services</p>
-              <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                {quickServices.map((service) => {
-                  const Icon = service.icon;
-                  return (
-                    <button key={service.label} className="flex items-center gap-4 rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4 text-left transition hover:bg-white">
-                      <span className={`inline-flex h-12 w-12 items-center justify-center rounded-3xl ${service.color}`}>
-                        <Icon size={20} />
-                      </span>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-950">{service.label}</p>
-                        <p className="text-sm text-slate-500">Book instantly</p>
-                      </div>
-                      <ChevronRight className="ml-auto text-slate-400" />
-                    </button>
-                  );
-                })}
               </div>
             </article>
           </div>
