@@ -193,12 +193,10 @@ export default function ProfessionalRegistration() {
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Email Address</label>
                   <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="john@example.com" />
                 </div>
-                {!user && (
-                  <div className="sm:col-span-2">
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Create Password</label>
-                    <input type="password" name="password" value={formData.password} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Minimum 6 characters" />
-                  </div>
-                )}
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Create Password</label>
+                  <input type="password" name="password" value={formData.password} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Minimum 6 characters" />
+                </div>
               </div>
             </div>
           )}
