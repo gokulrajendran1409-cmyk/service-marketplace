@@ -37,8 +37,8 @@ export default function ProfessionalDashboard() {
 
   return (
     <main className="min-h-screen bg-[#f8f5ef] pt-28 text-slate-900">
-      <div className="mx-auto grid max-w-[1550px] gap-6 px-4 py-6 xl:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="hidden xl:block sticky top-6 rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-[0_24px_68px_-32px_rgba(15,23,42,0.2)]">
+      <div className="mx-auto grid max-w-[1550px] gap-6 px-4 py-6 xl:grid-cols-[280px_minmax(0,1fr)] xl:min-h-[calc(100vh-3.5rem)]">
+        <aside className="hidden xl:block sticky top-6 self-start min-h-[calc(100vh-4rem)] rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-[0_24px_68px_-32px_rgba(15,23,42,0.2)]">
           <div className="mb-10 flex items-center justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.35em] text-emerald-700">Servora</p>
