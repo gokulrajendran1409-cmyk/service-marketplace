@@ -44,10 +44,7 @@ export default function ProfessionalRegistration() {
   });
 
   const createInitialFormData = () => ({
-    ...createEmptyFormData(),
-    fullName: user?.full_name || "",
-    phone: user?.phone || "",
-    email: user?.email || ""
+    ...createEmptyFormData()
   });
 
   // Form State
