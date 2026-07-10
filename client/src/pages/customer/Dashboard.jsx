@@ -133,6 +133,25 @@ export default function CustomerDashboard() {
         </aside>
 
         <section className="space-y-6">
+          <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm xl:hidden">
+            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-700">Service Hub</p>
+            <h2 className="mt-3 text-2xl font-extrabold text-slate-950">My Space</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Quick access to your bookings, chats, and favorite services.</p>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              {sidebarLinks.slice(0,4).map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button key={item.label} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                      <Icon size={16} />
+                    </span>
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
               <div>
