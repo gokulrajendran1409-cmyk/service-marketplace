@@ -52,7 +52,7 @@ const registerUser = async (req, res) => {
         res.status(201).json({
             success: true,
             message: "User registered successfully.",
-            userId: result.insertId
+            userId: result.id
         });
 
     } catch (error) {
@@ -91,12 +91,13 @@ const loginUser = async (req, res) => {
             });
         }
 
+        const jwtSecret = process.env.JWT_SECRET || 'dev_jwt_secret';
         const token = jwt.sign(
             {
                 id: user[0].id,
                 role: user[0].role
             },
-            process.env.JWT_SECRET,
+            jwtSecret,
             {
                 expiresIn: "7d"
             }
@@ -108,7 +109,7 @@ const loginUser = async (req, res) => {
             token,
             user: {
                 id: user[0].id,
-                full_name: user[0].name,
+                full_name: user[0].full_name,
                 phone: user[0].phone,
                 email: user[0].email,
                 role: user[0].role

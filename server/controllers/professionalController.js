@@ -1,5 +1,3 @@
-const db = require('../config/db');
-
 exports.searchProfessionals = async (req, res) => {
     try {
         res.json({ message: "Search professionals endpoint" });

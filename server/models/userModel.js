@@ -3,41 +3,27 @@ const db = require("../config/db");
 const createUser = async (userData) => {
     const { full_name, phone, email, password, role } = userData;
 
-    const sql = `
-        INSERT INTO users
-        (name, phone, email, password, role)
-        VALUES (?, ?, ?, ?, ?)
-    `;
-
-    const [result] = await db.execute(sql, [
+    const userRef = await db.collection("users").add({
         full_name,
         phone,
         email,
         password,
-        role
-    ]);
+        role,
+        createdAt: new Date().toISOString(),
+    });
 
-    return result;
+    return { id: userRef.id };
 };
 
 const findUserByPhone = async (phone) => {
-
-    const sql = "SELECT * FROM users WHERE phone = ?";
-
-    const [rows] = await db.execute(sql, [phone]);
-
-    return rows;
+    const snapshot = await db.collection("users").where("phone", "==", phone).get();
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 };
 
 const findUserByEmail = async (email) => {
-
-    const sql = "SELECT * FROM users WHERE email = ?";
-
-    const [rows] = await db.execute(sql, [email]);
-
-    return rows;
+    const snapshot = await db.collection("users").where("email", "==", email).get();
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 };
-
 
 module.exports = {
     createUser,

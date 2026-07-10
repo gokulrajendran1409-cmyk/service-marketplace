@@ -1,21 +1,13 @@
 const db = require("../config/db");
 
 const getAllCategories = async () => {
+    const snapshot = await db
+        .collection("categories")
+        .where("is_active", "==", true)
+        .orderBy("name", "asc")
+        .get();
 
-    const sql = `
-        SELECT
-            id,
-            name,
-            icon,
-            description
-        FROM categories
-        WHERE is_active = TRUE
-        ORDER BY name ASC
-    `;
-
-    const [rows] = await db.execute(sql);
-
-    return rows;
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 };
 
 module.exports = {

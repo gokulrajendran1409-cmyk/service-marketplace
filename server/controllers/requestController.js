@@ -1,5 +1,3 @@
-const db = require('../config/db');
-
 exports.createRequest = async (req, res) => {
     try {
         res.json({ message: "Customer posts a custom requirement" });

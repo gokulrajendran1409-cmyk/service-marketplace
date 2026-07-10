@@ -1,5 +1,3 @@
-const db = require('../config/db');
-
 exports.createBooking = async (req, res) => {
     try {
         res.json({ message: "Create a new booking" });
