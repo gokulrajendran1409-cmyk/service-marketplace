@@ -107,6 +107,7 @@ export default function ProfessionalRegistration() {
         setError(res.message || "Registration failed. Please try again.");
       }
     } catch (err) {
+      console.error("ProfessionalRegistration error:", err);
       setError("Could not connect to the server. Please try again.");
     } finally {
       setLoading(false);

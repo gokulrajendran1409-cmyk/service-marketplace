@@ -50,6 +50,7 @@ export default function LoginPage() {
         setError(res.message || "Login failed. Please try again.");
       }
     } catch (err) {
+      console.error("LoginPage error:", err);
       setError("Could not connect to the server. Please try again.");
     } finally {
       setLoading(false);

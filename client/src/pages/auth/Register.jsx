@@ -52,6 +52,7 @@ export default function RegisterPage() {
         setError(res.message || "Registration failed. Please try again.");
       }
     } catch (err) {
+      console.error("RegisterPage error:", err);
       setError("Could not connect to the server. Please try again.");
     } finally {
       setLoading(false);

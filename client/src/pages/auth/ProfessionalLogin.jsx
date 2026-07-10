@@ -54,6 +54,7 @@ export default function ProfessionalLogin() {
         setError(res.message || "Login failed. Please try again.");
       }
     } catch (err) {
+      console.error("ProfessionalLogin error:", err);
       setError("Could not connect to the server. Please try again.");
     } finally {
       setLoading(false);

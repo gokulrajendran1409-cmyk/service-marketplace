@@ -56,6 +56,7 @@ export async function registerUser(data) {
       user: { id: userCredential.user.uid, ...userData },
     };
   } catch (error) {
+    console.error("Firebase registration error:", error);
     return {
       success: false,
       message:
@@ -90,6 +91,7 @@ export async function loginUser(data) {
       token: idToken,
     };
   } catch (error) {
+    console.error("Firebase login error:", error);
     return {
       success: false,
       message:
@@ -174,6 +176,7 @@ export async function registerProfessional(data) {
     const updatedUser = await getUserProfile(currentUid);
     return { success: true, user: updatedUser };
   } catch (error) {
+    console.error("Firebase professional registration error:", error);
     return {
       success: false,
       message:
