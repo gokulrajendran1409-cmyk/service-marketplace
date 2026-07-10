@@ -33,15 +33,15 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const res = await loginUser(form);
+      const res = await loginUser({ ...form, portal: "customer" });
       if (res.success) {
         login(res.user, res.token);
         setSuccess("Login successful! Redirecting...");
         setTimeout(() => {
           if (returnTo) {
             navigate(returnTo);
-          } else if (res.user.role === "professional") {
-            navigate("/professional/dashboard");
+          } else if (res.user.roles?.professional) {
+            navigate("/customer/dashboard");
           } else {
             navigate("/customer/dashboard");
           }

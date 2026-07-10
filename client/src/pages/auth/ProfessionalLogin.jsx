@@ -33,9 +33,9 @@ export default function ProfessionalLogin() {
 
     setLoading(true);
     try {
-      const res = await loginUser(form);
+      const res = await loginUser({ ...form, portal: "professional" });
       if (res.success) {
-        if (res.user.role !== "professional") {
+        if (!res.user.roles?.professional) {
           setError("This portal is only for registered professionals.");
           setLoading(false);
           return;

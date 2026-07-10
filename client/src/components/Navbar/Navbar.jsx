@@ -71,7 +71,7 @@ export default function Navbar() {
                     <p className="text-xs text-slate-500 capitalize">{user.role}</p>
                   </div>
                   <Link
-                    to={user.role === "professional" ? "/professional/dashboard" : "/customer/dashboard"}
+                    to={user.roles?.professional ? "/professional/dashboard" : "/customer/dashboard"}
                     onClick={() => setDropdownOpen(false)}
                     className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
                   >
@@ -112,7 +112,7 @@ export default function Navbar() {
           <hr className="border-slate-100" />
           {user ? (
             <>
-              <Link to={user.role === "professional" ? "/professional/dashboard" : "/customer/dashboard"} onClick={() => setOpen(false)} className="font-medium text-slate-700">My Dashboard</Link>
+              <Link to={user.roles?.professional ? "/professional/dashboard" : "/customer/dashboard"} onClick={() => setOpen(false)} className="font-medium text-slate-700">My Dashboard</Link>
               <button onClick={handleLogout} className="text-left font-medium text-rose-600">Log out</button>
             </>
           ) : (

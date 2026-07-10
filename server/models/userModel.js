@@ -1,46 +1,52 @@
 const db = require("../config/db");
 
-const createUser = async (userData) => {
-    const { full_name, phone, email, password, role } = userData;
+const createCustomer = async (customerData) => {
+    const { full_name, phone, email, password } = customerData;
 
-    const sql = `
-        INSERT INTO users
-        (name, phone, email, password, role)
-        VALUES (?, ?, ?, ?, ?)
-    `;
-
-    const [result] = await db.execute(sql, [
-        full_name,
-        phone,
-        email,
-        password,
-        role
-    ]);
+    const [result] = await db.execute(
+        `INSERT INTO customers (name, phone, email, password) VALUES (?, ?, ?, ?)`,
+        [full_name, phone, email, password]
+    );
 
     return result;
 };
 
-const findUserByPhone = async (phone) => {
+const createProfessional = async (professionalData) => {
+    const { full_name, phone, email, password } = professionalData;
 
-    const sql = "SELECT * FROM users WHERE phone = ?";
+    const [result] = await db.execute(
+        `INSERT INTO professionals_account (name, phone, email, password) VALUES (?, ?, ?, ?)`,
+        [full_name, phone, email, password]
+    );
 
-    const [rows] = await db.execute(sql, [phone]);
+    return result;
+};
 
+const findCustomerByPhone = async (phone) => {
+    const [rows] = await db.execute("SELECT * FROM customers WHERE phone = ?", [phone]);
     return rows;
 };
 
-const findUserByEmail = async (email) => {
-
-    const sql = "SELECT * FROM users WHERE email = ?";
-
-    const [rows] = await db.execute(sql, [email]);
-
+const findCustomerByEmail = async (email) => {
+    const [rows] = await db.execute("SELECT * FROM customers WHERE email = ?", [email]);
     return rows;
 };
 
+const findProfessionalByPhone = async (phone) => {
+    const [rows] = await db.execute("SELECT * FROM professionals_account WHERE phone = ?", [phone]);
+    return rows;
+};
+
+const findProfessionalByEmail = async (email) => {
+    const [rows] = await db.execute("SELECT * FROM professionals_account WHERE email = ?", [email]);
+    return rows;
+};
 
 module.exports = {
-    createUser,
-    findUserByPhone,
-    findUserByEmail
+    createCustomer,
+    createProfessional,
+    findCustomerByPhone,
+    findCustomerByEmail,
+    findProfessionalByPhone,
+    findProfessionalByEmail
 };

@@ -17,3 +17,19 @@ export async function loginUser(data) {
   });
   return res.json();
 }
+
+export async function registerProfessional(data) {
+  const token = localStorage.getItem("token");
+  const headers = { "Content-Type": "application/json" };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${BASE_URL}/professionals/register`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}

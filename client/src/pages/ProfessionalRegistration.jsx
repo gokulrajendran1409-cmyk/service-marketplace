@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { 
   CheckCircle2, ChevronRight, ChevronLeft, UploadCloud, User, 
-  MapPin, Briefcase, DollarSign, Calendar, FileText, Banknote, ShieldCheck
+  MapPin, Briefcase, DollarSign, Calendar, FileText, Banknote, ShieldCheck, AlertCircle
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { registerProfessional } from "../api/auth";
 
 export default function ProfessionalRegistration() {
   const navigate = useNavigate();
@@ -13,40 +14,60 @@ export default function ProfessionalRegistration() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
 
-  // Form State
-  const [formData, setFormData] = useState({
-    // Step 1: Personal
-    fullName: user?.full_name || "",
-    phone: user?.phone || "",
-    email: user?.email || "",
-    password: "", // Only if new user
-    // Step 2: Professional
+  const createEmptyFormData = () => ({
+    fullName: "",
+    phone: "",
+    email: "",
+    password: "",
     profession: "",
     experience: "",
     languages: "",
     bio: "",
-    // Step 3: Address
     state: "",
     district: "",
     city: "",
     pincode: "",
     serviceArea: "",
-    // Step 4: Pricing & Availability
     visitCharge: "",
     hourlyRate: "",
     emergencyCharge: "",
     workingHours: "",
     emergencyService: false,
-    // Step 5: Docs (mocked as string for now)
     idProof: "",
     certificate: "",
     profilePhoto: "",
-    // Step 6: Bank
     bankName: "",
     accountNumber: "",
     ifscCode: ""
   });
+
+  const createInitialFormData = () => ({
+    ...createEmptyFormData(),
+    fullName: user?.full_name || "",
+    phone: user?.phone || "",
+    email: user?.email || ""
+  });
+
+  // Form State
+  const [formData, setFormData] = useState(createInitialFormData());
+
+  useEffect(() => {
+    setFormData(createInitialFormData());
+    setStep(1);
+    setError("");
+    setSuccess(false);
+    setLoading(false);
+  }, [user?.full_name, user?.phone, user?.email]);
+
+  const resetForm = () => {
+    setFormData(createEmptyFormData());
+    setStep(1);
+    setError("");
+    setSuccess(false);
+    setLoading(false);
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -54,20 +75,53 @@ export default function ProfessionalRegistration() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+    setError("");
   };
 
   const handleNext = () => setStep(s => Math.min(s + 1, 6));
   const handleBack = () => setStep(s => Math.max(s - 1, 1));
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+
+    // Validate required fields
+    if (!formData.fullName || !formData.phone || !formData.email || (!user && !formData.password)) {
+      setError("Please fill in all required personal details (Step 1).");
+      setStep(1);
+      return;
+    }
+    if (!formData.profession) {
+      setError("Please select a profession (Step 2).");
+      setStep(2);
+      return;
+    }
+
     setLoading(true);
-    // Simulate API submission
-    setTimeout(() => {
+    try {
+      const res = await registerProfessional(formData);
+      if (res.success) {
+        resetForm();
+        setSuccess(true);
+      } else {
+        setError(res.message || "Registration failed. Please try again.");
+      }
+    } catch (err) {
+      setError("Could not connect to the server. Please try again.");
+    } finally {
       setLoading(false);
-      setSuccess(true);
-    }, 1500);
+    }
   };
+
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        navigate("/professional/login");
+      }, 1800);
+
+      return () => clearTimeout(timer);
+    }
+  }, [success, navigate]);
 
   if (success) {
     return (
@@ -80,11 +134,12 @@ export default function ProfessionalRegistration() {
           <p className="text-slate-600 mb-8">
             Thank you for registering. Your profile is currently <span className="font-bold text-amber-600">Pending Verification</span>. Our admin team will review your documents within 24-48 hours.
           </p>
+          <p className="text-sm text-slate-500 mb-4">Redirecting you to the professional login page...</p>
           <Link 
-            to="/professional/dashboard" 
+            to="/professional/login" 
             className="inline-block w-full rounded-full bg-slate-900 px-6 py-4 font-bold text-white transition hover:bg-slate-800"
           >
-            Go to Dashboard
+            Go to Login
           </Link>
         </div>
       </main>
@@ -310,6 +365,14 @@ export default function ProfessionalRegistration() {
                 <ShieldCheck className="shrink-0 h-5 w-5" />
                 <p>Your bank details are encrypted and stored securely. Payouts are processed weekly.</p>
               </div>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {error && (
+            <div className="mt-6 flex items-start gap-3 rounded-2xl bg-rose-50 border border-rose-200 p-4 text-sm text-rose-700">
+              <AlertCircle className="shrink-0 mt-0.5" size={18} />
+              <p className="font-medium">{error}</p>
             </div>
           )}
 
