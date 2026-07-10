@@ -14,8 +14,10 @@ import ProfessionalListing from "./pages/ProfessionalListing";
 import ProfessionalProfile from "./pages/ProfessionalProfile";
 import BookingFlow from "./pages/BookingFlow";
 import HowItWorks from "./pages/HowItWorks";
-
-
+import BecomeProfessional from "./pages/BecomeProfessional";
+import ProfessionalRegistration from "./pages/ProfessionalRegistration";
+import ProfessionalLogin from "./pages/auth/ProfessionalLogin";
+import AdminDashboard from "./pages/AdminDashboard";
 function ScrollToTop() {
   const { pathname } = useLocation();
 
@@ -41,9 +43,13 @@ function App() {
         <Route path="/how-it-works" element={<HowItWorks />} />
         <Route path="/customer/dashboard" element={<CustomerDashboard />} />
         <Route path="/professional/dashboard" element={<ProfessionalDashboard />} />
-        <Route path="/professionals" element={<ProfessionalListing />} />
+        <Route path="/professionals" element={<BecomeProfessional />} />
+        <Route path="/professional/register" element={<ProfessionalRegistration />} />
+        <Route path="/professional/login" element={<ProfessionalLogin />} />
+        <Route path="/search-professionals" element={<ProfessionalListing />} />
         <Route path="/professional/:id" element={<ProfessionalProfile />} />
         <Route path="/book/:id" element={<BookingFlow />} />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </div>
