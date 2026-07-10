@@ -137,8 +137,8 @@ export default function CustomerDashboard() {
             <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-700">Service Hub</p>
             <h2 className="mt-3 text-2xl font-extrabold text-slate-950">My Space</h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">Quick access to your bookings, chats, and favorite services.</p>
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              {sidebarLinks.slice(0,4).map((item) => {
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {sidebarLinks.map((item) => {
                 const Icon = item.icon;
                 return (
                   <button key={item.label} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
