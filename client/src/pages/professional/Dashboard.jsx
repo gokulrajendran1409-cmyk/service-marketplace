@@ -78,6 +78,25 @@ export default function ProfessionalDashboard() {
         </aside>
 
         <section className="space-y-6">
+          <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm xl:hidden">
+            <p className="text-sm font-semibold uppercase tracking-[0.35em] text-emerald-700">Pro Hub</p>
+            <h2 className="mt-3 text-2xl font-bold text-slate-950">My workspace</h2>
+            <p className="mt-2 text-sm text-slate-600">Access bookings, earnings, and requests quickly on mobile.</p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {sidebarItems.slice(0,6).map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button key={item.label} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                      <Icon size={16} />
+                    </span>
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <header className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.2)]">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div>
