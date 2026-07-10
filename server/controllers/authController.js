@@ -1,14 +1,10 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const db = require("../config/db");
 
 const {
-    createCustomer,
-    createProfessional,
-    findCustomerByPhone,
-    findCustomerByEmail,
-    findProfessionalByPhone,
-    findProfessionalByEmail
+    createUser,
+    findUserByPhone,
+    findUserByEmail
 } = require("../models/userModel");
 
 // ================= REGISTER =================
@@ -23,29 +19,17 @@ const registerUser = async (req, res) => {
             });
         }
 
-        const existingUser = await findCustomerByPhone(phone);
+        const existingUser = await findUserByPhone(phone);
 
         if (existingUser.length > 0) {
-            const passwordMatches = existingUser[0].password
-                ? await bcrypt.compare(password, existingUser[0].password)
-                : false;
-
-            if (!passwordMatches) {
-                return res.status(409).json({
-                    success: false,
-                    message: "Phone number already registered."
-                });
-            }
-
-            return res.status(200).json({
-                success: true,
-                message: "Account already exists. You can log in instead.",
-                userId: existingUser[0].id
+            return res.status(409).json({
+                success: false,
+                message: "Phone number already registered."
             });
         }
 
         if (email) {
-            const existingEmail = await findCustomerByEmail(email);
+            const existingEmail = await findUserByEmail(email);
 
             if (existingEmail.length > 0) {
                 return res.status(409).json({
@@ -57,17 +41,18 @@ const registerUser = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const result = await createCustomer({
+        const result = await createUser({
             full_name,
             phone,
             email,
-            password: hashedPassword
+            password: hashedPassword,
+            role: role || "customer"
         });
 
         res.status(201).json({
             success: true,
             message: "User registered successfully.",
-            userId: result.insertId
+            userId: result.id
         });
 
     } catch (error) {
@@ -83,57 +68,36 @@ const registerUser = async (req, res) => {
 // ================= LOGIN =================
 const loginUser = async (req, res) => {
     try {
-        const { phone, password, portal } = req.body;
+        const { phone, password } = req.body;
 
-        const isProfessionalPortal = (portal || "customer").toLowerCase() === "professional";
+        const user = await findUserByPhone(phone);
 
-        let user = null;
-        let role = "customer";
-        let roles = { customer: true, professional: false };
-
-        if (isProfessionalPortal) {
-            user = await findProfessionalByPhone(phone);
-            if (!user || user.length === 0) {
-                return res.status(404).json({
-                    success: false,
-                    message: "Professional not found."
-                });
-            }
-            user = user[0];
-            const isPasswordCorrect = await bcrypt.compare(password, user.password);
-            if (!isPasswordCorrect) {
-                return res.status(401).json({
-                    success: false,
-                    message: "Invalid password."
-                });
-            }
-            role = "professional";
-            roles = { customer: false, professional: true };
-        } else {
-            user = await findCustomerByPhone(phone);
-            if (!user || user.length === 0) {
-                return res.status(404).json({
-                    success: false,
-                    message: "User not found."
-                });
-            }
-            user = user[0];
-            const isPasswordCorrect = await bcrypt.compare(password, user.password);
-            if (!isPasswordCorrect) {
-                return res.status(401).json({
-                    success: false,
-                    message: "Invalid password."
-                });
-            }
+        if (user.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found."
+            });
         }
 
+        const isPasswordCorrect = await bcrypt.compare(
+            password,
+            user[0].password
+        );
+
+        if (!isPasswordCorrect) {
+            return res.status(401).json({
+                success: false,
+                message: "Invalid password."
+            });
+        }
+
+        const jwtSecret = process.env.JWT_SECRET || 'dev_jwt_secret';
         const token = jwt.sign(
             {
-                id: user.id,
-                role,
-                roles
+                id: user[0].id,
+                role: user[0].role
             },
-            process.env.JWT_SECRET,
+            jwtSecret,
             {
                 expiresIn: "7d"
             }
@@ -144,12 +108,11 @@ const loginUser = async (req, res) => {
             message: "Login successful.",
             token,
             user: {
-                id: user.id,
-                full_name: user.name,
-                phone: user.phone,
-                email: user.email,
-                role,
-                roles
+                id: user[0].id,
+                full_name: user[0].full_name,
+                phone: user[0].phone,
+                email: user[0].email,
+                role: user[0].role
             }
         });
 

@@ -1,5 +1,3 @@
-const db = require('../config/db');
-
 exports.getProfessionalServices = async (req, res) => {
     try {
         res.json({ message: `Get services for professional ${req.params.id}` });
