@@ -190,7 +190,7 @@ export default function AboutPage() {
             <a href="mailto:contact@servora.com" className="w-full sm:w-auto inline-flex items-center justify-center rounded-full bg-emerald-600 px-8 py-4 font-semibold text-white transition hover:bg-emerald-500">
               Contact Us
             </a>
-            <Link to="/register" className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full bg-white px-8 py-4 font-semibold text-slate-900 transition hover:bg-slate-100">
+            <Link to="/professional/register" className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full bg-white px-8 py-4 font-semibold text-slate-900 transition hover:bg-slate-100">
               Become a Professional <ArrowRight size={18} />
             </Link>
           </div>

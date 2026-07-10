@@ -33,15 +33,15 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const res = await loginUser(form);
+      const res = await loginUser({ ...form, portal: "customer" });
       if (res.success) {
         login(res.user, res.token);
         setSuccess("Login successful! Redirecting...");
         setTimeout(() => {
           if (returnTo) {
             navigate(returnTo);
-          } else if (res.user.role === "professional") {
-            navigate("/professional/dashboard");
+          } else if (res.user.roles?.professional) {
+            navigate("/customer/dashboard");
           } else {
             navigate("/customer/dashboard");
           }
@@ -63,8 +63,8 @@ export default function LoginPage() {
         <div className="rounded-[32px] bg-white p-8 shadow-[0_25px_80px_rgba(15,23,42,0.12)]">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 mb-8">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-700 text-white font-bold text-lg">W</div>
-            <span className="text-xl font-extrabold text-slate-900">Worksy.</span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-700 text-white font-bold text-lg">S</div>
+            <span className="text-xl font-extrabold text-slate-900">Servora.</span>
           </Link>
 
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-700">Welcome back</p>

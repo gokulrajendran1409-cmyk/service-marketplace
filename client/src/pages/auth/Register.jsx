@@ -64,39 +64,14 @@ export default function RegisterPage() {
         <div className="rounded-[32px] bg-white p-8 shadow-[0_25px_80px_rgba(15,23,42,0.12)]">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 mb-8">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-700 text-white font-bold text-lg">W</div>
-            <span className="text-xl font-extrabold text-slate-900">Worksy.</span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-700 text-white font-bold text-lg">S</div>
+            <span className="text-xl font-extrabold text-slate-900">Servora.</span>
           </Link>
 
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-700">Join Worksy</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-700">Join Servora</p>
           <h1 className="mt-2 text-3xl font-extrabold text-slate-950">Create your account</h1>
-          <p className="mt-2 text-sm text-slate-500">Book trusted professionals or offer your services.</p>
+          <p className="mt-2 text-sm text-slate-500">Book trusted professionals for your home needs.</p>
 
-          {/* Role Selector */}
-          <div className="mt-6 flex gap-3">
-            <button
-              type="button"
-              onClick={() => setForm({ ...form, role: "customer" })}
-              className={`flex-1 rounded-2xl border-2 py-3 text-sm font-bold transition ${
-                form.role === "customer"
-                  ? "border-emerald-600 bg-emerald-50 text-emerald-700"
-                  : "border-slate-200 text-slate-500 hover:border-slate-300"
-              }`}
-            >
-              👤 Customer
-            </button>
-            <button
-              type="button"
-              onClick={() => setForm({ ...form, role: "professional" })}
-              className={`flex-1 rounded-2xl border-2 py-3 text-sm font-bold transition ${
-                form.role === "professional"
-                  ? "border-emerald-600 bg-emerald-50 text-emerald-700"
-                  : "border-slate-200 text-slate-500 hover:border-slate-300"
-              }`}
-            >
-              🔧 Professional
-            </button>
-          </div>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             {/* Full Name */}

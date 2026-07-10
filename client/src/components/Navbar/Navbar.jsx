@@ -22,8 +22,8 @@ export default function Navbar() {
     <nav className="fixed left-1/2 top-5 z-50 w-[95%] max-w-7xl -translate-x-1/2 rounded-[32px] border border-white/70 bg-white/90 px-6 py-4 shadow-[0_20px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl">
       <div className="flex items-center justify-between gap-4">
         <Link to="/" className="flex items-center gap-3 text-xl font-extrabold text-slate-900">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-700 text-white">W</div>
-          Worksy.
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-700 text-white">S</div>
+          Servora.
         </Link>
 
         <div className="hidden items-center gap-8 font-medium text-slate-700 md:flex">
@@ -32,6 +32,9 @@ export default function Navbar() {
           </NavLink>
           <NavLink to="/how-it-works" className={({ isActive }) => `${linkClass} ${isActive ? "text-emerald-700" : ""}`}>
             How It Works
+          </NavLink>
+          <NavLink to="/professionals" className={({ isActive }) => `${linkClass} ${isActive ? "text-emerald-700" : ""}`}>
+            For Professionals
           </NavLink>
           <NavLink to="/about" className={({ isActive }) => `${linkClass} ${isActive ? "text-emerald-700" : ""}`}>
             About Us
@@ -68,7 +71,7 @@ export default function Navbar() {
                     <p className="text-xs text-slate-500 capitalize">{user.role}</p>
                   </div>
                   <Link
-                    to={user.role === "professional" ? "/professional/dashboard" : "/customer/dashboard"}
+                    to={user.roles?.professional ? "/professional/dashboard" : "/customer/dashboard"}
                     onClick={() => setDropdownOpen(false)}
                     className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
                   >
@@ -109,7 +112,7 @@ export default function Navbar() {
           <hr className="border-slate-100" />
           {user ? (
             <>
-              <Link to={user.role === "professional" ? "/professional/dashboard" : "/customer/dashboard"} onClick={() => setOpen(false)} className="font-medium text-slate-700">My Dashboard</Link>
+              <Link to={user.roles?.professional ? "/professional/dashboard" : "/customer/dashboard"} onClick={() => setOpen(false)} className="font-medium text-slate-700">My Dashboard</Link>
               <button onClick={handleLogout} className="text-left font-medium text-rose-600">Log out</button>
             </>
           ) : (
