@@ -177,6 +177,11 @@ export async function registerProfessional(data) {
       const userCredential = await createUserWithEmailAndPassword(auth, authEmail, password);
       console.log("✅ Firebase account created:", userCredential.user.uid, "Email:", userCredential.user.email);
       uid = userCredential.user.uid;
+
+      if (!auth.currentUser || auth.currentUser.uid !== uid) {
+        console.log("🔐 Signing in newly created professional account", authEmail);
+        await signInWithEmailAndPassword(auth, authEmail, password);
+      }
     } else {
       const currentUserProfile = await getUserProfile(currentUid);
       if (currentUserProfile?.phone !== phone) {
@@ -187,12 +192,19 @@ export async function registerProfessional(data) {
       }
     }
 
+    if (!auth.currentUser || auth.currentUser.uid !== uid) {
+      return {
+        success: false,
+        message: "Unable to authenticate user before saving professional profile.",
+      };
+    }
+
     const userRef = doc(db, "users", uid);
     const existing = await getDoc(userRef);
 
     const userData = {
       roles: {
-        customer: currentUid ? existing.data()?.roles?.customer ?? false : Boolean(existingPhoneUser?.roles?.customer),
+        customer: currentUid ? existing.data()?.roles?.customer ?? false : false,
         professional: true,
       },
       professionalDetails: {
