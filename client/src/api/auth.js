@@ -40,13 +40,32 @@ export async function registerUser(data) {
       };
     }
 
+    if (!password) {
+      return { success: false, message: "Password is required to create or upgrade an account." };
+    }
+
     const authEmail = buildAuthEmail(phone);
     const methods = await fetchSignInMethodsForEmail(auth, authEmail);
     if (methods.length > 0) {
-      return {
-        success: false,
-        message: "Phone is already registered. Please login instead of registering again.",
-      };
+      console.log("🔄 Existing account found, upgrading to customer role:", authEmail);
+      const userCredential = await signInWithEmailAndPassword(auth, authEmail, password);
+      const userRef = doc(db, "users", userCredential.user.uid);
+      const snapshot = await getDoc(userRef);
+      if (!snapshot.exists()) {
+        return { success: false, message: "User profile not found." };
+      }
+
+      const existingRoles = snapshot.data().roles || { customer: false, professional: false };
+      if (existingRoles.customer) {
+        return { success: true, user: { id: userCredential.user.uid, ...snapshot.data(), roles: existingRoles } };
+      }
+
+      await updateDoc(userRef, {
+        roles: { ...existingRoles, customer: true },
+      });
+
+      const updatedUser = await getUserProfile(userCredential.user.uid);
+      return { success: true, user: updatedUser };
     }
 
     console.log("📝 Registering user:", { phone, authEmail, email, full_name });
@@ -54,7 +73,6 @@ export async function registerUser(data) {
     console.log("✅ Firebase account created:", userCredential.user.uid, "Email:", userCredential.user.email);
 
     await userCredential.user.getIdToken(true);
-    await signInWithEmailAndPassword(auth, authEmail, password);
     await auth.currentUser?.reload();
     await auth.currentUser?.getIdToken(true);
 
@@ -83,7 +101,9 @@ export async function registerUser(data) {
     return {
       success: false,
       message:
-        error.code === "auth/email-already-in-use"
+        error.code === "auth/wrong-password"
+          ? "Invalid password."
+          : error.code === "auth/email-already-in-use"
           ? "Phone or email already registered."
           : error.message || "Registration failed.",
     };
@@ -107,8 +127,15 @@ export async function loginUser(data) {
     }
 
     if (portal === "customer" && !userProfile.roles?.customer) {
-      await signOut(auth);
-      return { success: false, message: "This portal is for registered customers only. Please use the professional portal." };
+      if (userProfile.roles?.professional) {
+        const userRef = doc(db, "users", userCredential.user.uid);
+        const upgradedRoles = { ...userProfile.roles, customer: true };
+        await updateDoc(userRef, { roles: upgradedRoles });
+        userProfile.roles = upgradedRoles;
+      } else {
+        await signOut(auth);
+        return { success: false, message: "This portal is for registered customers only. Please use the professional portal." };
+      }
     }
 
     if (portal === "professional" && !userProfile.roles?.professional) {
@@ -165,19 +192,49 @@ export async function registerProfessional(data) {
     const currentUser = auth.currentUser;
     const currentUid = currentUser?.uid;
     let uid = currentUid;
+    const authEmail = buildAuthEmail(phone);
+
+    const professionalDetails = {
+      profession,
+      experience,
+      languages,
+      bio,
+      address: { state, district, city, pincode },
+      serviceArea,
+      pricing: { visitCharge, hourlyRate, emergencyCharge },
+      workingHours,
+      emergencyService,
+      bankDetails: { bankName, accountNumber, ifscCode },
+    };
 
     if (!currentUid) {
       if (!password) {
         return { success: false, message: "Password is required for professional registration." };
       }
 
-      const authEmail = buildAuthEmail(phone);
       const methods = await fetchSignInMethodsForEmail(auth, authEmail);
       if (methods.length > 0) {
-        return {
-          success: false,
-          message: "Phone already registered. Please login and upgrade to become a professional.",
-        };
+        console.log("🔄 Existing account found, upgrading to professional role:", authEmail);
+        const userCredential = await signInWithEmailAndPassword(auth, authEmail, password);
+        uid = userCredential.user.uid;
+
+        const userRef = doc(db, "users", uid);
+        const snapshot = await getDoc(userRef);
+        if (!snapshot.exists()) {
+          return { success: false, message: "User profile not found." };
+        }
+
+        const existingRoles = snapshot.data().roles || { customer: false, professional: false };
+        const updatedRoles = { ...existingRoles, professional: true };
+
+        await updateDoc(userRef, {
+          roles: updatedRoles,
+          professionalDetails,
+          updatedAt: serverTimestamp(),
+        });
+
+        const updatedUser = await getUserProfile(uid);
+        return { success: true, user: updatedUser };
       }
 
       console.log("📝 Registering professional:", { phone, authEmail, email, fullName });
@@ -188,13 +245,6 @@ export async function registerProfessional(data) {
       await userCredential.user.getIdToken(true);
       await auth.currentUser?.reload();
       await auth.currentUser?.getIdToken(true);
-
-      if (!auth.currentUser || auth.currentUser.uid !== uid) {
-        console.log("🔐 Signing in newly created professional account", authEmail);
-        await signInWithEmailAndPassword(auth, authEmail, password);
-        await auth.currentUser?.reload();
-        await auth.currentUser?.getIdToken(true);
-      }
     } else {
       const currentUserProfile = await getUserProfile(currentUid);
       if (currentUserProfile?.phone !== phone) {
@@ -217,42 +267,24 @@ export async function registerProfessional(data) {
 
     const userRef = doc(db, "users", uid);
     const existing = await getDoc(userRef);
-    if (!existing.exists() && currentUid) {
-      return {
-        success: false,
-        message: "Customer profile not found.",
-      };
-    }
+    const roles = existing.exists()
+      ? { ...existing.data().roles, professional: true }
+      : { customer: false, professional: true };
 
     const userData = {
-      roles: {
-        customer: currentUid ? existing.data()?.roles?.customer ?? false : false,
-        professional: true,
-      },
-      professionalDetails: {
-        profession,
-        experience,
-        languages,
-        bio,
-        address: { state, district, city, pincode },
-        serviceArea,
-        pricing: { visitCharge, hourlyRate, emergencyCharge },
-        workingHours,
-        emergencyService,
-        bankDetails: { bankName, accountNumber, ifscCode },
-      },
+      roles,
+      professionalDetails,
       updatedAt: serverTimestamp(),
     };
 
     if (existing.exists()) {
       await updateDoc(userRef, userData);
     } else {
-      // NEW ACCOUNT - add personal details
       await setDoc(userRef, {
         full_name: fullName,
         phone,
         email,
-        authEmail: buildAuthEmail(phone),
+        authEmail,
         ...userData,
         createdAt: serverTimestamp(),
       });
@@ -265,7 +297,9 @@ export async function registerProfessional(data) {
     return {
       success: false,
       message:
-        error.code === "auth/email-already-in-use"
+        error.code === "auth/wrong-password"
+          ? "Invalid password."
+          : error.code === "auth/email-already-in-use"
           ? "Phone already registered."
           : error.message || "Professional registration failed.",
     };
