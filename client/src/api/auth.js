@@ -119,6 +119,11 @@ export async function loginUser(data) {
       return { success: false, message: "User profile not found." };
     }
 
+    if (portal === "customer" && !userProfile.roles?.customer) {
+      await signOut(auth);
+      return { success: false, message: "This portal is for registered customers only. Please use the professional portal." };
+    }
+
     if (portal === "professional" && !userProfile.roles?.professional) {
       await signOut(auth);
       return { success: false, message: "This portal is only for registered professionals." };
