@@ -9,7 +9,7 @@ import { registerProfessional } from "../api/auth";
 
 export default function ProfessionalRegistration() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -55,6 +55,7 @@ export default function ProfessionalRegistration() {
     fullName: user?.full_name || "",
     phone: user?.phone || "",
     email: user?.email || "",
+    password: "",
   }));
 
   useEffect(() => {
@@ -68,7 +69,7 @@ export default function ProfessionalRegistration() {
     setError("");
     setSuccess(false);
     setLoading(false);
-  }, [user?.full_name, user?.phone, user?.email]);
+  }, [user]);
 
   const resetForm = () => {
     setFormData(createEmptyFormData());
@@ -94,9 +95,14 @@ export default function ProfessionalRegistration() {
     e.preventDefault();
     setError("");
 
+    if (authLoading) {
+      setError("Still loading authentication state. Please wait a moment.");
+      return;
+    }
+
     // Validate required fields
     if (!formData.fullName || !formData.phone || !formData.email || (!user && !formData.password)) {
-      setError("Please fill in all required personal details (Step 1).");
+      setError("Please fill in all required personal details (Step 1). If you're upgrading, leave password blank.");
       setStep(1);
       return;
     }
@@ -187,7 +193,9 @@ export default function ProfessionalRegistration() {
         </div>
 
         <div className="rounded-[36px] bg-white shadow-xl shadow-slate-200/50 border border-slate-100 p-6 sm:p-10">
-          <form onSubmit={handleSubmit} autoComplete="off">
+          <form key={user?.id || "anon"} onSubmit={handleSubmit} autoComplete="off">
+            <input type="text" name="fakeusernameremembered" autoComplete="off" style={{ display: "none" }} />
+            <input type="password" name="fakepasswordremembered" autoComplete="new-password" style={{ display: "none" }} />
           {/* Step 1: Personal Details */}
           {step === 1 && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -206,20 +214,20 @@ export default function ProfessionalRegistration() {
               <div className="grid gap-6 sm:grid-cols-2">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Full Name</label>
-                  <input type="text" name="fullName" value={formData.fullName} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="John Doe" />
+                  <input autoComplete="name" type="text" name="fullName" value={formData.fullName} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="John Doe" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Phone Number</label>
-                  <input type="text" name="phone" value={formData.phone} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="+91 XXXXXXXXXX" />
+                  <input autoComplete="tel" type="text" name="phone" value={formData.phone} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="+91 XXXXXXXXXX" />
                 </div>
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Email Address</label>
-                  <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="john@example.com" />
+                  <input autoComplete="email" type="email" name="email" value={formData.email} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="john@example.com" />
                 </div>
                 {!isUpgrade && (
                   <div className="sm:col-span-2">
                     <label className="block text-sm font-semibold text-slate-700 mb-2">Create Password</label>
-                    <input type="password" name="password" value={formData.password} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Minimum 6 characters" />
+                    <input autoComplete="new-password" type="password" name="password" value={formData.password} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Minimum 6 characters" />
                   </div>
                 )}
               </div>
