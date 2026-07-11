@@ -48,10 +48,22 @@ export default function ProfessionalRegistration() {
   });
 
   // Form State
-  const [formData, setFormData] = useState(createInitialFormData());
+  const isUpgrade = Boolean(user && user.roles?.customer && !user.roles?.professional);
+
+  const [formData, setFormData] = useState(() => ({
+    ...createInitialFormData(),
+    fullName: user?.full_name || "",
+    phone: user?.phone || "",
+    email: user?.email || "",
+  }));
 
   useEffect(() => {
-    setFormData(createInitialFormData());
+    setFormData({
+      ...createInitialFormData(),
+      fullName: user?.full_name || "",
+      phone: user?.phone || "",
+      email: user?.email || "",
+    });
     setStep(1);
     setError("");
     setSuccess(false);
@@ -179,6 +191,17 @@ export default function ProfessionalRegistration() {
           {/* Step 1: Personal Details */}
           {step === 1 && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="mb-6 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                {isUpgrade ? (
+                  <p>
+                    You are currently logged in as a customer. Complete this form to upgrade your existing account to a professional profile.
+                  </p>
+                ) : (
+                  <p>
+                    Register as a professional with your phone and password. If you are already a customer, please login first and then upgrade your account.
+                  </p>
+                )}
+              </div>
               <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2"><User className="text-emerald-600" /> Personal Details</h2>
               <div className="grid gap-6 sm:grid-cols-2">
                 <div>
@@ -193,15 +216,12 @@ export default function ProfessionalRegistration() {
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Email Address</label>
                   <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="john@example.com" />
                 </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Create Password</label>
-                  <input type="password" name="password" value={formData.password} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Minimum 6 characters" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 2: Professional Details */}
+                {!isUpgrade && (
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Create Password</label>
+                    <input type="password" name="password" value={formData.password} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Minimum 6 characters" />
+                  </div>
+                )}
           {step === 2 && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2"><Briefcase className="text-emerald-600" /> Professional Details</h2>
