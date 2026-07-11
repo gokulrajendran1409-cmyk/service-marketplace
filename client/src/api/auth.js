@@ -66,6 +66,14 @@ const getUserByPhone = async (phone) => {
 export async function registerUser(data) {
   try {
     const { phone, email, password, full_name } = data;
+    const existingUser = await getUserByPhone(phone);
+    if (existingUser) {
+      return {
+        success: false,
+        message: "Phone is already registered. Please login or use the professional upgrade flow.",
+      };
+    }
+
     const authEmail = buildAuthEmail(phone);
     console.log("📝 Registering user:", { phone, authEmail, email, full_name });
     const userCredential = await createUserWithEmailAndPassword(auth, authEmail, password);
@@ -178,21 +186,53 @@ export async function registerProfessional(data) {
     const currentUid = auth.currentUser?.uid;
     let uid = currentUid;
 
-    // NEW PROFESSIONAL REGISTRATION (direct sign up)
-    if (!currentUid && password) {
-      const authEmail = buildAuthEmail(phone);
-      console.log("📝 Registering professional:", { phone, authEmail, email, fullName });
-      const userCredential = await createUserWithEmailAndPassword(auth, authEmail, password);
-      console.log("✅ Firebase account created:", userCredential.user.uid, "Email:", userCredential.user.email);
-      uid = userCredential.user.uid;
-    } 
-    // UPGRADE EXISTING CUSTOMER TO PROFESSIONAL
-    else if (currentUid && !password) {
-      // Upgrading logged-in customer to professional
-    }
-    // ERROR: Either need password for new account OR need to be logged in
-    else if (!currentUid && !password) {
-      return { success: false, message: "Password is required for professional registration." };
+    const existingPhoneUser = await getUserByPhone(phone);
+
+    if (!currentUid) {
+      if (existingPhoneUser) {
+        const authEmail = buildAuthEmail(phone);
+
+        if (existingPhoneUser.roles?.professional && !existingPhoneUser.roles?.customer) {
+          return { success: false, message: "Phone already registered as a professional. Please login." };
+        }
+
+        if (existingPhoneUser.roles?.customer && !existingPhoneUser.roles?.professional) {
+          if (!password) {
+            return {
+              success: false,
+              message: "Phone already registered as a customer. Please login and upgrade to become a professional.",
+            };
+          }
+
+          try {
+            const userCredential = await signInWithEmailAndPassword(auth, authEmail, password);
+            uid = userCredential.user.uid;
+          } catch (error) {
+            return {
+              success: false,
+              message: error.code === "auth/wrong-password" || error.code === "auth/invalid-credential"
+                ? "Incorrect password for existing customer account."
+                : "Phone already registered. Please login.",
+            };
+          }
+        } else {
+          return { success: false, message: "Phone already registered. Please login." };
+        }
+      } else {
+        if (!password) {
+          return { success: false, message: "Password is required for professional registration." };
+        }
+
+        const authEmail = buildAuthEmail(phone);
+        console.log("📝 Registering professional:", { phone, authEmail, email, fullName });
+        const userCredential = await createUserWithEmailAndPassword(auth, authEmail, password);
+        console.log("✅ Firebase account created:", userCredential.user.uid, "Email:", userCredential.user.email);
+        uid = userCredential.user.uid;
+      }
+    } else {
+      if (existingPhoneUser && existingPhoneUser.id !== currentUid) {
+        return { success: false, message: "This phone number belongs to another account." };
+      }
     }
 
     const userRef = doc(db, "users", uid);
@@ -200,7 +240,7 @@ export async function registerProfessional(data) {
 
     const userData = {
       roles: {
-        customer: currentUid ? existing.data()?.roles?.customer || true : false,
+        customer: currentUid ? existing.data()?.roles?.customer ?? false : Boolean(existingPhoneUser?.roles?.customer),
         professional: true,
       },
       professionalDetails: {
