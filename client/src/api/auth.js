@@ -1,5 +1,6 @@
 import {
   createUserWithEmailAndPassword,
+  fetchSignInMethodsForEmail,
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
@@ -66,14 +67,6 @@ const getUserByPhone = async (phone) => {
 export async function registerUser(data) {
   try {
     const { phone, email, password, full_name } = data;
-    const existingUser = await getUserByPhone(phone);
-    if (existingUser) {
-      return {
-        success: false,
-        message: "Phone is already registered. Please login instead of registering again.",
-      };
-    }
-
     const currentUid = auth.currentUser?.uid;
     if (currentUid) {
       return {
@@ -83,6 +76,14 @@ export async function registerUser(data) {
     }
 
     const authEmail = buildAuthEmail(phone);
+    const methods = await fetchSignInMethodsForEmail(auth, authEmail);
+    if (methods.length > 0) {
+      return {
+        success: false,
+        message: "Phone is already registered. Please login instead of registering again.",
+      };
+    }
+
     console.log("📝 Registering user:", { phone, authEmail, email, full_name });
     const userCredential = await createUserWithEmailAndPassword(auth, authEmail, password);
     console.log("✅ Firebase account created:", userCredential.user.uid, "Email:", userCredential.user.email);
