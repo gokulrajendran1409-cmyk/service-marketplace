@@ -54,7 +54,9 @@ export async function registerUser(data) {
     console.log("✅ Firebase account created:", userCredential.user.uid, "Email:", userCredential.user.email);
 
     await userCredential.user.getIdToken(true);
+    await signInWithEmailAndPassword(auth, authEmail, password);
     await auth.currentUser?.reload();
+    await auth.currentUser?.getIdToken(true);
 
     const userData = buildUserPayload({
       full_name,
@@ -185,11 +187,13 @@ export async function registerProfessional(data) {
 
       await userCredential.user.getIdToken(true);
       await auth.currentUser?.reload();
+      await auth.currentUser?.getIdToken(true);
 
       if (!auth.currentUser || auth.currentUser.uid !== uid) {
         console.log("🔐 Signing in newly created professional account", authEmail);
         await signInWithEmailAndPassword(auth, authEmail, password);
         await auth.currentUser?.reload();
+        await auth.currentUser?.getIdToken(true);
       }
     } else {
       const currentUserProfile = await getUserProfile(currentUid);
@@ -207,6 +211,9 @@ export async function registerProfessional(data) {
         message: "Unable to authenticate user before saving professional profile.",
       };
     }
+
+    await auth.currentUser?.reload();
+    await auth.currentUser?.getIdToken(true);
 
     const userRef = doc(db, "users", uid);
     const existing = await getDoc(userRef);
