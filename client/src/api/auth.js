@@ -150,6 +150,7 @@ export async function registerProfessional(data) {
       fullName,
       phone,
       email,
+      password,
       profession,
       experience,
       languages,
@@ -170,20 +171,31 @@ export async function registerProfessional(data) {
     } = data;
 
     const currentUid = auth.currentUser?.uid;
-    if (!currentUid) {
-      return { success: false, message: "User must be logged in as a customer to upgrade to professional." };
+    let uid = currentUid;
+
+    // NEW PROFESSIONAL REGISTRATION (direct sign up)
+    if (!currentUid && password) {
+      const authEmail = buildAuthEmail(phone);
+      console.log("📝 Registering professional:", { phone, authEmail, email, fullName });
+      const userCredential = await createUserWithEmailAndPassword(auth, authEmail, password);
+      console.log("✅ Firebase account created:", userCredential.user.uid, "Email:", userCredential.user.email);
+      uid = userCredential.user.uid;
+    } 
+    // UPGRADE EXISTING CUSTOMER TO PROFESSIONAL
+    else if (currentUid && !password) {
+      // Upgrading logged-in customer to professional
+    }
+    // ERROR: Either need password for new account OR need to be logged in
+    else if (!currentUid && !password) {
+      return { success: false, message: "Password is required for professional registration." };
     }
 
-    const userRef = doc(db, "users", currentUid);
+    const userRef = doc(db, "users", uid);
     const existing = await getDoc(userRef);
 
-    if (!existing.exists()) {
-      return { success: false, message: "User profile not found." };
-    }
-
-    await updateDoc(userRef, {
+    const userData = {
       roles: {
-        customer: true,
+        customer: currentUid ? existing.data()?.roles?.customer || true : false,
         professional: true,
       },
       professionalDetails: {
@@ -199,15 +211,32 @@ export async function registerProfessional(data) {
         bankDetails: { bankName, accountNumber, ifscCode },
       },
       updatedAt: serverTimestamp(),
-    });
+    };
 
-    const updatedUser = await getUserProfile(currentUid);
+    if (existing.exists()) {
+      await updateDoc(userRef, userData);
+    } else {
+      // NEW ACCOUNT - add personal details
+      await setDoc(userRef, {
+        full_name: fullName,
+        phone,
+        email,
+        authEmail: buildAuthEmail(phone),
+        ...userData,
+        createdAt: serverTimestamp(),
+      });
+    }
+
+    const updatedUser = await getUserProfile(uid);
     return { success: true, user: updatedUser };
   } catch (error) {
     console.error("Firebase professional registration error:", error);
     return {
       success: false,
-      message: error.message || "Professional registration failed.",
+      message:
+        error.code === "auth/email-already-in-use"
+          ? "Phone already registered."
+          : error.message || "Professional registration failed.",
     };
   }
 }
