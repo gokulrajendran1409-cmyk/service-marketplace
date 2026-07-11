@@ -16,49 +16,16 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
-const buildAuthEmailCandidates = (phone, email) => {
-  const rawPhone = phone?.toString() || "";
-  const normalizedPhone = rawPhone.replace(/\D/g, "") || "";
-  const normalizedEmail = email?.trim().toLowerCase() || "";
-
-  const candidates = [];
-  if (normalizedEmail) {
-    candidates.push(normalizedEmail);
-  }
-
-  if (rawPhone) {
-    candidates.push(rawPhone);
-    candidates.push(`${rawPhone}@servora.local`);
-  }
-
-  if (normalizedPhone) {
-    candidates.push(`${normalizedPhone}@servora.local`);
-    candidates.push(`${normalizedPhone}`);
-    candidates.push(`${normalizedPhone}@servora.local`);
-    if (rawPhone.startsWith("+")) {
-      candidates.push(`${rawPhone.slice(1)}@servora.local`);
-    }
-    if (rawPhone.startsWith("00")) {
-      candidates.push(`${rawPhone.slice(2)}@servora.local`);
-    }
-  }
-
-  if (!normalizedPhone && normalizedEmail) {
-    candidates.push(normalizedEmail);
-  }
-
-  const uniqueCandidates = [...new Set(candidates.filter(Boolean))];
-  return uniqueCandidates.length > 0 ? uniqueCandidates : ["user@servora.local"];
+const buildAuthEmail = (phone) => {
+  return `${phone.replace(/\D/g, "")}@servora.local`;
 };
 
-const buildAuthEmail = (phone, email) => buildAuthEmailCandidates(phone, email)[0];
-
-const buildUserPayload = ({ full_name, phone, email, role, professionalDetails, authEmail }) => ({
+const buildUserPayload = ({ full_name, phone, email, roles, professionalDetails, authEmail }) => ({
   full_name,
   phone,
   email: email?.trim() || "",
   authEmail: authEmail || "",
-  role,
+  roles,
   professionalDetails: professionalDetails || null,
   updatedAt: serverTimestamp(),
 });
@@ -99,14 +66,17 @@ const getUserByPhone = async (phone) => {
 export async function registerUser(data) {
   try {
     const { phone, email, password, full_name } = data;
-    const authEmail = buildAuthEmail(phone, email);
+    const authEmail = buildAuthEmail(phone);
     const userCredential = await createUserWithEmailAndPassword(auth, authEmail, password);
 
     const userData = buildUserPayload({
       full_name,
       phone,
       email,
-      role: "customer",
+      roles: {
+        customer: true,
+        professional: false,
+      },
       authEmail,
     });
 
@@ -134,61 +104,37 @@ export async function registerUser(data) {
 export async function loginUser(data) {
   try {
     const { phone, password, portal } = data;
-    const existingUserProfile = await getUserByPhone(phone);
-    const authEmailCandidates = [
-  existingUserProfile?.authEmail || `${phone}@servora.local`
-];
+    const authEmail = buildAuthEmail(phone);
 
-console.log(authEmailCandidates);
+    const userCredential = await signInWithEmailAndPassword(auth, authEmail, password);
+    const idToken = await userCredential.user.getIdToken();
+    const userProfile = await getUserProfile(userCredential.user.uid);
 
-   console.log("Phone entered:", phone);
-console.log("User profile:", existingUserProfile);
-console.log("Email candidates:", authEmailCandidates);
-
-    let lastError = null;
-
-    for (const candidateEmail of authEmailCandidates) {
-      console.log("Trying login with:", candidateEmail);
-      try {
-        const userCredential = await signInWithEmailAndPassword(auth, candidateEmail, password);
-        const idToken = await userCredential.user.getIdToken();
-        const userProfile = await getUserProfile(userCredential.user.uid);
-
-        if (!userProfile) {
-          await signOut(auth);
-          return { success: false, message: "User profile not found." };
-        }
-
-        if (portal === "professional" && userProfile.role !== "professional") {
-          await signOut(auth);
-          return { success: false, message: "This portal is only for registered professionals." };
-        }
-
-        return {
-          success: true,
-          user: userProfile,
-          token: idToken,
-        };
-      } catch (error) {
-        lastError = error;
-      }
+    if (!userProfile) {
+      await signOut(auth);
+      return { success: false, message: "User profile not found." };
     }
 
-    console.error("Firebase login error:", lastError);
+    if (portal === "professional" && !userProfile.roles?.professional) {
+      await signOut(auth);
+      return { success: false, message: "This portal is only for registered professionals." };
+    }
+
     return {
-      success: false,
-      message:
-        lastError?.code === "auth/wrong-password" || lastError?.code === "auth/invalid-credential"
-          ? "Invalid password."
-          : lastError?.code === "auth/user-not-found"
-          ? "Account not found."
-          : lastError?.message || "Login failed.",
+      success: true,
+      user: userProfile,
+      token: idToken,
     };
   } catch (error) {
     console.error("Firebase login error:", error);
     return {
       success: false,
-      message: error.message || "Login failed.",
+      message:
+        error.code === "auth/wrong-password" || error.code === "auth/invalid-credential"
+          ? "Invalid password."
+          : error.code === "auth/user-not-found"
+          ? "Account not found."
+          : error.message || "Login failed.",
     };
   }
 }
@@ -199,7 +145,6 @@ export async function registerProfessional(data) {
       fullName,
       phone,
       email,
-      password,
       profession,
       experience,
       languages,
@@ -219,24 +164,23 @@ export async function registerProfessional(data) {
       ifscCode,
     } = data;
 
-    let currentUid = auth.currentUser?.uid;
-    let authEmail = buildAuthEmail(phone, email);
-
+    const currentUid = auth.currentUser?.uid;
     if (!currentUid) {
-      if (!password) {
-        return { success: false, message: "Password is required for professional registration." };
-      }
-
-      const userCredential = await createUserWithEmailAndPassword(auth, authEmail, password);
-      currentUid = userCredential.user.uid;
+      return { success: false, message: "User must be logged in as a customer to upgrade to professional." };
     }
 
-    const userData = buildUserPayload({
-      full_name: fullName,
-      phone,
-      email,
-      role: "professional",
-      authEmail,
+    const userRef = doc(db, "users", currentUid);
+    const existing = await getDoc(userRef);
+
+    if (!existing.exists()) {
+      return { success: false, message: "User profile not found." };
+    }
+
+    await updateDoc(userRef, {
+      roles: {
+        customer: true,
+        professional: true,
+      },
       professionalDetails: {
         profession,
         experience,
@@ -249,19 +193,8 @@ export async function registerProfessional(data) {
         emergencyService,
         bankDetails: { bankName, accountNumber, ifscCode },
       },
+      updatedAt: serverTimestamp(),
     });
-
-    const userRef = doc(db, "users", currentUid);
-    const existing = await getDoc(userRef);
-
-    if (existing.exists()) {
-      await updateDoc(userRef, userData);
-    } else {
-      await setDoc(userRef, {
-        ...userData,
-        createdAt: serverTimestamp(),
-      });
-    }
 
     const updatedUser = await getUserProfile(currentUid);
     return { success: true, user: updatedUser };
@@ -269,10 +202,7 @@ export async function registerProfessional(data) {
     console.error("Firebase professional registration error:", error);
     return {
       success: false,
-      message:
-        error.code === "auth/email-already-in-use"
-          ? "Phone or email already registered."
-          : error.message || "Professional registration failed.",
+      message: error.message || "Professional registration failed.",
     };
   }
 }
