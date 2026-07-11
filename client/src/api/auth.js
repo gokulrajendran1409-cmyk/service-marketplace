@@ -4,17 +4,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  setDoc,
-  updateDoc,
-  serverTimestamp,
-  where,
-} from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
 const buildAuthEmail = (phone) => {
@@ -36,32 +26,6 @@ const getUserProfile = async (uid) => {
   const docSnap = await getDoc(docRef);
   if (!docSnap.exists()) return null;
   return { id: uid, ...docSnap.data() };
-};
-
-const getUserByPhone = async (phone) => {
-  if (!phone) return null;
-
-  const normalizedPhone = phone.toString().replace(/\D/g, "");
-  if (!normalizedPhone) return null;
-
-  const usersRef = collection(db, "users");
-  const q = query(usersRef, where("phone", "==", phone));
-  const snapshot = await getDocs(q);
-
-  if (!snapshot.empty) {
-    const docSnap = snapshot.docs[0];
-    return { id: docSnap.id, ...docSnap.data() };
-  }
-
-  const fallbackQuery = query(usersRef, where("phone", "==", normalizedPhone));
-  const fallbackSnapshot = await getDocs(fallbackQuery);
-
-  if (!fallbackSnapshot.empty) {
-    const docSnap = fallbackSnapshot.docs[0];
-    return { id: docSnap.id, ...docSnap.data() };
-  }
-
-  return null;
 };
 
 export async function registerUser(data) {
@@ -195,31 +159,20 @@ export async function registerProfessional(data) {
     const currentUid = auth.currentUser?.uid;
     let uid = currentUid;
 
-    const existingPhoneUser = await getUserByPhone(phone);
-
     if (!currentUid) {
-      if (existingPhoneUser) {
-        const authEmail = buildAuthEmail(phone);
-
-        if (existingPhoneUser.roles?.professional && !existingPhoneUser.roles?.customer) {
-          return { success: false, message: "Phone already registered as a professional. Please login." };
-        }
-
-        if (existingPhoneUser.roles?.customer && !existingPhoneUser.roles?.professional) {
-          return {
-            success: false,
-            message: "Phone already registered as a customer. Please login and upgrade to become a professional.",
-          };
-        }
-
-        return { success: false, message: "Phone already registered. Please login." };
-      }
-
       if (!password) {
         return { success: false, message: "Password is required for professional registration." };
       }
 
       const authEmail = buildAuthEmail(phone);
+      const methods = await fetchSignInMethodsForEmail(auth, authEmail);
+      if (methods.length > 0) {
+        return {
+          success: false,
+          message: "Phone already registered. Please login and upgrade to become a professional.",
+        };
+      }
+
       console.log("📝 Registering professional:", { phone, authEmail, email, fullName });
       const userCredential = await createUserWithEmailAndPassword(auth, authEmail, password);
       console.log("✅ Firebase account created:", userCredential.user.uid, "Email:", userCredential.user.email);
@@ -231,10 +184,6 @@ export async function registerProfessional(data) {
           success: false,
           message: "Please use your logged-in phone number when upgrading to professional. Log out to register with a different phone.",
         };
-      }
-
-      if (existingPhoneUser && existingPhoneUser.id !== currentUid) {
-        return { success: false, message: "This phone number belongs to another account." };
       }
     }
 
