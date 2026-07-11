@@ -31,7 +31,8 @@ const getUserProfile = async (uid) => {
 export async function registerUser(data) {
   try {
     const { phone, email, password, full_name } = data;
-    const currentUid = auth.currentUser?.uid;
+    const currentUser = auth.currentUser;
+    const currentUid = currentUser?.uid;
     if (currentUid) {
       return {
         success: false,
@@ -51,6 +52,9 @@ export async function registerUser(data) {
     console.log("📝 Registering user:", { phone, authEmail, email, full_name });
     const userCredential = await createUserWithEmailAndPassword(auth, authEmail, password);
     console.log("✅ Firebase account created:", userCredential.user.uid, "Email:", userCredential.user.email);
+
+    await userCredential.user.getIdToken(true);
+    await auth.currentUser?.reload();
 
     const userData = buildUserPayload({
       full_name,
@@ -156,7 +160,8 @@ export async function registerProfessional(data) {
       ifscCode,
     } = data;
 
-    const currentUid = auth.currentUser?.uid;
+    const currentUser = auth.currentUser;
+    const currentUid = currentUser?.uid;
     let uid = currentUid;
 
     if (!currentUid) {
@@ -178,9 +183,13 @@ export async function registerProfessional(data) {
       console.log("✅ Firebase account created:", userCredential.user.uid, "Email:", userCredential.user.email);
       uid = userCredential.user.uid;
 
+      await userCredential.user.getIdToken(true);
+      await auth.currentUser?.reload();
+
       if (!auth.currentUser || auth.currentUser.uid !== uid) {
         console.log("🔐 Signing in newly created professional account", authEmail);
         await signInWithEmailAndPassword(auth, authEmail, password);
+        await auth.currentUser?.reload();
       }
     } else {
       const currentUserProfile = await getUserProfile(currentUid);
@@ -201,6 +210,12 @@ export async function registerProfessional(data) {
 
     const userRef = doc(db, "users", uid);
     const existing = await getDoc(userRef);
+    if (!existing.exists() && currentUid) {
+      return {
+        success: false,
+        message: "Customer profile not found.",
+      };
+    }
 
     const userData = {
       roles: {
