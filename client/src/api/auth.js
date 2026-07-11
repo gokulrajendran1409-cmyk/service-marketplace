@@ -137,9 +137,14 @@ export async function loginUser(data) {
     const existingUserProfile = await getUserByPhone(phone);
     const authEmailCandidates = buildAuthEmailCandidates(phone, existingUserProfile?.email || existingUserProfile?.authEmail);
 
+   console.log("Phone entered:", phone);
+console.log("User profile:", existingUserProfile);
+console.log("Email candidates:", authEmailCandidates);
+
     let lastError = null;
 
     for (const candidateEmail of authEmailCandidates) {
+      console.log("Trying login with:", candidateEmail);
       try {
         const userCredential = await signInWithEmailAndPassword(auth, candidateEmail, password);
         const idToken = await userCredential.user.getIdToken();
