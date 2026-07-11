@@ -67,7 +67,9 @@ export async function registerUser(data) {
   try {
     const { phone, email, password, full_name } = data;
     const authEmail = buildAuthEmail(phone);
+    console.log("📝 Registering user:", { phone, authEmail, email, full_name });
     const userCredential = await createUserWithEmailAndPassword(auth, authEmail, password);
+    console.log("✅ Firebase account created:", userCredential.user.uid, "Email:", userCredential.user.email);
 
     const userData = buildUserPayload({
       full_name,
@@ -105,8 +107,10 @@ export async function loginUser(data) {
   try {
     const { phone, password, portal } = data;
     const authEmail = buildAuthEmail(phone);
+    console.log("🔐 Login attempt:", { phone, authEmail, portal });
 
     const userCredential = await signInWithEmailAndPassword(auth, authEmail, password);
+    console.log("✅ Login successful for:", authEmail);
     const idToken = await userCredential.user.getIdToken();
     const userProfile = await getUserProfile(userCredential.user.uid);
 
@@ -126,7 +130,8 @@ export async function loginUser(data) {
       token: idToken,
     };
   } catch (error) {
-    console.error("Firebase login error:", error);
+    console.error("❌ Firebase login error:", error.code, error.message);
+    console.error("   Tried email:", buildAuthEmail(data.phone));
     return {
       success: false,
       message:
