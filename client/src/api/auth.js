@@ -135,7 +135,11 @@ export async function loginUser(data) {
   try {
     const { phone, password, portal } = data;
     const existingUserProfile = await getUserByPhone(phone);
-    const authEmailCandidates = buildAuthEmailCandidates(phone, existingUserProfile?.email || existingUserProfile?.authEmail);
+    const authEmailCandidates = [
+  existingUserProfile?.authEmail || `${phone}@servora.local`
+];
+
+console.log(authEmailCandidates);
 
    console.log("Phone entered:", phone);
 console.log("User profile:", existingUserProfile);
