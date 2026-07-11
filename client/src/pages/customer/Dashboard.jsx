@@ -160,9 +160,19 @@ export default function CustomerDashboard() {
                 <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">What do you need today? Find a service, track your booking, or chat with a professional in one tap.</p>
               </div>
 
-              <button className="inline-flex items-center gap-2 rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800">
-                <Bell size={18} /> Notifications
-              </button>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                {user?.roles?.customer && !user?.roles?.professional && (
+                  <Link
+                    to="/professional/register"
+                    className="inline-flex items-center justify-center rounded-2xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600"
+                  >
+                    Become a Professional
+                  </Link>
+                )}
+                <button className="inline-flex items-center gap-2 rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800">
+                  <Bell size={18} /> Notifications
+                </button>
+              </div>
             </div>
 
             <div className="mt-6 grid gap-3 items-center lg:grid-cols-[1.35fr_0.95fr]">
