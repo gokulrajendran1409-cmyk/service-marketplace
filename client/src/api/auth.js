@@ -4,17 +4,22 @@ import {
   signOut,
 } from "firebase/auth";
 import {
+  collection,
   doc,
   getDoc,
+  getDocs,
+  query,
   setDoc,
   updateDoc,
   serverTimestamp,
+  where,
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
 const buildAuthEmail = (phone, email) => {
   const normalizedPhone = phone?.toString().replace(/\D/g, "") || "";
-  return email?.trim() ? email.trim().toLowerCase() : `${normalizedPhone}@servora.local`;
+  const normalizedEmail = email?.trim().toLowerCase() || "";
+  return normalizedEmail || `${normalizedPhone}@servora.local`;
 };
 
 const buildUserPayload = ({ full_name, phone, email, role, professionalDetails }) => ({
@@ -31,6 +36,32 @@ const getUserProfile = async (uid) => {
   const docSnap = await getDoc(docRef);
   if (!docSnap.exists()) return null;
   return { id: uid, ...docSnap.data() };
+};
+
+const getUserByPhone = async (phone) => {
+  if (!phone) return null;
+
+  const normalizedPhone = phone.toString().replace(/\D/g, "");
+  if (!normalizedPhone) return null;
+
+  const usersRef = collection(db, "users");
+  const q = query(usersRef, where("phone", "==", phone));
+  const snapshot = await getDocs(q);
+
+  if (!snapshot.empty) {
+    const docSnap = snapshot.docs[0];
+    return { id: docSnap.id, ...docSnap.data() };
+  }
+
+  const fallbackQuery = query(usersRef, where("phone", "==", normalizedPhone));
+  const fallbackSnapshot = await getDocs(fallbackQuery);
+
+  if (!fallbackSnapshot.empty) {
+    const docSnap = fallbackSnapshot.docs[0];
+    return { id: docSnap.id, ...docSnap.data() };
+  }
+
+  return null;
 };
 
 export async function registerUser(data) {
@@ -70,7 +101,8 @@ export async function registerUser(data) {
 export async function loginUser(data) {
   try {
     const { phone, password, portal } = data;
-    const authEmail = buildAuthEmail(phone);
+    const existingUserProfile = await getUserByPhone(phone);
+    const authEmail = buildAuthEmail(phone, existingUserProfile?.email || existingUserProfile?.authEmail);
     const userCredential = await signInWithEmailAndPassword(auth, authEmail, password);
     const idToken = await userCredential.user.getIdToken();
     const userProfile = await getUserProfile(userCredential.user.uid);
