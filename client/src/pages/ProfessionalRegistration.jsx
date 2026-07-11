@@ -398,6 +398,7 @@ export default function ProfessionalRegistration() {
           {/* Navigation Buttons */}
           <div className="flex justify-between mt-10 pt-6 border-t border-slate-100">
             <button 
+              type="button"
               onClick={handleBack} 
               disabled={step === 1 || loading}
               className={`inline-flex items-center gap-2 rounded-full px-6 py-3 font-semibold transition ${step === 1 ? 'opacity-0 cursor-default' : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}
@@ -407,6 +408,7 @@ export default function ProfessionalRegistration() {
             
             {step < 6 ? (
               <button 
+                type="button"
                 onClick={handleNext} 
                 className="inline-flex items-center gap-2 rounded-full bg-emerald-700 px-8 py-3.5 font-bold text-white transition hover:bg-emerald-800"
               >
@@ -414,7 +416,7 @@ export default function ProfessionalRegistration() {
               </button>
             ) : (
               <button 
-                onClick={handleSubmit} 
+                type="submit"
                 disabled={loading}
                 className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-10 py-3.5 font-bold text-white transition hover:bg-slate-800 disabled:opacity-70 shadow-lg hover:shadow-xl hover:-translate-y-0.5"
               >
