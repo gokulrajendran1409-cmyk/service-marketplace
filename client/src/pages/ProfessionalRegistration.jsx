@@ -187,7 +187,7 @@ export default function ProfessionalRegistration() {
         </div>
 
         <div className="rounded-[36px] bg-white shadow-xl shadow-slate-200/50 border border-slate-100 p-6 sm:p-10">
-          
+          <form onSubmit={handleSubmit} autoComplete="off">
           {/* Step 1: Personal Details */}
           {step === 1 && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -432,6 +432,7 @@ export default function ProfessionalRegistration() {
              </p>
           </div>
 
+          </form>
         </div>
       </div>
     </main>
