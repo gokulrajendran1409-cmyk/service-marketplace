@@ -16,16 +16,48 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
-const buildAuthEmail = (phone, email) => {
-  const normalizedPhone = phone?.toString().replace(/\D/g, "") || "";
+const buildAuthEmailCandidates = (phone, email) => {
+  const rawPhone = phone?.toString() || "";
+  const normalizedPhone = rawPhone.replace(/\D/g, "") || "";
   const normalizedEmail = email?.trim().toLowerCase() || "";
-  return normalizedEmail || `${normalizedPhone}@servora.local`;
+
+  const candidates = [];
+  if (normalizedEmail) {
+    candidates.push(normalizedEmail);
+  }
+
+  if (rawPhone) {
+    candidates.push(rawPhone);
+    candidates.push(`${rawPhone}@servora.local`);
+  }
+
+  if (normalizedPhone) {
+    candidates.push(`${normalizedPhone}@servora.local`);
+    candidates.push(`${normalizedPhone}`);
+    candidates.push(`${normalizedPhone}@servora.local`);
+    if (rawPhone.startsWith("+")) {
+      candidates.push(`${rawPhone.slice(1)}@servora.local`);
+    }
+    if (rawPhone.startsWith("00")) {
+      candidates.push(`${rawPhone.slice(2)}@servora.local`);
+    }
+  }
+
+  if (!normalizedPhone && normalizedEmail) {
+    candidates.push(normalizedEmail);
+  }
+
+  const uniqueCandidates = [...new Set(candidates.filter(Boolean))];
+  return uniqueCandidates.length > 0 ? uniqueCandidates : ["user@servora.local"];
 };
 
-const buildUserPayload = ({ full_name, phone, email, role, professionalDetails }) => ({
+const buildAuthEmail = (phone, email) => buildAuthEmailCandidates(phone, email)[0];
+
+const buildUserPayload = ({ full_name, phone, email, role, professionalDetails, authEmail }) => ({
   full_name,
   phone,
   email: email?.trim() || "",
+  authEmail: authEmail || "",
   role,
   professionalDetails: professionalDetails || null,
   updatedAt: serverTimestamp(),
@@ -75,6 +107,7 @@ export async function registerUser(data) {
       phone,
       email,
       role: "customer",
+      authEmail,
     });
 
     await setDoc(doc(db, "users", userCredential.user.uid), {
@@ -102,36 +135,51 @@ export async function loginUser(data) {
   try {
     const { phone, password, portal } = data;
     const existingUserProfile = await getUserByPhone(phone);
-    const authEmail = buildAuthEmail(phone, existingUserProfile?.email || existingUserProfile?.authEmail);
-    const userCredential = await signInWithEmailAndPassword(auth, authEmail, password);
-    const idToken = await userCredential.user.getIdToken();
-    const userProfile = await getUserProfile(userCredential.user.uid);
+    const authEmailCandidates = buildAuthEmailCandidates(phone, existingUserProfile?.email || existingUserProfile?.authEmail);
 
-    if (!userProfile) {
-      await signOut(auth);
-      return { success: false, message: "User profile not found." };
+    let lastError = null;
+
+    for (const candidateEmail of authEmailCandidates) {
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, candidateEmail, password);
+        const idToken = await userCredential.user.getIdToken();
+        const userProfile = await getUserProfile(userCredential.user.uid);
+
+        if (!userProfile) {
+          await signOut(auth);
+          return { success: false, message: "User profile not found." };
+        }
+
+        if (portal === "professional" && userProfile.role !== "professional") {
+          await signOut(auth);
+          return { success: false, message: "This portal is only for registered professionals." };
+        }
+
+        return {
+          success: true,
+          user: userProfile,
+          token: idToken,
+        };
+      } catch (error) {
+        lastError = error;
+      }
     }
 
-    if (portal === "professional" && userProfile.role !== "professional") {
-      await signOut(auth);
-      return { success: false, message: "This portal is only for registered professionals." };
-    }
-
+    console.error("Firebase login error:", lastError);
     return {
-      success: true,
-      user: userProfile,
-      token: idToken,
+      success: false,
+      message:
+        lastError?.code === "auth/wrong-password" || lastError?.code === "auth/invalid-credential"
+          ? "Invalid password."
+          : lastError?.code === "auth/user-not-found"
+          ? "Account not found."
+          : lastError?.message || "Login failed.",
     };
   } catch (error) {
     console.error("Firebase login error:", error);
     return {
       success: false,
-      message:
-        error.code === "auth/wrong-password"
-          ? "Invalid password."
-          : error.code === "auth/user-not-found"
-          ? "Account not found."
-          : error.message || "Login failed.",
+      message: error.message || "Login failed.",
     };
   }
 }
@@ -179,6 +227,7 @@ export async function registerProfessional(data) {
       phone,
       email,
       role: "professional",
+      authEmail,
       professionalDetails: {
         profession,
         experience,
