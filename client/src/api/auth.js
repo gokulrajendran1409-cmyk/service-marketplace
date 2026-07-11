@@ -70,7 +70,15 @@ export async function registerUser(data) {
     if (existingUser) {
       return {
         success: false,
-        message: "Phone is already registered. Please login or use the professional upgrade flow.",
+        message: "Phone is already registered. Please login instead of registering again.",
+      };
+    }
+
+    const currentUid = auth.currentUser?.uid;
+    if (currentUid) {
+      return {
+        success: false,
+        message: "Please log out before creating a new customer account.",
       };
     }
 
@@ -197,39 +205,33 @@ export async function registerProfessional(data) {
         }
 
         if (existingPhoneUser.roles?.customer && !existingPhoneUser.roles?.professional) {
-          if (!password) {
-            return {
-              success: false,
-              message: "Phone already registered as a customer. Please login and upgrade to become a professional.",
-            };
-          }
-
-          try {
-            const userCredential = await signInWithEmailAndPassword(auth, authEmail, password);
-            uid = userCredential.user.uid;
-          } catch (error) {
-            return {
-              success: false,
-              message: error.code === "auth/wrong-password" || error.code === "auth/invalid-credential"
-                ? "Incorrect password for existing customer account."
-                : "Phone already registered. Please login.",
-            };
-          }
-        } else {
-          return { success: false, message: "Phone already registered. Please login." };
-        }
-      } else {
-        if (!password) {
-          return { success: false, message: "Password is required for professional registration." };
+          return {
+            success: false,
+            message: "Phone already registered as a customer. Please login and upgrade to become a professional.",
+          };
         }
 
-        const authEmail = buildAuthEmail(phone);
-        console.log("📝 Registering professional:", { phone, authEmail, email, fullName });
-        const userCredential = await createUserWithEmailAndPassword(auth, authEmail, password);
-        console.log("✅ Firebase account created:", userCredential.user.uid, "Email:", userCredential.user.email);
-        uid = userCredential.user.uid;
+        return { success: false, message: "Phone already registered. Please login." };
       }
+
+      if (!password) {
+        return { success: false, message: "Password is required for professional registration." };
+      }
+
+      const authEmail = buildAuthEmail(phone);
+      console.log("📝 Registering professional:", { phone, authEmail, email, fullName });
+      const userCredential = await createUserWithEmailAndPassword(auth, authEmail, password);
+      console.log("✅ Firebase account created:", userCredential.user.uid, "Email:", userCredential.user.email);
+      uid = userCredential.user.uid;
     } else {
+      const currentUserProfile = await getUserProfile(currentUid);
+      if (currentUserProfile?.phone !== phone) {
+        return {
+          success: false,
+          message: "Please use your logged-in phone number when upgrading to professional. Log out to register with a different phone.",
+        };
+      }
+
       if (existingPhoneUser && existingPhoneUser.id !== currentUid) {
         return { success: false, message: "This phone number belongs to another account." };
       }
