@@ -222,6 +222,9 @@ export default function ProfessionalRegistration() {
                     <input type="password" name="password" value={formData.password} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Minimum 6 characters" />
                   </div>
                 )}
+              </div>
+            </div>
+          )}
           {step === 2 && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2"><Briefcase className="text-emerald-600" /> Professional Details</h2>
