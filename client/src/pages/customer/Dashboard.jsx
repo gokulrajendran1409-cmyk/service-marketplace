@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Bell,
   Search,
@@ -19,7 +19,9 @@ import {
   Car,
   Star,
   CalendarDays,
-  MapPin
+  MapPin,
+  CheckCircle2,
+  AlertCircle
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
@@ -32,7 +34,7 @@ const sidebarLinks = [
   { label: "Payments", icon: CreditCard },
   { label: "Profile", icon: User },
   { label: "Settings", icon: Settings },
-  { label: "Logout", icon: LogOut }
+  { label: "Logout", icon: LogOut, action: "logout" }
 ];
 
 const quickServices = [
@@ -73,21 +75,6 @@ const bookings = [
   }
 ];
 
-const recommendedPros = [
-  {
-    name: "Arun Kumar",
-    role: "Electrician",
-    rating: 4.9,
-    price: 399
-  },
-  {
-    name: "Sneha Das",
-    role: "AC Specialist",
-    rating: 4.8,
-    price: 450
-  }
-];
-
 const activityTabs = [
   { key: "upcoming", label: "Upcoming" },
   { key: "in-progress", label: "In Progress" },
@@ -97,8 +84,15 @@ const activityTabs = [
 
 export default function CustomerDashboard() {
   const [activeTab, setActiveTab] = useState("upcoming");
-  const { user } = useAuth();
-  const firstName = user?.full_name?.split(" ")[0] || "Gokul";
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+  };
+
+  const firstName = user?.fullName?.split(" ")[0] || "User";
 
   return (
     <main className="min-h-screen bg-[#f8f5ef] pt-32 pb-12">
@@ -116,6 +110,7 @@ export default function CustomerDashboard() {
               return (
                 <button
                   key={item.label}
+                  onClick={item.action === "logout" ? handleLogout : undefined}
                   className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
                     item.active ? "bg-emerald-700 text-white shadow-sm" : "text-slate-700 hover:bg-slate-50"
                   }`}
@@ -136,12 +131,15 @@ export default function CustomerDashboard() {
           <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm xl:hidden">
             <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-700">Service Hub</p>
             <h2 className="mt-3 text-2xl font-extrabold text-slate-950">My Space</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">Quick access to your bookings, chats, and favorite services.</p>
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
               {sidebarLinks.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <button key={item.label} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
+                  <button 
+                    key={item.label}
+                    onClick={item.action === "logout" ? handleLogout : undefined}
+                    className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                  >
                     <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
                       <Icon size={16} />
                     </span>
@@ -153,23 +151,59 @@ export default function CustomerDashboard() {
           </div>
 
           <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-700">Welcome back</p>
                 <h1 className="mt-4 text-3xl font-extrabold text-slate-950 sm:text-4xl">Good Morning, {firstName} 👋</h1>
-                <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">What do you need today? Find a service, track your booking, or chat with a professional in one tap.</p>
+                <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">Manage your profile, track bookings, and connect with professionals.</p>
               </div>
 
-              <button className="inline-flex items-center gap-2 rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800">
-                <Bell size={18} /> Notifications
-              </button>
+              {user?.photoURL ? (
+                <img src={user.photoURL} alt="Profile" className="h-16 w-16 rounded-full border-2 border-emerald-100 object-cover shadow-sm" />
+              ) : (
+                <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-emerald-100 bg-emerald-50 text-xl font-bold text-emerald-700 shadow-sm">
+                  {firstName[0]?.toUpperCase()}
+                </div>
+              )}
+            </div>
+
+            {/* Profile Info Section */}
+            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-[20px] bg-slate-50 p-4 border border-slate-100">
+                <p className="text-xs font-semibold uppercase text-slate-500">Email</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900 truncate">{user?.email || "N/A"}</p>
+                <p className={`mt-2 text-xs font-semibold flex items-center gap-1 ${user?.emailVerified ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  {user?.emailVerified ? <CheckCircle2 size={14}/> : <AlertCircle size={14}/>}
+                  {user?.emailVerified ? "Verified" : "Unverified"}
+                </p>
+              </div>
+              <div className="rounded-[20px] bg-slate-50 p-4 border border-slate-100">
+                <p className="text-xs font-semibold uppercase text-slate-500">Phone</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{user?.phone || "N/A"}</p>
+                <p className={`mt-2 text-xs font-semibold flex items-center gap-1 ${user?.phoneVerified ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  {user?.phoneVerified ? <CheckCircle2 size={14}/> : <AlertCircle size={14}/>}
+                  {user?.phoneVerified ? "Verified" : "Unverified"}
+                </p>
+              </div>
+              <div className="rounded-[20px] bg-slate-50 p-4 border border-slate-100">
+                <p className="text-xs font-semibold uppercase text-slate-500">Member Since</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : "N/A"}
+                </p>
+              </div>
+              <div className="rounded-[20px] bg-slate-50 p-4 border border-slate-100">
+                <p className="text-xs font-semibold uppercase text-slate-500">Last Login</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {user?.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : "N/A"}
+                </p>
+              </div>
             </div>
 
             <div className="mt-6 grid gap-3 items-center lg:grid-cols-[1.35fr_0.95fr]">
-              <div className="relative rounded-[20px] bg-slate-50 px-3 py-2 shadow-sm">
+              <div className="relative rounded-[20px] bg-slate-50 px-3 py-2 shadow-sm border border-slate-100">
                 <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><Search size={18} /></div>
                 <input
-                  className="w-full rounded-[20px] bg-slate-50 py-2 pl-11 pr-3 text-slate-900 outline-none placeholder:text-slate-400 focus:ring-0"
+                  className="w-full rounded-[20px] bg-transparent py-2 pl-11 pr-3 text-slate-900 outline-none placeholder:text-slate-400 focus:ring-0"
                   placeholder="Search Services..."
                   aria-label="Search services"
                 />
@@ -289,77 +323,6 @@ export default function CustomerDashboard() {
                     </div>
                   </div>
                 ))}
-            </div>
-          </div>
-
-          <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
-            <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-700">Recommended Professionals</p>
-                  <h2 className="mt-4 text-2xl font-extrabold text-slate-950">Top picks for you</h2>
-                </div>
-                <Link to="/services" className="text-sm font-semibold text-emerald-700 hover:text-emerald-800">View all</Link>
-              </div>
-
-              <div className="mt-6 space-y-4">
-                {recommendedPros.map((pro) => (
-                  <div key={pro.name} className="rounded-3xl border border-slate-200 bg-[#faf9f7] p-5 shadow-sm">
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-lg font-bold text-slate-950">{pro.name}</p>
-                        <p className="text-sm text-slate-600">{pro.role}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-semibold text-slate-700">₹{pro.price}</p>
-                        <p className="mt-1 inline-flex items-center gap-1 text-sm text-amber-600">
-                          <Star size={16} /> {pro.rating}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-5 flex flex-wrap gap-3">
-                      <button className="rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800">View</button>
-                      <button className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">Book Again</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-700">Recent Reviews</p>
-                <div className="mt-6 space-y-4">
-                  <div className="rounded-3xl bg-[#f8f7f4] p-5">
-                    <div className="flex items-center gap-1 text-amber-500">
-                      {Array.from({ length: 5 }).map((_, index) => (
-                        <Star key={index} size={16} />
-                      ))}
-                    </div>
-                    <p className="mt-4 text-slate-700">Thank you for choosing Servora. Your feedback helps us keep every home service smooth, reliable, and friendly.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-700">Today</p>
-                <div className="mt-5 space-y-4 text-slate-700">
-                  <div className="inline-flex items-center gap-3 rounded-[24px] border border-slate-200 bg-[#f8f7f4] px-4 py-4">
-                    <span className="inline-flex h-11 w-11 items-center justify-center rounded-3xl bg-slate-100 text-slate-700"><MapPin size={18} /></span>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-950">On the way to your location</p>
-                      <p className="text-sm text-slate-600">Arun is arriving in 12 mins</p>
-                    </div>
-                  </div>
-                  <div className="inline-flex items-center gap-3 rounded-[24px] border border-slate-200 bg-[#f8f7f4] px-4 py-4">
-                    <span className="inline-flex h-11 w-11 items-center justify-center rounded-3xl bg-slate-100 text-slate-700"><Clock size={18} /></span>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-950">3:00 PM service starts</p>
-                      <p className="text-sm text-slate-600">Electrician will arrive on schedule.</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </section>

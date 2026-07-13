@@ -1,23 +1,29 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Eye, EyeOff, Phone, Lock, AlertCircle, CheckCircle2 } from "lucide-react";
-import { loginUser } from "../../api/auth";
+import { Eye, EyeOff, Mail, Lock, AlertCircle, CheckCircle2 } from "lucide-react";
+import { FcGoogle } from "react-icons/fc";
+import { loginWithEmail } from "../../firebase/login";
+import { loginWithGoogle } from "../../firebase/google-auth";
 import { useAuth } from "../../context/AuthContext";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  // `login` from AuthContext is not strictly needed if we rely on onAuthStateChanged,
+  // but we can call it to immediately set token/user in context/localStorage if desired.
+  // Actually, onAuthStateChanged in AuthContext sets it automatically.
   const { login } = useAuth();
   const returnTo = location.state?.returnTo;
 
-  const [form, setForm] = useState({ phone: "", password: "" });
+  const [form, setForm] = useState({ email: "", password: "", rememberMe: false });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+    setForm({ ...form, [e.target.name]: value });
     setError("");
   };
 
@@ -26,22 +32,19 @@ export default function LoginPage() {
     setError("");
     setSuccess("");
 
-    if (!form.phone || !form.password) {
-      setError("Please enter both phone number and password.");
+    if (!form.email || !form.password) {
+      setError("Please enter both email and password.");
       return;
     }
 
     setLoading(true);
     try {
-      const res = await loginUser({ ...form, portal: "customer" });
+      const res = await loginWithEmail(form.email, form.password);
       if (res.success) {
-        login(res.user, res.token);
         setSuccess("Login successful! Redirecting...");
         setTimeout(() => {
           if (returnTo) {
             navigate(returnTo);
-          } else if (res.user.roles?.professional) {
-            navigate("/customer/dashboard");
           } else {
             navigate("/customer/dashboard");
           }
@@ -52,6 +55,30 @@ export default function LoginPage() {
     } catch (err) {
       console.error("LoginPage error:", err);
       setError("Could not connect to the server. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      const res = await loginWithGoogle();
+      if (res.success) {
+        setSuccess("Google login successful! Redirecting...");
+        setTimeout(() => {
+          if (returnTo) {
+            navigate(returnTo);
+          } else {
+            navigate("/customer/dashboard");
+          }
+        }, 800);
+      } else {
+        setError(res.message);
+      }
+    } catch (err) {
+      setError("Google Sign-In failed.");
     } finally {
       setLoading(false);
     }
@@ -73,16 +100,16 @@ export default function LoginPage() {
           <p className="mt-2 text-sm text-slate-500">Access your dashboard and manage your bookings.</p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-            {/* Phone */}
+            {/* Email */}
             <div className="relative">
-              <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
-                id="login-phone"
-                name="phone"
-                type="tel"
-                value={form.phone}
+                id="login-email"
+                name="email"
+                type="email"
+                value={form.email}
                 onChange={handleChange}
-                placeholder="Phone number"
+                placeholder="Email address"
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 pl-12 pr-4 text-slate-900 placeholder-slate-400 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
               />
             </div>
@@ -104,6 +131,22 @@ export default function LoginPage() {
               </button>
             </div>
 
+            <div className="flex items-center justify-between text-sm">
+              <label className="flex items-center gap-2 text-slate-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="rememberMe"
+                  checked={form.rememberMe}
+                  onChange={handleChange}
+                  className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                />
+                Remember me
+              </label>
+              <Link to="/forgot-password" className="font-medium text-emerald-700 hover:underline">
+                Forgot Password?
+              </Link>
+            </div>
+
             {/* Error */}
             {error && (
               <div className="flex items-center gap-2 rounded-2xl bg-rose-50 border border-rose-200 px-4 py-3 text-sm text-rose-700">
@@ -122,11 +165,31 @@ export default function LoginPage() {
               id="login-submit"
               type="submit"
               disabled={loading}
-              className="w-full rounded-2xl bg-emerald-700 py-3.5 font-bold text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-60"
+              className="w-full rounded-2xl bg-emerald-700 py-3.5 flex justify-center items-center font-bold text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-60"
             >
-              {loading ? "Logging in..." : "Continue"}
+              {loading ? (
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : "Continue"}
             </button>
           </form>
+
+          <div className="mt-6 flex items-center gap-4">
+            <div className="h-px flex-1 bg-slate-200"></div>
+            <span className="text-sm font-medium text-slate-400">OR</span>
+            <div className="h-px flex-1 bg-slate-200"></div>
+          </div>
+
+          <button
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            className="mt-6 flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white py-3.5 font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+          >
+            <FcGoogle size={22} />
+            Continue with Google
+          </button>
 
           <p className="mt-6 text-center text-sm text-slate-500">
             New here?{" "}
