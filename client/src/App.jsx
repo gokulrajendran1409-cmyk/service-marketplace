@@ -4,6 +4,7 @@ import Navbar from "./components/Navbar/Navbar";
 import HomePage from "./pages/Home/Home";
 import LoginPage from "./pages/auth/Login";
 import RegisterPage from "./pages/auth/Register";
+import ForgotPasswordPage from "./pages/auth/ForgotPassword";
 import CustomerDashboard from "./pages/customer/Dashboard";
 import ProfessionalDashboard from "./pages/professional/Dashboard";
 import NotFoundPage from "./pages/NotFound";
@@ -40,6 +41,7 @@ function App() {
         <Route path="/help" element={<HelpPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/how-it-works" element={<HowItWorks />} />
         <Route path="/customer/dashboard" element={<CustomerDashboard />} />
         <Route path="/professional/dashboard" element={<ProfessionalDashboard />} />

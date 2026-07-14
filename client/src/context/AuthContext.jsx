@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "../firebase";
+import { auth, db } from "../firebase/firebase-config";
 
 const AuthContext = createContext(null);
 
@@ -29,8 +29,22 @@ export function AuthProvider({ children }) {
             };
             const normalizedUser = {
               id: firebaseUser.uid,
-              full_name: userData.full_name,
+              uid: firebaseUser.uid,
+              fullName: userData.fullName || userData.full_name,
               phone: userData.phone,
+              email: userData.email || firebaseUser.email,
+              photoURL: userData.photoURL || firebaseUser.photoURL,
+              provider: userData.provider,
+              emailVerified: firebaseUser.emailVerified,
+              phoneVerified: userData.phoneVerified,
+              createdAt: userData.createdAt,
+              lastLogin: userData.lastLogin,
+              status: userData.status,
+              role: userData.role,
+              roles: userData.roles || {
+                customer: userData.role === "customer",
+                professional: userData.role === "professional",
+              },
               email: userData.email,
               role: userData.role || (roles.professional ? "professional" : "customer"),
               roles,
