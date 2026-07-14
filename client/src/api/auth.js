@@ -1,27 +1,22 @@
 import {
   createUserWithEmailAndPassword,
+  fetchSignInMethodsForEmail,
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
-import {
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  serverTimestamp,
-} from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
-const buildAuthEmail = (phone, email) => {
-  const normalizedPhone = phone?.toString().replace(/\D/g, "") || "";
-  return email?.trim() ? email.trim().toLowerCase() : `${normalizedPhone}@servora.local`;
+const buildAuthEmail = (phone) => {
+  return `${phone.replace(/\D/g, "")}@servora.local`;
 };
 
-const buildUserPayload = ({ full_name, phone, email, role, professionalDetails }) => ({
+const buildUserPayload = ({ full_name, phone, email, roles, professionalDetails, authEmail }) => ({
   full_name,
   phone,
   email: email?.trim() || "",
-  role,
+  authEmail: authEmail || "",
+  roles,
   professionalDetails: professionalDetails || null,
   updatedAt: serverTimestamp(),
 });
@@ -36,14 +31,60 @@ const getUserProfile = async (uid) => {
 export async function registerUser(data) {
   try {
     const { phone, email, password, full_name } = data;
-    const authEmail = buildAuthEmail(phone, email);
+    const currentUser = auth.currentUser;
+    const currentUid = currentUser?.uid;
+    if (currentUid) {
+      return {
+        success: false,
+        message: "Please log out before creating a new customer account.",
+      };
+    }
+
+    if (!password) {
+      return { success: false, message: "Password is required to create or upgrade an account." };
+    }
+
+    const authEmail = buildAuthEmail(phone);
+    const methods = await fetchSignInMethodsForEmail(auth, authEmail);
+    if (methods.length > 0) {
+      console.log("🔄 Existing account found, upgrading to customer role:", authEmail);
+      const userCredential = await signInWithEmailAndPassword(auth, authEmail, password);
+      const userRef = doc(db, "users", userCredential.user.uid);
+      const snapshot = await getDoc(userRef);
+      if (!snapshot.exists()) {
+        return { success: false, message: "User profile not found." };
+      }
+
+      const existingRoles = snapshot.data().roles || { customer: false, professional: false };
+      if (existingRoles.customer) {
+        return { success: true, user: { id: userCredential.user.uid, ...snapshot.data(), roles: existingRoles } };
+      }
+
+      await updateDoc(userRef, {
+        roles: { ...existingRoles, customer: true },
+      });
+
+      const updatedUser = await getUserProfile(userCredential.user.uid);
+      return { success: true, user: updatedUser };
+    }
+
+    console.log("📝 Registering user:", { phone, authEmail, email, full_name });
     const userCredential = await createUserWithEmailAndPassword(auth, authEmail, password);
+    console.log("✅ Firebase account created:", userCredential.user.uid, "Email:", userCredential.user.email);
+
+    await userCredential.user.getIdToken(true);
+    await auth.currentUser?.reload();
+    await auth.currentUser?.getIdToken(true);
 
     const userData = buildUserPayload({
       full_name,
       phone,
       email,
-      role: "customer",
+      roles: {
+        customer: true,
+        professional: false,
+      },
+      authEmail,
     });
 
     await setDoc(doc(db, "users", userCredential.user.uid), {
@@ -60,7 +101,9 @@ export async function registerUser(data) {
     return {
       success: false,
       message:
-        error.code === "auth/email-already-in-use"
+        error.code === "auth/wrong-password"
+          ? "Invalid password."
+          : error.code === "auth/email-already-in-use"
           ? "Phone or email already registered."
           : error.message || "Registration failed.",
     };
@@ -71,7 +114,10 @@ export async function loginUser(data) {
   try {
     const { phone, password, portal } = data;
     const authEmail = buildAuthEmail(phone);
+    console.log("🔐 Login attempt:", { phone, authEmail, portal });
+
     const userCredential = await signInWithEmailAndPassword(auth, authEmail, password);
+    console.log("✅ Login successful for:", authEmail);
     const idToken = await userCredential.user.getIdToken();
     const userProfile = await getUserProfile(userCredential.user.uid);
 
@@ -80,7 +126,19 @@ export async function loginUser(data) {
       return { success: false, message: "User profile not found." };
     }
 
-    if (portal === "professional" && userProfile.role !== "professional") {
+    if (portal === "customer" && !userProfile.roles?.customer) {
+      if (userProfile.roles?.professional) {
+        const userRef = doc(db, "users", userCredential.user.uid);
+        const upgradedRoles = { ...userProfile.roles, customer: true };
+        await updateDoc(userRef, { roles: upgradedRoles });
+        userProfile.roles = upgradedRoles;
+      } else {
+        await signOut(auth);
+        return { success: false, message: "This portal is for registered customers only. Please use the professional portal." };
+      }
+    }
+
+    if (portal === "professional" && !userProfile.roles?.professional) {
       await signOut(auth);
       return { success: false, message: "This portal is only for registered professionals." };
     }
@@ -91,11 +149,12 @@ export async function loginUser(data) {
       token: idToken,
     };
   } catch (error) {
-    console.error("Firebase login error:", error);
+    console.error("❌ Firebase login error:", error.code, error.message);
+    console.error("   Tried email:", buildAuthEmail(data.phone));
     return {
       success: false,
       message:
-        error.code === "auth/wrong-password"
+        error.code === "auth/wrong-password" || error.code === "auth/invalid-credential"
           ? "Invalid password."
           : error.code === "auth/user-not-found"
           ? "Account not found."
@@ -130,58 +189,118 @@ export async function registerProfessional(data) {
       ifscCode,
     } = data;
 
-    let currentUid = auth.currentUser?.uid;
-    let authEmail = buildAuthEmail(phone, email);
+    const currentUser = auth.currentUser;
+    const currentUid = currentUser?.uid;
+    let uid = currentUid;
+    const authEmail = buildAuthEmail(phone);
+
+    const professionalDetails = {
+      profession,
+      experience,
+      languages,
+      bio,
+      address: { state, district, city, pincode },
+      serviceArea,
+      pricing: { visitCharge, hourlyRate, emergencyCharge },
+      workingHours,
+      emergencyService,
+      bankDetails: { bankName, accountNumber, ifscCode },
+    };
 
     if (!currentUid) {
       if (!password) {
         return { success: false, message: "Password is required for professional registration." };
       }
 
+      const methods = await fetchSignInMethodsForEmail(auth, authEmail);
+      if (methods.length > 0) {
+        console.log("🔄 Existing account found, upgrading to professional role:", authEmail);
+        const userCredential = await signInWithEmailAndPassword(auth, authEmail, password);
+        uid = userCredential.user.uid;
+
+        const userRef = doc(db, "users", uid);
+        const snapshot = await getDoc(userRef);
+        if (!snapshot.exists()) {
+          return { success: false, message: "User profile not found." };
+        }
+
+        const existingRoles = snapshot.data().roles || { customer: false, professional: false };
+        const updatedRoles = { ...existingRoles, professional: true };
+
+        await updateDoc(userRef, {
+          roles: updatedRoles,
+          professionalDetails,
+          updatedAt: serverTimestamp(),
+        });
+
+        const updatedUser = await getUserProfile(uid);
+        return { success: true, user: updatedUser };
+      }
+
+      console.log("📝 Registering professional:", { phone, authEmail, email, fullName });
       const userCredential = await createUserWithEmailAndPassword(auth, authEmail, password);
-      currentUid = userCredential.user.uid;
+      console.log("✅ Firebase account created:", userCredential.user.uid, "Email:", userCredential.user.email);
+      uid = userCredential.user.uid;
+
+      await userCredential.user.getIdToken(true);
+      await auth.currentUser?.reload();
+      await auth.currentUser?.getIdToken(true);
+    } else {
+      const currentUserProfile = await getUserProfile(currentUid);
+      if (currentUserProfile?.phone !== phone) {
+        return {
+          success: false,
+          message: "Please use your logged-in phone number when upgrading to professional. Log out to register with a different phone.",
+        };
+      }
     }
 
-    const userData = buildUserPayload({
-      full_name: fullName,
-      phone,
-      email,
-      role: "professional",
-      professionalDetails: {
-        profession,
-        experience,
-        languages,
-        bio,
-        address: { state, district, city, pincode },
-        serviceArea,
-        pricing: { visitCharge, hourlyRate, emergencyCharge },
-        workingHours,
-        emergencyService,
-        bankDetails: { bankName, accountNumber, ifscCode },
-      },
-    });
+    if (!auth.currentUser || auth.currentUser.uid !== uid) {
+      return {
+        success: false,
+        message: "Unable to authenticate user before saving professional profile.",
+      };
+    }
 
-    const userRef = doc(db, "users", currentUid);
+    await auth.currentUser?.reload();
+    await auth.currentUser?.getIdToken(true);
+
+    const userRef = doc(db, "users", uid);
     const existing = await getDoc(userRef);
+    const roles = existing.exists()
+      ? { ...existing.data().roles, professional: true }
+      : { customer: false, professional: true };
+
+    const userData = {
+      roles,
+      professionalDetails,
+      updatedAt: serverTimestamp(),
+    };
 
     if (existing.exists()) {
       await updateDoc(userRef, userData);
     } else {
       await setDoc(userRef, {
+        full_name: fullName,
+        phone,
+        email,
+        authEmail,
         ...userData,
         createdAt: serverTimestamp(),
       });
     }
 
-    const updatedUser = await getUserProfile(currentUid);
+    const updatedUser = await getUserProfile(uid);
     return { success: true, user: updatedUser };
   } catch (error) {
     console.error("Firebase professional registration error:", error);
     return {
       success: false,
       message:
-        error.code === "auth/email-already-in-use"
-          ? "Phone or email already registered."
+        error.code === "auth/wrong-password"
+          ? "Invalid password."
+          : error.code === "auth/email-already-in-use"
+          ? "Phone already registered."
           : error.message || "Professional registration failed.",
     };
   }

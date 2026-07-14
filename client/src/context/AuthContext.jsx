@@ -19,6 +19,14 @@ export function AuthProvider({ children }) {
           const snapshot = await getDoc(userRef);
           if (snapshot.exists()) {
             const userData = snapshot.data();
+            const savedRoles = userData.roles ?? {};
+            const roles = {
+              customer:
+                savedRoles.customer ??
+                (savedRoles.professional === true ? false : true),
+              professional:
+                savedRoles.professional ?? Boolean(userData.professionalDetails),
+            };
             const normalizedUser = {
               id: firebaseUser.uid,
               uid: firebaseUser.uid,
@@ -37,6 +45,9 @@ export function AuthProvider({ children }) {
                 customer: userData.role === "customer",
                 professional: userData.role === "professional",
               },
+              email: userData.email,
+              role: userData.role || (roles.professional ? "professional" : "customer"),
+              roles,
               professionalDetails: userData.professionalDetails || null,
             };
             setUser(normalizedUser);

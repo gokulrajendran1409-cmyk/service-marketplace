@@ -9,7 +9,7 @@ import { registerProfessional } from "../api/auth";
 
 export default function ProfessionalRegistration() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -44,22 +44,32 @@ export default function ProfessionalRegistration() {
   });
 
   const createInitialFormData = () => ({
-    ...createEmptyFormData(),
-    fullName: user?.full_name || "",
-    phone: user?.phone || "",
-    email: user?.email || ""
+    ...createEmptyFormData()
   });
 
   // Form State
-  const [formData, setFormData] = useState(createInitialFormData());
+  const isUpgrade = Boolean(user && user.roles?.customer && !user.roles?.professional);
+
+  const [formData, setFormData] = useState(() => ({
+    ...createInitialFormData(),
+    fullName: user?.full_name || "",
+    phone: user?.phone || "",
+    email: user?.email || "",
+    password: "",
+  }));
 
   useEffect(() => {
-    setFormData(createInitialFormData());
+    setFormData({
+      ...createInitialFormData(),
+      fullName: user?.full_name || "",
+      phone: user?.phone || "",
+      email: user?.email || "",
+    });
     setStep(1);
     setError("");
     setSuccess(false);
     setLoading(false);
-  }, [user?.full_name, user?.phone, user?.email]);
+  }, [user]);
 
   const resetForm = () => {
     setFormData(createEmptyFormData());
@@ -85,9 +95,14 @@ export default function ProfessionalRegistration() {
     e.preventDefault();
     setError("");
 
+    if (authLoading) {
+      setError("Still loading authentication state. Please wait a moment.");
+      return;
+    }
+
     // Validate required fields
     if (!formData.fullName || !formData.phone || !formData.email || (!user && !formData.password)) {
-      setError("Please fill in all required personal details (Step 1).");
+      setError("Please fill in all required personal details (Step 1). If you're upgrading, leave password blank.");
       setStep(1);
       return;
     }
@@ -178,35 +193,46 @@ export default function ProfessionalRegistration() {
         </div>
 
         <div className="rounded-[36px] bg-white shadow-xl shadow-slate-200/50 border border-slate-100 p-6 sm:p-10">
-          
+          <form key={user?.id || "anon"} onSubmit={handleSubmit} autoComplete="off">
+            <input type="text" name="fakeusernameremembered" autoComplete="off" style={{ display: "none" }} />
+            <input type="password" name="fakepasswordremembered" autoComplete="new-password" style={{ display: "none" }} />
           {/* Step 1: Personal Details */}
           {step === 1 && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="mb-6 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                {isUpgrade ? (
+                  <p>
+                    You are currently logged in as a customer. Complete this form to upgrade your existing account to a professional profile.
+                  </p>
+                ) : (
+                  <p>
+                    Register as a professional with your phone and password. If you are already a customer, please login first and then upgrade your account.
+                  </p>
+                )}
+              </div>
               <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2"><User className="text-emerald-600" /> Personal Details</h2>
               <div className="grid gap-6 sm:grid-cols-2">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Full Name</label>
-                  <input type="text" name="fullName" value={formData.fullName} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="John Doe" />
+                  <input autoComplete="name" type="text" name="fullName" value={formData.fullName} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="John Doe" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Phone Number</label>
-                  <input type="text" name="phone" value={formData.phone} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="+91 XXXXXXXXXX" />
+                  <input autoComplete="tel" type="text" name="phone" value={formData.phone} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="+91 XXXXXXXXXX" />
                 </div>
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Email Address</label>
-                  <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="john@example.com" />
+                  <input autoComplete="email" type="email" name="email" value={formData.email} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="john@example.com" />
                 </div>
-                {!user && (
+                {!isUpgrade && (
                   <div className="sm:col-span-2">
                     <label className="block text-sm font-semibold text-slate-700 mb-2">Create Password</label>
-                    <input type="password" name="password" value={formData.password} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Minimum 6 characters" />
+                    <input autoComplete="new-password" type="password" name="password" value={formData.password} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Minimum 6 characters" />
                   </div>
                 )}
               </div>
             </div>
           )}
-
-          {/* Step 2: Professional Details */}
           {step === 2 && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2"><Briefcase className="text-emerald-600" /> Professional Details</h2>
@@ -380,6 +406,7 @@ export default function ProfessionalRegistration() {
           {/* Navigation Buttons */}
           <div className="flex justify-between mt-10 pt-6 border-t border-slate-100">
             <button 
+              type="button"
               onClick={handleBack} 
               disabled={step === 1 || loading}
               className={`inline-flex items-center gap-2 rounded-full px-6 py-3 font-semibold transition ${step === 1 ? 'opacity-0 cursor-default' : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}
@@ -389,6 +416,7 @@ export default function ProfessionalRegistration() {
             
             {step < 6 ? (
               <button 
+                type="button"
                 onClick={handleNext} 
                 className="inline-flex items-center gap-2 rounded-full bg-emerald-700 px-8 py-3.5 font-bold text-white transition hover:bg-emerald-800"
               >
@@ -396,7 +424,7 @@ export default function ProfessionalRegistration() {
               </button>
             ) : (
               <button 
-                onClick={handleSubmit} 
+                type="submit"
                 disabled={loading}
                 className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-10 py-3.5 font-bold text-white transition hover:bg-slate-800 disabled:opacity-70 shadow-lg hover:shadow-xl hover:-translate-y-0.5"
               >
@@ -414,6 +442,7 @@ export default function ProfessionalRegistration() {
              </p>
           </div>
 
+          </form>
         </div>
       </div>
     </main>

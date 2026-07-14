@@ -196,6 +196,18 @@ export default function CustomerDashboard() {
                 <p className="mt-1 text-sm font-semibold text-slate-900">
                   {user?.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : "N/A"}
                 </p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                {user?.roles?.customer && !user?.roles?.professional && (
+                  <Link
+                    to="/professional/register"
+                    className="inline-flex items-center justify-center rounded-2xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600"
+                  >
+                    Become a Professional
+                  </Link>
+                )}
+                <button className="inline-flex items-center gap-2 rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800">
+                  <Bell size={18} /> Notifications
+                </button>
               </div>
             </div>
 
