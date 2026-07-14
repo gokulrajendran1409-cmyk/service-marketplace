@@ -230,6 +230,7 @@ export default function CustomerDashboard() {
               </div>
             </div>
           </div>
+          </div>
 
           <div className="grid gap-6 xl:grid-cols-[1.5fr_0.9fr]">
             <article className="xl:order-2 rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
