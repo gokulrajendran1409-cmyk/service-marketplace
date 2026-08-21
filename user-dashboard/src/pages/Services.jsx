@@ -14,7 +14,21 @@ function Services({ navigate }) {
   const [locationStatus, setLocationStatus] = useState('idle');
   const [locationError, setLocationError] = useState('');
   const [booking, setBooking] = useState(null); // { professional, category }
+  const [profileProfessional, setProfileProfessional] = useState(null);
   const { toast, showToast } = useToast();
+  const nearbyLimitKm = 15;
+
+  const calculateDistanceInKm = (firstLatitude, firstLongitude, secondLatitude, secondLongitude) => {
+    if (![firstLatitude, firstLongitude, secondLatitude, secondLongitude].every(Number.isFinite)) return null;
+    const earthRadiusKm = 6371;
+    const latitudeDelta = (secondLatitude - firstLatitude) * Math.PI / 180;
+    const longitudeDelta = (secondLongitude - firstLongitude) * Math.PI / 180;
+    const latitude1 = firstLatitude * Math.PI / 180;
+    const latitude2 = secondLatitude * Math.PI / 180;
+    const haversine = Math.sin(latitudeDelta / 2) ** 2
+      + Math.cos(latitude1) * Math.cos(latitude2) * Math.sin(longitudeDelta / 2) ** 2;
+    return earthRadiusKm * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+  };
 
   useEffect(() => {
     fetch(`${API}/categories`)
@@ -75,9 +89,22 @@ function Services({ navigate }) {
     setLoadingPros(true);
     try {
       const currentLocation = location || await requestLocation();
-      const res = await fetch(`${API}/professionals?category=${encodeURIComponent(cat.name)}`);
+      const query = new URLSearchParams({
+        category: cat.name,
+        latitude: String(currentLocation.latitude),
+        longitude: String(currentLocation.longitude),
+      });
+      const res = await fetch(`${API}/professionals?${query}`);
       const data = await res.json();
-      setProfessionals(data.map(professional => ({ ...professional, distance_from_user: currentLocation ? null : undefined })));
+      setProfessionals(data.map(professional => ({
+        ...professional,
+        distance_from_user: calculateDistanceInKm(
+          currentLocation.latitude,
+          currentLocation.longitude,
+          Number(professional.registered_latitude),
+          Number(professional.registered_longitude)
+        ),
+      })));
     } catch {
       if (locationStatus !== 'denied') showToast('Failed to load professionals', 'error');
     } finally {
@@ -97,11 +124,39 @@ function Services({ navigate }) {
     navigate && navigate('requests');
   };
 
+  const nearbyProfessionals = professionals.filter(professional => professional.distance_from_user != null && professional.distance_from_user <= nearbyLimitKm);
+
+  const renderProfessionalCard = (pro, allowDirectBooking = false) => (
+    <div key={pro.id} className="pro-card fade-up">
+      <div className="pro-header">
+        <div className="pro-avatar">{pro.full_name.charAt(0).toUpperCase()}</div>
+        <div>
+          <div className="pro-name">{pro.full_name}</div>
+          <span className="pro-category">{pro.category}</span>
+        </div>
+      </div>
+      <div className="pro-meta">
+        <span>📍 {pro.city || 'N/A'}{pro.state ? `, ${pro.state}` : ''}</span>
+        <span>⭐ {pro.experience_years}y exp</span>
+      </div>
+      {pro.distance_from_user != null && (
+        <div className="pro-distance"><MapPin size={14} /> {pro.distance_from_user < 1 ? `${Math.round(pro.distance_from_user * 1000)} m away` : `${pro.distance_from_user.toFixed(2)} km away`}</div>
+      )}
+      {pro.bio && <div className="pro-bio">{pro.bio}</div>}
+      {allowDirectBooking && (
+        <div className="professional-card-actions">
+          <button className="btn-profile" onClick={() => setProfileProfessional(pro)}>View profile</button>
+          <button className="btn-hire" onClick={() => setBooking({ professional: pro, category: selected.name, location })}>Book this professional</button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="page-container">
       <div className="page-header">
         <h1 className="page-title">Find a Service</h1>
-        <p className="page-subtitle">Choose a category to browse verified professionals near you.</p>
+        <p className="page-subtitle">Choose a category and send one request to nearby professionals.</p>
       </div>
 
       <div className="location-panel">
@@ -166,6 +221,12 @@ function Services({ navigate }) {
             <h2 style={{ fontSize: 20, fontWeight: 700 }}>
               {categoryIcons[selected.name]} {selected.name} Professionals
             </h2>
+            <button
+              className="broadcast-request-btn"
+              onClick={() => setBooking({ professional: null, category: selected.name, location })}
+            >
+              Send request nearby
+            </button>
           </div>
 
           {loadingPros ? (
@@ -179,30 +240,32 @@ function Services({ navigate }) {
               <p>No verified professionals in this category yet.</p>
             </div>
           ) : (
-            <div className="professionals-grid">
-              {professionals.map(pro => (
-                <div key={pro.id} className="pro-card fade-up">
-                  <div className="pro-header">
-                    <div className="pro-avatar">{pro.full_name.charAt(0).toUpperCase()}</div>
-                    <div>
-                      <div className="pro-name">{pro.full_name}</div>
-                      <span className="pro-category">{pro.category}</span>
-                    </div>
+            <>
+              <section className="professional-section">
+                <div className="professional-section-heading">
+                  <div>
+                    <h3>Nearby Professionals</h3>
+                    <p>Registered within {nearbyLimitKm} km of your current location.</p>
                   </div>
-                  <div className="pro-meta">
-                    <span>📍 {pro.city || 'N/A'}{pro.state ? `, ${pro.state}` : ''}</span>
-                    <span>⭐ {pro.experience_years}y exp</span>
-                  </div>
-                  {pro.bio && <div className="pro-bio">{pro.bio}</div>}
-                  <button
-                    className="btn-hire"
-                    onClick={() => setBooking({ professional: pro, category: selected.name, location })}
-                  >
-                    Book Now
-                  </button>
+                  <span className="section-count">{nearbyProfessionals.length}</span>
                 </div>
-              ))}
-            </div>
+                {nearbyProfessionals.length > 0 ? (
+                  <div className="professionals-grid">{nearbyProfessionals.map(professional => renderProfessionalCard(professional))}</div>
+                ) : (
+                  <div className="nearby-empty">No professionals were found within {nearbyLimitKm} km.</div>
+                )}
+              </section>
+              <section className="professional-section">
+                <div className="professional-section-heading">
+                  <div>
+                    <h3>Available Professionals</h3>
+                    <p>All verified professionals in this category.</p>
+                  </div>
+                  <span className="section-count">{professionals.length}</span>
+                </div>
+                <div className="professionals-grid">{professionals.map(professional => renderProfessionalCard(professional, true))}</div>
+              </section>
+            </>
           )}
         </div>
       )}
@@ -216,6 +279,31 @@ function Services({ navigate }) {
           onClose={() => setBooking(null)}
           onSuccess={handleRequestSuccess}
         />
+      )}
+
+      {profileProfessional && (
+        <div className="modal-overlay" onClick={(event) => event.target === event.currentTarget && setProfileProfessional(null)}>
+          <div className="modal profile-modal fade-up">
+            <div className="profile-modal-header">
+              <div className="pro-avatar">{profileProfessional.full_name.charAt(0).toUpperCase()}</div>
+              <div>
+                <h2 className="modal-title">{profileProfessional.full_name}</h2>
+                <span className="pro-category">{profileProfessional.category}</span>
+              </div>
+              <button className="profile-close-btn" onClick={() => setProfileProfessional(null)} aria-label="Close profile">×</button>
+            </div>
+            <div className="profile-details">
+              <div><strong>Experience</strong><span>{profileProfessional.experience_years || 0} years</span></div>
+              <div><strong>Location</strong><span>{[profileProfessional.city, profileProfessional.state].filter(Boolean).join(', ') || 'Not provided'}</span></div>
+              {profileProfessional.distance_from_user != null && <div><strong>Distance</strong><span>{profileProfessional.distance_from_user.toFixed(2)} km away</span></div>}
+            </div>
+            <div className="profile-bio-block">
+              <strong>About this professional</strong>
+              <p>{profileProfessional.bio || 'No professional bio provided.'}</p>
+            </div>
+            <button className="btn-hire" onClick={() => { setProfileProfessional(null); setBooking({ professional: profileProfessional, category: selected.name, location }); }}>Book this professional</button>
+          </div>
+        </div>
       )}
 
       <Toast toast={toast} />

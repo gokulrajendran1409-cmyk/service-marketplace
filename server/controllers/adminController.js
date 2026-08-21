@@ -200,10 +200,14 @@ const getServiceRequests = async (req, res) => {
                 sr.title,
                 sr.description,
                 sr.location,
+                sr.requested_at,
                 sr.created_at,
                 sr.updated_at,
                 u.name   AS user_name,
                 u.email  AS user_email,
+                offer_summary.offer_count,
+                offer_summary.pending_offer_count,
+                offer_summary.rejected_professionals,
                 p.full_name AS professional_name,
                 p.category  AS professional_category
             FROM service_requests sr
@@ -211,11 +215,19 @@ const getServiceRequests = async (req, res) => {
             LEFT JOIN LATERAL (
                 SELECT professional_id
                 FROM service_offers
-                WHERE request_id = sr.id
-                ORDER BY updated_at DESC, id DESC
+                WHERE request_id = sr.id AND status = 'accepted'
                 LIMIT 1
             ) target_offer ON true
             LEFT JOIN professionals p ON target_offer.professional_id = p.id
+            LEFT JOIN LATERAL (
+                SELECT COUNT(*)::int AS offer_count,
+                      COUNT(*) FILTER (WHERE status = 'pending')::int AS pending_offer_count,
+                      STRING_AGG(professional.full_name, ', ' ORDER BY professional.full_name)
+                        FILTER (WHERE service_offers.status = 'rejected') AS rejected_professionals
+                FROM service_offers
+                  JOIN professionals professional ON professional.id = service_offers.professional_id
+                WHERE request_id = sr.id
+            ) offer_summary ON true
             ${whereClause}
             ORDER BY sr.created_at DESC
         `;

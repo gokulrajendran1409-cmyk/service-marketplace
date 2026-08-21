@@ -1,6 +1,17 @@
 import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Briefcase, CheckCircle } from 'lucide-react';
+import { Briefcase, CheckCircle, Loader2, MapPin } from 'lucide-react';
+import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+const defaultMapCenter = [20.5937, 78.9629];
+const registrationMarker = L.divIcon({ className: 'registration-map-marker', html: '📍', iconSize: [32, 32], iconAnchor: [16, 32] });
+
+function RegistrationMapClick({ onSelect }) {
+  useMapEvents({ click: event => onSelect(event.latlng.lat, event.latlng.lng) });
+  return null;
+}
 
 export default function Registration() {
   const navigate = useNavigate();
@@ -25,6 +36,9 @@ export default function Registration() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [locationStatus, setLocationStatus] = useState('idle');
+  const [locationError, setLocationError] = useState('');
 
   const idInputRef = useRef(null);
   const certInputRef = useRef(null);
@@ -37,6 +51,57 @@ export default function Registration() {
     if (e.target.files && e.target.files[0]) {
       setter(e.target.files[0]);
     }
+  };
+
+  const reverseGeocode = async (latitude, longitude) => {
+    setLocationStatus('geocoding');
+    setLocationError('');
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`);
+      if (!response.ok) throw new Error('Unable to identify this location.');
+      const data = await response.json();
+      const address = data.address || {};
+      const cityName = address.city
+        || address.town
+        || address.village
+        || address.municipality
+        || address.city_district
+        || address.district
+        || address.county
+        || address.state_district;
+      setFormData(previous => ({
+        ...previous,
+        address: [address.house_number, address.road].filter(Boolean).join(' ') || data.display_name || previous.address,
+        city: cityName || previous.city,
+        state: address.state || previous.state,
+        pincode: address.postcode || previous.pincode,
+      }));
+      setSelectedLocation({ latitude, longitude });
+      setLocationStatus('ready');
+    } catch (geocodeError) {
+      setLocationStatus('error');
+      setLocationError(geocodeError.message);
+    }
+  };
+
+  const enableLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationStatus('error');
+      setLocationError('Location services are not supported by this browser.');
+      return;
+    }
+    setLocationStatus('requesting');
+    setLocationError('');
+    navigator.geolocation.getCurrentPosition(
+      position => reverseGeocode(position.coords.latitude, position.coords.longitude),
+      locationError => {
+        setLocationStatus('error');
+        setLocationError(locationError.code === locationError.PERMISSION_DENIED
+          ? 'Please allow location access or select a point on the map.'
+          : 'We could not retrieve your location. Please try again.');
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
   };
 
   const handleSubmit = async (e) => {
@@ -144,6 +209,26 @@ export default function Registration() {
           <div className="form-group">
             <label>Experience (Years)</label>
             <input type="number" name="experience_years" value={formData.experience_years} onChange={handleInputChange} min="0" className="form-input" placeholder="5" required />
+          </div>
+
+          <div className="form-group full-width">
+            <label>Service Location</label>
+            <div className="registration-location-tools">
+              <button type="button" className="registration-location-btn" onClick={enableLocation} disabled={locationStatus === 'requesting' || locationStatus === 'geocoding'}>
+                {locationStatus === 'requesting' || locationStatus === 'geocoding' ? <Loader2 size={15} className="spin" /> : <MapPin size={15} />}
+                {locationStatus === 'requesting' ? 'Finding location...' : locationStatus === 'geocoding' ? 'Reading address...' : 'Enable location'}
+              </button>
+              <span>or click a point on the map</span>
+            </div>
+            {locationError && <p className="registration-location-error">{locationError}</p>}
+            <div className="registration-map-wrap">
+              <MapContainer className="registration-map" center={selectedLocation ? [selectedLocation.latitude, selectedLocation.longitude] : defaultMapCenter} zoom={selectedLocation ? 15 : 5} scrollWheelZoom>
+                <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                <RegistrationMapClick onSelect={reverseGeocode} />
+                {selectedLocation && <Marker position={[selectedLocation.latitude, selectedLocation.longitude]} icon={registrationMarker} />}
+              </MapContainer>
+            </div>
+            {locationStatus === 'ready' && <p className="registration-location-success">Location selected. Address fields were filled automatically and can still be edited.</p>}
           </div>
 
           <div className="form-group full-width">

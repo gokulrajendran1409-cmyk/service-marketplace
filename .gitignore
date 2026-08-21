@@ -19,6 +19,9 @@ npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
 
+# Runtime-uploaded media
+server/uploads/
+
 # IDE
 .vscode/
 .idea/

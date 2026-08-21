@@ -1,37 +1,66 @@
-import { useState } from 'react';
-import { X, MapPin, FileText, Loader2 } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { X, MapPin, FileText, Loader2, ImagePlus, Video, Mic, Square } from 'lucide-react';
 import { API } from '../constants';
 
 export function BookingModal({ professional, category, currentLocation, onClose, onSuccess }) {
   const [form, setForm] = useState({
     title: '',
     description: '',
+    requested_at: '',
     location: currentLocation
       ? currentLocation.placeName || `Current location (${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)})`
       : ''
   });
   const [loading, setLoading] = useState(false);
+  const [photos, setPhotos] = useState([]);
+  const [video, setVideo] = useState(null);
+  const [voice, setVoice] = useState(null);
+  const [recording, setRecording] = useState(false);
+  const [distanceConfirmed, setDistanceConfirmed] = useState(false);
+  const [scheduleError, setScheduleError] = useState('');
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
 
-  const handleChange = (e) => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  const handleChange = (e) => {
+    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    if (e.target.name === 'requested_at') setScheduleError('');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.title.trim() || !form.location.trim()) return;
+    if (!form.title.trim() || !form.location.trim() || !form.requested_at) {
+      if (!form.requested_at) setScheduleError('Please choose when you expect the professional.');
+      return;
+    }
+    if (new Date(form.requested_at).getTime() <= Date.now()) {
+      setScheduleError('This date and time has already passed. Please choose a future time.');
+      return;
+    }
+    if (professional?.distance_from_user > 15 && !distanceConfirmed) {
+      setDistanceConfirmed(false);
+      return;
+    }
     setLoading(true);
     try {
       const token = localStorage.getItem('userToken');
+      const requestData = new FormData();
+      requestData.append('title', form.title);
+      requestData.append('description', form.description);
+      requestData.append('requested_at', new Date(form.requested_at).toISOString());
+      requestData.append('location', form.location);
+      requestData.append('professional_id', professional?.id);
+      requestData.append('category', category);
+      if (currentLocation) {
+        requestData.append('latitude', currentLocation.latitude);
+        requestData.append('longitude', currentLocation.longitude);
+      }
+      photos.forEach(photo => requestData.append('photos', photo));
+      if (video) requestData.append('video', video);
+      if (voice) requestData.append('voice', voice, 'voice-note.webm');
       const res = await fetch(`${API}/requests`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          ...form,
-          professional_id: professional?.id,
-          latitude: currentLocation?.latitude,
-          longitude: currentLocation?.longitude,
-        }),
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: requestData,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to submit');
@@ -40,6 +69,29 @@ export function BookingModal({ professional, category, currentLocation, onClose,
       alert(error.message || 'Something went wrong, please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleRecording = async () => {
+    if (recording) {
+      mediaRecorderRef.current?.stop();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunksRef.current = [];
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      recorder.ondataavailable = event => audioChunksRef.current.push(event.data);
+      recorder.onstop = () => {
+        setVoice(new Blob(audioChunksRef.current, { type: 'audio/webm' }));
+        stream.getTracks().forEach(track => track.stop());
+        setRecording(false);
+      };
+      recorder.start();
+      setRecording(true);
+    } catch {
+      alert('Microphone permission is required to record a voice note.');
     }
   };
 
@@ -95,6 +147,47 @@ export function BookingModal({ professional, category, currentLocation, onClose,
               required
             />
           </div>
+          <div className="form-group">
+            <label htmlFor="requested_at">When are you expecting the professional?</label>
+            <input
+              id="requested_at"
+              className="form-input"
+              name="requested_at"
+              type="datetime-local"
+              min={new Date(Date.now() + 60 * 1000).toISOString().slice(0, 16)}
+              value={form.requested_at}
+              onChange={handleChange}
+              required
+            />
+            {scheduleError && <p className="schedule-error">{scheduleError}</p>}
+          </div>
+          <div className="booking-evidence">
+            <div className="booking-evidence-title">Help the professional understand the problem (optional)</div>
+            <div className="booking-media-grid">
+              <label className="media-upload-btn"><ImagePlus size={17} /> Add photos
+                <input type="file" accept="image/*" multiple onChange={event => setPhotos(Array.from(event.target.files || []).slice(0, 5))} />
+              </label>
+              <label className="media-upload-btn"><Video size={17} /> Add video
+                <input type="file" accept="video/*" onChange={event => setVideo(event.target.files?.[0] || null)} />
+              </label>
+              <button type="button" className={`media-upload-btn ${recording ? 'recording' : ''}`} onClick={toggleRecording}>
+                {recording ? <Square size={15} /> : <Mic size={17} />} {recording ? 'Stop recording' : 'Record voice'}
+              </button>
+            </div>
+            {photos.length > 0 && <p className="media-selection">{photos.length} photo{photos.length > 1 ? 's' : ''} selected</p>}
+            {video && <p className="media-selection">Video selected: {video.name}</p>}
+            {voice && <p className="media-selection">Voice note recorded</p>}
+          </div>
+          {professional?.distance_from_user > 15 && !distanceConfirmed && (
+            <div className="distance-warning" role="alert">
+              <strong>This professional is {professional.distance_from_user.toFixed(2)} km away.</strong>
+              <p>You are booking a professional who is more than 15 km from your location. Do you want to continue?</p>
+              <div className="distance-warning-actions">
+                <button type="button" className="btn-cancel" onClick={onClose}>Cancel booking</button>
+                <button type="button" className="btn-submit" onClick={() => setDistanceConfirmed(true)}>Continue</button>
+              </div>
+            </div>
+          )}
           <div className="modal-actions">
             <button type="button" className="btn-cancel" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn-submit" disabled={loading}>

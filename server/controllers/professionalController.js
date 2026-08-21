@@ -2,8 +2,27 @@ const db = require('../db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { broadcast } = require('../utils/sseClients');
+const { notifyPro } = require('../utils/proSseClients');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_for_demo';
+
+async function geocodeProfessionalAddress(address, city, state, pincode) {
+    const query = [address, city, state, pincode].filter(Boolean).join(', ');
+    if (!query) return { latitude: null, longitude: null };
+
+    try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(query)}`, {
+            headers: { 'User-Agent': 'service-marketplace/1.0' }
+        });
+        if (!response.ok) return { latitude: null, longitude: null };
+        const results = await response.json();
+        return results[0]
+            ? { latitude: Number(results[0].lat), longitude: Number(results[0].lon) }
+            : { latitude: null, longitude: null };
+    } catch {
+        return { latitude: null, longitude: null };
+    }
+}
 
 exports.registerProfessional = async (req, res) => {
     try {
@@ -35,6 +54,8 @@ exports.registerProfessional = async (req, res) => {
             return res.status(400).json({ message: 'Please complete all required account and professional details' });
         }
 
+        const registeredLocation = await geocodeProfessionalAddress(address, city, state, pincode);
+
         const client = await db.connect();
         try {
             await client.query('BEGIN');
@@ -57,8 +78,8 @@ exports.registerProfessional = async (req, res) => {
         // Insert into professionals
             const profQuery = `
             INSERT INTO professionals (
-                user_id, full_name, date_of_birth, address, city, state, pincode, bio, experience_years, category, password_hash
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id
+                user_id, full_name, date_of_birth, address, city, state, pincode, bio, experience_years, category, password_hash, registered_latitude, registered_longitude
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id
         `;
         const profValues = [
             user.id,
@@ -71,7 +92,9 @@ exports.registerProfessional = async (req, res) => {
             bio || null,
             parseInt(experience_years) || 0,
             category || null,
-            passwordHash
+            passwordHash,
+            registeredLocation.latitude,
+            registeredLocation.longitude
         ];
         
         profValues[0] = user.id;
@@ -231,16 +254,22 @@ exports.respondToRequest = async (req, res) => {
     try {
         await client.query('BEGIN');
         const offer = await client.query(
-            `SELECT so.id, sr.id AS request_id
+            `SELECT so.id, sr.id AS request_id, sr.status AS request_status
              FROM service_offers so
              JOIN service_requests sr ON sr.id = so.request_id
              WHERE so.request_id = $1 AND so.professional_id = $2 AND so.status = 'pending'
-             FOR UPDATE`,
+             FOR UPDATE OF so, sr`,
             [requestId, professionalId]
         );
         if (!offer.rows.length) {
             await client.query('ROLLBACK');
             return res.status(404).json({ message: 'No pending request was found for this professional' });
+        }
+
+        if (offer.rows[0].request_status !== 'pending') {
+            await client.query('UPDATE service_offers SET status = \'rejected\', updated_at = CURRENT_TIMESTAMP WHERE id = $1', [offer.rows[0].id]);
+            await client.query('COMMIT');
+            return res.status(409).json({ message: 'This request was already accepted by another professional.' });
         }
 
         await client.query('UPDATE service_offers SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [decision, offer.rows[0].id]);
@@ -252,11 +281,38 @@ exports.respondToRequest = async (req, res) => {
                 [professional_latitude, professional_longitude, professionalId]
             );
         }
-        const requestStatus = decision === 'rejected' ? 'cancelled' : decision;
+        let requestStatus = decision;
+        if (decision === 'rejected') {
+            const remainingOffers = await client.query(
+                `SELECT COUNT(*)::int AS count
+                 FROM service_offers
+                 WHERE request_id = $1 AND status = 'pending'`,
+                [requestId]
+            );
+            requestStatus = remainingOffers.rows[0].count > 0 ? 'pending' : 'cancelled';
+        }
         const requestResult = await client.query(
             'UPDATE service_requests SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
             [requestStatus, requestId]
         );
+        if (decision === 'accepted') {
+            const competingOffers = await client.query(
+                `SELECT professional_id FROM service_offers
+                 WHERE request_id = $1 AND professional_id <> $2 AND status = 'pending'`,
+                [requestId, professionalId]
+            );
+            await client.query(
+                `UPDATE service_offers
+                 SET status = 'rejected', updated_at = CURRENT_TIMESTAMP
+                 WHERE request_id = $1 AND professional_id <> $2 AND status = 'pending'`,
+                [requestId, professionalId]
+            );
+            competingOffers.rows.forEach(({ professional_id }) => notifyPro(Number(professional_id), 'request_taken', {
+                request_id: requestId,
+                message: 'This request was already accepted by another professional.',
+                timestamp: new Date().toISOString()
+            }));
+        }
         await client.query('COMMIT');
 
         broadcast('service_request_updated', {

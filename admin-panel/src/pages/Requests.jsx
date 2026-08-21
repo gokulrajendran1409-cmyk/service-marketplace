@@ -552,7 +552,14 @@ export default function Requests() {
                       color: "var(--text-primary)",
                     }}
                   >
-                    {req.professional_name || "—"}
+                    {req.professional_name
+                      || (req.status === "pending" && req.offer_count > 1
+                        ? "Multiple nearby professionals"
+                        : req.status === "pending"
+                          ? "Awaiting professional acceptance"
+                          : req.status === "cancelled" && req.rejected_professionals
+                            ? `Rejected by: ${req.rejected_professionals}`
+                          : "—")}
                   </div>
                   {req.professional_category && (
                     <div
@@ -579,6 +586,7 @@ export default function Requests() {
                 <strong style={{ color: "var(--text-primary)" }}>{req.title || "Service request"}</strong>
                 {req.description && <span> — {req.description}</span>}
                 {req.location && <span style={{ display: "block", fontSize: "12px", color: "var(--text-muted)", marginTop: "3px" }}>{req.location}</span>}
+                {req.requested_at && <span style={{ display: "block", fontSize: "12px", color: "var(--accent-primary)", marginTop: "3px" }}>Professional expected: {new Date(req.requested_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</span>}
               </span>
 
               {/* Status */}

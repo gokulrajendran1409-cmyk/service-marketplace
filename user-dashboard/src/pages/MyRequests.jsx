@@ -140,6 +140,14 @@ function MyRequests({ navigate }) {
                   <Calendar size={12} style={{ display: 'inline', marginRight: 4 }} />
                   {new Date(req.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </div>
+                {req.status === 'pending' && (
+                  <p className="request-broadcast-note">
+                    {req.offer_count > 1
+                      ? 'Request sent to nearby professionals. Waiting for someone to accept.'
+                      : `Request sent to ${req.professional_name || 'the selected professional'}. Waiting for them to accept.`}
+                  </p>
+                )}
+                {req.status === 'accepted' && req.professional_name && <p className="request-accepted-note">Accepted by {req.professional_name}</p>}
                 {req.status === 'accepted' && (
                   req.latitude != null && req.longitude != null && req.professional_latitude != null && req.professional_longitude != null ? (
                     <div className="customer-location-view">

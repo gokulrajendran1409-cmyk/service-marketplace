@@ -119,6 +119,7 @@ function MyRequests() {
     if (!professional.id) return undefined;
     const stream = new EventSource(`http://localhost:5000/api/professionals/notifications/stream/${professional.id}`);
     stream.addEventListener('new_service_request', fetchRequests);
+    stream.addEventListener('request_taken', fetchRequests);
     return () => stream.close();
   }, []);
 
@@ -264,13 +265,30 @@ function MyRequests() {
                   </div>
                 </div>
                 <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-primary)', fontWeight: 600 }}>{req.title}</p>
-                {req.description && <p style={{ margin: '4px 0 0', fontSize: '14px', color: 'var(--text-secondary)' }}>{req.description}</p>}
-                <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>{req.location}</p>
-                {req.offer_status === 'pending' && (
+                {req.offer_status === 'accepted' ? (
+                  <>
+                    {req.description && <p style={{ margin: '4px 0 0', fontSize: '14px', color: 'var(--text-secondary)' }}>{req.description}</p>}
+                    <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>{req.location}</p>
+                    {req.requested_at && <p className="request-schedule">Customer expects you: {new Date(req.requested_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p>}
+                    {(req.photo_urls?.length > 0 || req.video_url || req.voice_url) && (
+                      <div className="request-evidence">
+                        <strong>Customer evidence</strong>
+                        <div className="request-evidence-links">
+                          {req.photo_urls?.map((url, photoIndex) => <a key={url} href={`http://localhost:5000${url}`} target="_blank" rel="noreferrer">Photo {photoIndex + 1}</a>)}
+                          {req.video_url && <a href={`http://localhost:5000${req.video_url}`} target="_blank" rel="noreferrer">Watch video</a>}
+                          {req.voice_url && <a href={`http://localhost:5000${req.voice_url}`} target="_blank" rel="noreferrer">Play voice note</a>}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="request-private-note">Customer details will be available after you accept this request.</p>
+                )}
+                {req.offer_status === 'accepted' && (
                   <div className="request-location-tools">
-                    <button className="view-location-btn" onClick={() => viewRequestLocation(req)} disabled={locationLoadingId === req.id}>
+                    <button className="view-location-btn" onClick={() => viewingLocationId === req.id ? setViewingLocationId(null) : viewRequestLocation(req)} disabled={locationLoadingId === req.id}>
                       {locationLoadingId === req.id ? <Loader2 size={14} className="spin" /> : <MapPin size={14} />}
-                      {locationLoadingId === req.id ? 'Getting your location...' : 'View location and distance'}
+                      {locationLoadingId === req.id ? 'Getting your location...' : viewingLocationId === req.id ? 'Hide route' : 'View customer location and distance'}
                     </button>
                     {viewingLocationId === req.id && req.distance_km != null && (
                       <div className="request-distance"><Navigation size={14} /> {req.route_distance_km != null
@@ -294,10 +312,11 @@ function MyRequests() {
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <StatusBadge status={req.status} />
+                {req.offer_status === 'rejected' && req.status === 'accepted' && <span className="request-taken-label">Accepted by another professional</span>}
                 {req.offer_status === 'pending' && (
                   <>
-                    <button disabled={respondingId === req.id || viewingLocationId !== req.id} onClick={() => respondToRequest(req.id, 'accepted')} style={{ border: 'none', background: 'var(--success)', color: 'white', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}>Accept</button>
-                    <button disabled={respondingId === req.id || viewingLocationId !== req.id} onClick={() => respondToRequest(req.id, 'rejected')} style={{ border: 'none', background: 'var(--error)', color: 'white', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}>Reject</button>
+                    <button disabled={respondingId === req.id} onClick={() => respondToRequest(req.id, 'accepted')} style={{ border: 'none', background: 'var(--success)', color: 'white', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}>Accept</button>
+                    <button disabled={respondingId === req.id} onClick={() => respondToRequest(req.id, 'rejected')} style={{ border: 'none', background: 'var(--error)', color: 'white', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}>Reject</button>
                   </>
                 )}
               </div>
