@@ -1,0 +1,1 @@
+export default function Reviews() { return (<div className="section-container"><h2>Reviews</h2><p style={{ color: "var(--text-muted)" }}>This page is under construction.</p></div>); }

@@ -1,0 +1,1 @@
+export default function Payments() { return (<div className="section-container"><h2>Payments</h2><p style={{ color: "var(--text-muted)" }}>This page is under construction.</p></div>); }

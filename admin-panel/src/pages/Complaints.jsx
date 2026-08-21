@@ -1,0 +1,1 @@
+export default function Complaints() { return (<div className="section-container"><h2>Complaints</h2><p style={{ color: "var(--text-muted)" }}>This page is under construction.</p></div>); }
