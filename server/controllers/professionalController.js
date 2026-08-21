@@ -4,6 +4,8 @@ const jwt = require('jsonwebtoken');
 const { broadcast } = require('../utils/sseClients');
 const { notifyPro } = require('../utils/proSseClients');
 
+const JOURNEY_STEPS = ['accepted', 'start_navigation', 'on_the_way', 'arrived', 'working', 'completed'];
+
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_for_demo';
 
 async function geocodeProfessionalAddress(address, city, state, pincode) {
@@ -326,6 +328,65 @@ exports.respondToRequest = async (req, res) => {
         await client.query('ROLLBACK');
         console.error('Request response error:', error);
         res.status(500).json({ message: 'Failed to update the request' });
+    } finally {
+        client.release();
+    }
+};
+
+exports.updateRequestJourney = async (req, res) => {
+    const professionalId = req.professionalId;
+    const requestId = Number(req.params.id);
+    const { journey_status: nextStatus } = req.body;
+
+    if (!Number.isInteger(requestId) || !JOURNEY_STEPS.includes(nextStatus) || nextStatus === 'accepted') {
+        return res.status(400).json({ message: 'A valid next journey step is required' });
+    }
+
+    const client = await db.connect();
+    try {
+        await client.query('BEGIN');
+        const current = await client.query(
+            `SELECT sr.journey_status
+             FROM service_requests sr
+             JOIN service_offers so ON so.request_id = sr.id
+             WHERE sr.id = $1 AND so.professional_id = $2 AND so.status = 'accepted'
+             FOR UPDATE`,
+            [requestId, professionalId]
+        );
+        if (!current.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: 'Accepted request not found for this professional' });
+        }
+
+        const currentIndex = JOURNEY_STEPS.indexOf(current.rows[0].journey_status || 'accepted');
+        const nextIndex = JOURNEY_STEPS.indexOf(nextStatus);
+        if (nextIndex !== currentIndex + 1) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ message: 'Please complete the journey steps in order' });
+        }
+
+        const requestStatus = nextStatus === 'completed' ? 'completed' : 'in_progress';
+        const result = await client.query(
+            `UPDATE service_requests
+             SET journey_status = $1, journey_updated_at = CURRENT_TIMESTAMP, status = $2, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $3
+             RETURNING *`,
+            [nextStatus, requestStatus, requestId]
+        );
+        await client.query('COMMIT');
+
+        broadcast('service_request_updated', {
+            id: requestId,
+            professional_id: professionalId,
+            status: requestStatus,
+            journey_status: nextStatus,
+            timestamp: new Date().toISOString()
+        });
+        res.json({ message: `Journey updated to ${nextStatus}`, request: result.rows[0] });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Request journey error:', error);
+        res.status(500).json({ message: 'Failed to update request journey' });
     } finally {
         client.release();
     }

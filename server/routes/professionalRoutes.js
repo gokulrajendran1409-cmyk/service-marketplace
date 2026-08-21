@@ -28,6 +28,7 @@ router.post('/login', professionalController.loginProfessional);
 router.get('/dashboard', protectProfessional, professionalController.getDashboardStats);
 router.get('/requests', protectProfessional, professionalController.getMyRequests);
 router.post('/requests/:id/respond', protectProfessional, professionalController.respondToRequest);
+router.patch('/requests/:id/journey', protectProfessional, professionalController.updateRequestJourney);
 
 const { addProClient, removeProClient } = require('../utils/proSseClients');
 

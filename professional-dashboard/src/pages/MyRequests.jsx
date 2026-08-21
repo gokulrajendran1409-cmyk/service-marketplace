@@ -75,6 +75,7 @@ function StatusBadge({ status }) {
   const styles = {
     pending: { bg: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', icon: <Clock size={14} />, label: 'Pending' },
     accepted: { bg: 'rgba(99, 102, 241, 0.1)', color: '#6366f1', icon: <CheckCircle size={14} />, label: 'Accepted' },
+    in_progress: { bg: 'rgba(59, 130, 246, 0.1)', color: '#2563eb', icon: <Navigation size={14} />, label: 'In Progress' },
     completed: { bg: 'rgba(16, 185, 129, 0.1)', color: '#10b981', icon: <CheckCircle size={14} />, label: 'Completed' },
     rejected: { bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', icon: <XCircle size={14} />, label: 'Rejected' },
     cancelled: { bg: 'rgba(148, 163, 184, 0.1)', color: '#94a3b8', icon: <Ban size={14} />, label: 'Cancelled' },
@@ -86,6 +87,14 @@ function StatusBadge({ status }) {
     </span>
   );
 }
+
+const JOURNEY_STEPS = [
+  { key: 'start_navigation', label: 'Start navigation' },
+  { key: 'on_the_way', label: 'On the way' },
+  { key: 'arrived', label: 'Arrived' },
+  { key: 'working', label: 'Working' },
+  { key: 'completed', label: 'Completed' },
+];
 
 function MyRequests() {
   const [requests, setRequests] = useState([]);
@@ -145,6 +154,29 @@ function MyRequests() {
         status: data.request?.status || decision,
         offer_status: decision
       } : request));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRespondingId(null);
+    }
+  };
+
+  const updateJourney = async (requestId, journeyStatus) => {
+    setRespondingId(requestId);
+    try {
+      const response = await fetch(`http://localhost:5000/api/professionals/requests/${requestId}/journey`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem("professionalToken")}`
+        },
+        body: JSON.stringify({ journey_status: journeyStatus })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Unable to update journey');
+      setRequests(current => current.map(request => request.id === requestId
+        ? { ...request, status: data.request.status, journey_status: data.request.journey_status, journey_updated_at: data.request.journey_updated_at }
+        : request));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -283,6 +315,21 @@ function MyRequests() {
                   </>
                 ) : (
                   <p className="request-private-note">Customer details will be available after you accept this request.</p>
+                )}
+                {req.offer_status === 'accepted' && req.journey_status !== 'completed' && (
+                  <div className="journey-controls">
+                    <strong>Update customer</strong>
+                    <div className="journey-step-buttons">
+                      {JOURNEY_STEPS.map((step, index) => {
+                        const currentIndex = ['accepted', ...JOURNEY_STEPS.map(item => item.key)].indexOf(req.journey_status || 'accepted');
+                        return index === currentIndex && (
+                          <button key={step.key} disabled={respondingId === req.id} onClick={() => updateJourney(req.id, step.key)}>
+                            {respondingId === req.id ? 'Updating...' : step.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
                 {req.offer_status === 'accepted' && (
                   <div className="request-location-tools">

@@ -9,6 +9,14 @@ import { useToast, Toast } from '../components/Toast';
 // Demo customer ID — in a real app this comes from auth
 const CUSTOMER_ID = 1;
 
+const JOURNEY_STEPS = [
+  { key: 'start_navigation', label: 'Start navigation', detail: 'The professional has started travelling to your location.' },
+  { key: 'on_the_way', label: 'On the way', detail: 'The professional is travelling to you now.' },
+  { key: 'arrived', label: 'Arrived', detail: 'The professional has arrived at your service location.' },
+  { key: 'working', label: 'Working', detail: 'The professional is working on your service request.' },
+  { key: 'completed', label: 'Completed', detail: 'The professional has completed the requested work.' },
+];
+
 function CustomerRouteMap({ request, onRouteDistance }) {
   const customerPoint = [Number(request.latitude), Number(request.longitude)];
   const professionalPoint = [Number(request.professional_latitude), Number(request.professional_longitude)];
@@ -147,8 +155,29 @@ function MyRequests({ navigate }) {
                       : `Request sent to ${req.professional_name || 'the selected professional'}. Waiting for them to accept.`}
                   </p>
                 )}
-                {req.status === 'accepted' && req.professional_name && <p className="request-accepted-note">Accepted by {req.professional_name}</p>}
-                {req.status === 'accepted' && (
+                {(req.status === 'accepted' || req.status === 'in_progress' || req.status === 'completed') && req.professional_name && <p className="request-accepted-note">Professional: {req.professional_name}</p>}
+                {(req.status === 'accepted' || req.status === 'in_progress' || req.status === 'completed') && req.journey_status && (
+                  (() => {
+                    const currentStatus = req.journey_status || 'accepted';
+                    const currentIndex = ['accepted', ...JOURNEY_STEPS.map(item => item.key)].indexOf(currentStatus);
+                    const currentStep = JOURNEY_STEPS[currentIndex - 1];
+                    return <>
+                      <div className="journey-progress-detail">
+                        <div className="journey-progress-kicker">Live service progress</div>
+                        <strong>{currentStep ? currentStep.label : 'Accepted'}</strong>
+                        <p>{currentStep?.detail || 'The professional has accepted your request and is preparing to travel.'}</p>
+                        {req.journey_updated_at && <small>Updated {new Date(req.journey_updated_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</small>}
+                      </div>
+                      <div className="journey-timeline">
+                      {JOURNEY_STEPS.map(step => {
+                      const stepIndex = JOURNEY_STEPS.findIndex(item => item.key === step.key);
+                      return <div key={step.key} className={`journey-timeline-step ${stepIndex < currentIndex ? 'done' : stepIndex === currentIndex ? 'current' : ''}`}><span>{stepIndex < currentIndex ? '✓' : stepIndex + 1}</span>{step.label}</div>;
+                      })}
+                      </div>
+                    </>;
+                  })()
+                )}
+                {(req.status === 'accepted' || req.status === 'in_progress' || req.status === 'completed') && (
                   req.latitude != null && req.longitude != null && req.professional_latitude != null && req.professional_longitude != null ? (
                     <div className="customer-location-view">
                       <button className="view-customer-route-btn" onClick={() => setViewingLocationId(viewingLocationId === req.id ? null : req.id)}>
@@ -169,7 +198,9 @@ function MyRequests({ navigate }) {
               </div>
               <div>
                 <span className={`status-badge ${req.status}`}>
-                  {statusLabel[req.status] || req.status}
+                  {req.journey_status && req.journey_status !== 'accepted'
+                    ? JOURNEY_STEPS.find(step => step.key === req.journey_status)?.label || statusLabel[req.status]
+                    : statusLabel[req.status] || req.status}
                 </span>
               </div>
             </div>
