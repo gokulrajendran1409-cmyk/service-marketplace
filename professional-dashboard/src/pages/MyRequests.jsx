@@ -109,7 +109,7 @@ function MyRequests() {
   const fetchRequests = async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/api/professionals/requests", {
+      const response = await fetch("https://service-marketplace-af7p.onrender.com/api/professionals/requests", {
         headers: { Authorization: `Bearer ${localStorage.getItem("professionalToken")}` }
       });
       if (!response.ok) throw new Error("Failed to load requests");
@@ -126,7 +126,7 @@ function MyRequests() {
     fetchRequests();
     const professional = JSON.parse(localStorage.getItem('professional') || '{}');
     if (!professional.id) return undefined;
-    const stream = new EventSource(`http://localhost:5000/api/professionals/notifications/stream/${professional.id}`);
+    const stream = new EventSource(`https://service-marketplace-af7p.onrender.com/api/professionals/notifications/stream/${professional.id}`);
     stream.addEventListener('new_service_request', fetchRequests);
     stream.addEventListener('request_taken', fetchRequests);
     return () => stream.close();
@@ -135,7 +135,7 @@ function MyRequests() {
   const respondToRequest = async (requestId, decision) => {
     setRespondingId(requestId);
     try {
-      const response = await fetch(`http://localhost:5000/api/professionals/requests/${requestId}/respond`, {
+      const response = await fetch(`https://service-marketplace-af7p.onrender.com/api/professionals/requests/${requestId}/respond`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -164,7 +164,7 @@ function MyRequests() {
   const updateJourney = async (requestId, journeyStatus) => {
     setRespondingId(requestId);
     try {
-      const response = await fetch(`http://localhost:5000/api/professionals/requests/${requestId}/journey`, {
+      const response = await fetch(`https://service-marketplace-af7p.onrender.com/api/professionals/requests/${requestId}/journey`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -310,9 +310,9 @@ function MyRequests() {
                     <div className="request-evidence">
                       <strong>Customer evidence</strong>
                       <div className="request-evidence-links">
-                        {req.photo_urls?.map((url, photoIndex) => <a key={url} href={`http://localhost:5000${url}`} target="_blank" rel="noreferrer">Photo {photoIndex + 1}</a>)}
-                        {req.video_url && <a href={`http://localhost:5000${req.video_url}`} target="_blank" rel="noreferrer">Watch video</a>}
-                        {req.voice_url && <a href={`http://localhost:5000${req.voice_url}`} target="_blank" rel="noreferrer">Play voice note</a>}
+                        {req.photo_urls?.map((url, photoIndex) => <a key={url} href={`https://service-marketplace-af7p.onrender.com${url}`} target="_blank" rel="noreferrer">Photo {photoIndex + 1}</a>)}
+                        {req.video_url && <a href={`https://service-marketplace-af7p.onrender.com${req.video_url}`} target="_blank" rel="noreferrer">Watch video</a>}
+                        {req.voice_url && <a href={`https://service-marketplace-af7p.onrender.com${req.voice_url}`} target="_blank" rel="noreferrer">Play voice note</a>}
                       </div>
                     </div>
                   )}

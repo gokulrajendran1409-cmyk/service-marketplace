@@ -155,7 +155,7 @@ export default function Requests() {
     setError("");
     try {
       const res = await fetch(
-        "http://localhost:5000/api/admin/service-requests"
+        "https://service-marketplace-af7p.onrender.com/api/admin/service-requests"
       );
       if (!res.ok) throw new Error("Failed to fetch service requests");
       const data = await res.json();
@@ -170,7 +170,7 @@ export default function Requests() {
 
   useEffect(() => {
     fetchRequests();
-    const stream = new EventSource("http://localhost:5000/api/admin/notifications/stream");
+    const stream = new EventSource("https://service-marketplace-af7p.onrender.com/api/admin/notifications/stream");
     const refreshForRequestEvent = () => fetchRequests(true);
     stream.addEventListener("service_request_created", refreshForRequestEvent);
     stream.addEventListener("service_request_updated", refreshForRequestEvent);

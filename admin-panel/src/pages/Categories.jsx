@@ -209,7 +209,7 @@ export default function Categories() {
     else setRefreshing(true);
     setError("");
     try {
-      const res = await fetch("http://localhost:5000/api/admin/categories");
+      const res = await fetch("https://service-marketplace-af7p.onrender.com/api/admin/categories");
       if (!res.ok) throw new Error("Failed to fetch categories");
       const data = await res.json();
       setCategories(data);

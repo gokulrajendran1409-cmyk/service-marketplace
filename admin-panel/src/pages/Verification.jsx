@@ -10,7 +10,7 @@ function Verification() {
 
   const fetchPending = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/admin/verifications");
+      const response = await fetch("https://service-marketplace-af7p.onrender.com/api/admin/verifications");
       if (!response.ok) throw new Error("Failed to fetch verifications");
       const data = await response.json();
       setPendingList(data);
@@ -21,7 +21,7 @@ function Verification() {
 
   const fetchHistory = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/admin/verifications/history");
+      const response = await fetch("https://service-marketplace-af7p.onrender.com/api/admin/verifications/history");
       if (!response.ok) throw new Error("Failed to fetch history");
       const data = await response.json();
       setHistoryList(data);
@@ -37,7 +37,7 @@ function Verification() {
   const handleApprove = async (id) => {
     if (!window.confirm("Are you sure you want to approve this professional?")) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/admin/verifications/${id}/approve`, {
+      const response = await fetch(`https://service-marketplace-af7p.onrender.com/api/admin/verifications/${id}/approve`, {
         method: "POST"
       });
       if (response.ok) {
@@ -56,7 +56,7 @@ function Verification() {
     if (!window.confirm("Are you sure you want to reject this professional?")) return;
     const reason = "Rejected by administrator.";
     try {
-      const response = await fetch(`http://localhost:5000/api/admin/verifications/${id}/reject`, {
+      const response = await fetch(`https://service-marketplace-af7p.onrender.com/api/admin/verifications/${id}/reject`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason })
@@ -202,7 +202,7 @@ function Verification() {
                     doc && doc.url ? (
                       <a 
                         key={idx}
-                        href={`http://localhost:5000/uploads/${doc.url}`} 
+                        href={`https://service-marketplace-af7p.onrender.com/uploads/${doc.url}`} 
                         target="_blank" 
                         rel="noreferrer"
                         style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', border: '1px solid var(--border-focus)', borderRadius: '6px', color: 'var(--accent-primary)', background: 'var(--bg-base)', textDecoration: 'none', fontWeight: '500' }}

@@ -8,7 +8,7 @@ export default function Professionals() {
 
   const fetchProfessionals = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/admin/professionals");
+      const response = await fetch("https://service-marketplace-af7p.onrender.com/api/admin/professionals");
       if (!response.ok) throw new Error("Failed to fetch professionals");
       const data = await response.json();
       setProfessionals(data);
