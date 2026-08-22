@@ -284,7 +284,12 @@ function MyRequests() {
         </div>
       ) : (
         <div className="section-container" style={{ padding: 0, overflow: 'hidden' }}>
-          {requests.map((req, idx) => (
+          {requests.map((req, idx) => {
+            const isRestricted = req.status === 'completed'
+              || req.journey_status === 'completed'
+              || (req.status === 'accepted' && req.offer_status !== 'accepted');
+
+            return (
             <div key={req.id} style={{ padding: '20px 24px', borderBottom: idx !== requests.length - 1 ? '1px solid var(--border-light)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
@@ -293,29 +298,25 @@ function MyRequests() {
                   </div>
                   <div>
                     <h4 style={{ margin: 0, fontSize: '15px' }}>{req.customer_name}</h4>
-                    <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{req.customer_phone || 'No phone'}</span>
+                    {!isRestricted && <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{req.customer_phone || 'No phone'}</span>}
                   </div>
                 </div>
                 <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-primary)', fontWeight: 600 }}>{req.title}</p>
-                {req.offer_status === 'accepted' ? (
-                  <>
-                    {req.description && <p style={{ margin: '4px 0 0', fontSize: '14px', color: 'var(--text-secondary)' }}>{req.description}</p>}
-                    <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>{req.location}</p>
-                    {req.requested_at && <p className="request-schedule">Customer expects you: {new Date(req.requested_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p>}
-                    {(req.photo_urls?.length > 0 || req.video_url || req.voice_url) && (
-                      <div className="request-evidence">
-                        <strong>Customer evidence</strong>
-                        <div className="request-evidence-links">
-                          {req.photo_urls?.map((url, photoIndex) => <a key={url} href={`http://localhost:5000${url}`} target="_blank" rel="noreferrer">Photo {photoIndex + 1}</a>)}
-                          {req.video_url && <a href={`http://localhost:5000${req.video_url}`} target="_blank" rel="noreferrer">Watch video</a>}
-                          {req.voice_url && <a href={`http://localhost:5000${req.voice_url}`} target="_blank" rel="noreferrer">Play voice note</a>}
-                        </div>
+                {req.requested_at && <p className="request-schedule">Customer expects you: {new Date(req.requested_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p>}
+                {!isRestricted && <>
+                  {req.description && <p style={{ margin: '4px 0 0', fontSize: '14px', color: 'var(--text-secondary)' }}>{req.description}</p>}
+                  <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>{req.location}</p>
+                  {(req.photo_urls?.length > 0 || req.video_url || req.voice_url) && (
+                    <div className="request-evidence">
+                      <strong>Customer evidence</strong>
+                      <div className="request-evidence-links">
+                        {req.photo_urls?.map((url, photoIndex) => <a key={url} href={`http://localhost:5000${url}`} target="_blank" rel="noreferrer">Photo {photoIndex + 1}</a>)}
+                        {req.video_url && <a href={`http://localhost:5000${req.video_url}`} target="_blank" rel="noreferrer">Watch video</a>}
+                        {req.voice_url && <a href={`http://localhost:5000${req.voice_url}`} target="_blank" rel="noreferrer">Play voice note</a>}
                       </div>
-                    )}
-                  </>
-                ) : (
-                  <p className="request-private-note">Customer details will be available after you accept this request.</p>
-                )}
+                    </div>
+                  )}
+                </>}
                 {req.offer_status === 'accepted' && req.journey_status !== 'completed' && (
                   <div className="journey-controls">
                     <strong>Update customer</strong>
@@ -331,7 +332,7 @@ function MyRequests() {
                     </div>
                   </div>
                 )}
-                {req.offer_status === 'accepted' && (
+                {!isRestricted && (req.offer_status === 'accepted' || req.offer_status === 'pending') && (
                   <div className="request-location-tools">
                     <button className="view-location-btn" onClick={() => viewingLocationId === req.id ? setViewingLocationId(null) : viewRequestLocation(req)} disabled={locationLoadingId === req.id}>
                       {locationLoadingId === req.id ? <Loader2 size={14} className="spin" /> : <MapPin size={14} />}
@@ -353,9 +354,9 @@ function MyRequests() {
                     )}
                   </div>
                 )}
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                {!isRestricted && <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
                   Created: {new Date(req.created_at).toLocaleDateString()}
-                </div>
+                </div>}
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <StatusBadge status={req.status} />
@@ -368,7 +369,8 @@ function MyRequests() {
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
