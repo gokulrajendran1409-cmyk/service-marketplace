@@ -60,11 +60,19 @@ exports.createRequest = async (req, res) => {
         try {
             await client.query('BEGIN');
             const professionals = await client.query(
-                `SELECT id, full_name, registered_latitude, registered_longitude
-                 FROM professionals
-                 WHERE category = $1 AND verification_status = 'verified'
-                   AND ($2::bigint IS NULL OR id = $2)
-                   AND ($2::bigint IS NOT NULL OR (registered_latitude IS NOT NULL AND registered_longitude IS NOT NULL))`,
+                                `SELECT p.id, p.full_name, p.registered_latitude, p.registered_longitude
+                                 FROM professionals p
+                                 WHERE p.category = $1 AND p.verification_status = 'verified'
+                                     AND ($2::bigint IS NULL OR p.id = $2)
+                                     AND ($2::bigint IS NOT NULL OR (p.registered_latitude IS NOT NULL AND p.registered_longitude IS NOT NULL))
+                                     AND NOT EXISTS (
+                                             SELECT 1
+                                             FROM service_offers active_offer
+                                             JOIN service_requests active_request ON active_request.id = active_offer.request_id
+                                             WHERE active_offer.professional_id = p.id
+                                                 AND active_offer.status = 'accepted'
+                                                 AND active_request.status IN ('accepted', 'in_progress')
+                                     )`,
                 [category, professional_id && professional_id !== 'undefined' ? professional_id : null]
             );
             const userLatitude = Number(latitude);
@@ -83,7 +91,7 @@ exports.createRequest = async (req, res) => {
                 });
             if (!nearbyProfessionals.length) {
                 await client.query('ROLLBACK');
-                return res.status(404).json({ message: 'No nearby professionals were found for this category' });
+                return res.status(404).json({ message: 'No available professionals were found. Professionals currently handling jobs will receive new requests after completing them.' });
             }
 
             const result = await client.query(
