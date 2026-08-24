@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Wrench, Loader2 } from 'lucide-react';
 import { useToast, Toast } from '../components/Toast';
 
-const API = 'https://service-marketplace-af7p.onrender.com/api/auth';
+const API = 'http://localhost:5000/api/auth';
 
 function Auth({ onLogin }) {
   const [isLogin, setIsLogin] = useState(true);

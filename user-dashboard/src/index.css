@@ -1,25 +1,27 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  --bg-base: #f0f4ff;
-  --bg-surface: #ffffff;
-  --bg-surface-hover: #f8faff;
+  --bg-base: #FFF9F5;
+  --bg-surface: #FFFFFF;
+  --bg-surface-hover: #FFF4EC;
 
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --text-primary: #1C1917;
+  --text-secondary: #78716C;
+  --text-muted: #A8A29E;
 
-  --border-light: #e2e8f0;
-  --border-focus: rgba(99, 102, 241, 0.5);
+  --border-light: #E7E5E4;
+  --border-focus: rgba(249, 115, 22, 0.4);
 
-  --accent-primary: #6366f1;
-  --accent-hover: #4f46e5;
-  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);
-  --accent-glow: rgba(99, 102, 241, 0.15);
+  --accent-primary: #F97316;
+  --accent-hover: #EA580C;
+  --accent-dark: #EA580C;
+  --accent-light: #FFEDD5;
+  --accent-gradient: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+  --accent-glow: rgba(249, 115, 22, 0.15);
 
-  --success: #10b981;
-  --warning: #f59e0b;
-  --error: #ef4444;
+  --success: #16A34A;
+  --warning: #F59E0B;
+  --error: #DC2626;
 
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 
@@ -27,7 +29,7 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
   --shadow-glow: 0 0 30px var(--accent-glow);
-  --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(99,102,241,0.06);
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(249,115,22,0.06);
 }
 
 *, *::before, *::after {

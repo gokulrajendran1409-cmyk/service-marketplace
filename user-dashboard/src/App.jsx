@@ -6,14 +6,20 @@ import Home from './pages/Home';
 import Services from './pages/Services';
 import MyRequests from './pages/MyRequests';
 import Auth from './pages/Auth';
+import Landing from './pages/Landing';
+
+import Notifications from './pages/Notifications';
 
 const PAGES = [
-  { id: 'home',     label: 'Home',        icon: LayoutGrid },
-  { id: 'services', label: 'Services',    icon: Wrench },
-  { id: 'requests', label: 'My Requests', icon: ClipboardList },
+  { id: 'home',     label: 'Home',     icon: LayoutGrid },
+  { id: 'services', label: 'Services', icon: Wrench },
+  { id: 'requests', label: 'Requests', icon: ClipboardList },
+  { id: 'profile',  label: 'Profile',  icon: UserRound },
 ];
 
+// stage: 'landing' | 'auth' | 'app'
 function App() {
+  const [stage, setStage] = useState('landing');
   const [page, setPage] = useState('home');
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
@@ -24,6 +30,7 @@ function App() {
     if (savedToken && savedUser) {
       setToken(savedToken);
       setUser(JSON.parse(savedUser));
+      setStage('app');
     }
   }, []);
 
@@ -32,6 +39,7 @@ function App() {
     setToken(userToken);
     localStorage.setItem('userToken', userToken);
     localStorage.setItem('userData', JSON.stringify(userData));
+    setStage('app');
   };
 
   const handleLogout = () => {
@@ -40,50 +48,62 @@ function App() {
     localStorage.removeItem('userToken');
     localStorage.removeItem('userData');
     setPage('home');
+    setStage('landing');
   };
 
-  if (!user) {
+  if (stage === 'landing') {
+    return (
+      <Landing
+        onGetStarted={() => setStage('auth')}
+      />
+    );
+  }
+
+  if (stage === 'auth') {
     return <Auth onLogin={handleLogin} />;
   }
 
   const navigate = (target) => setPage(target);
 
   return (
-    <>
-      {/* Navbar */}
-      <nav className="navbar">
-        <div className="navbar-brand">
-          <div className="navbar-logo"><Wrench size={18} /></div>
-          ServiceHub
-        </div>
-        <div className="navbar-links">
-          {PAGES.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              className={`nav-link ${page === id ? 'active' : ''}`}
-              onClick={() => setPage(id)}
-            >
-              <Icon size={15} style={{ display: 'inline', marginRight: 6 }} />
-              {label}
+    <div className="app-layout">
+      <div className="app-content">
+        {page === 'home'          && <Home navigate={navigate} />}
+        {page === 'services'      && <Services navigate={navigate} />}
+        {page === 'requests'      && <MyRequests navigate={navigate} />}
+        {page === 'notifications' && <Notifications navigate={navigate} />}
+        {page === 'profile'  && (
+          <div className="page-container" style={{ padding: '40px 20px', textAlign: 'center' }}>
+            <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'var(--accent-light)', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+              <UserRound size={40} />
+            </div>
+            <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>{user?.name || 'Customer'}</h2>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: 32 }}>{user?.email}</p>
+            
+            <button className="btn-hire" onClick={handleLogout} style={{ background: '#FEE2E2', color: '#DC2626', width: '100%', padding: 16 }}>
+              <LogOut size={18} style={{ display: 'inline', marginRight: 8, verticalAlign: 'text-bottom' }} />
+              Log Out
             </button>
-          ))}
-          <div className="current-user" title={user.email}>
-            <span className="current-user-avatar"><UserRound size={15} /></span>
-            <span>Hi, {user.name || 'Customer'}</span>
           </div>
-          <button className="nav-link" onClick={handleLogout} style={{ color: 'var(--error)' }}>
-            <LogOut size={15} style={{ display: 'inline', marginRight: 6 }} />
-            Logout
-          </button>
-        </div>
-      </nav>
+        )}
+      </div>
 
-      {/* Page content */}
-      {page === 'home'     && <Home navigate={navigate} />}
-      {page === 'services' && <Services navigate={navigate} />}
-      {page === 'requests' && <MyRequests navigate={navigate} />}
-    </>
+      {/* Bottom Nav Bar */}
+      <nav className="bottom-nav">
+        {PAGES.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            className={`bottom-nav-item ${page === id ? 'active' : ''}`}
+            onClick={() => setPage(id)}
+          >
+            <Icon size={22} className="bottom-nav-icon" />
+            <span className="bottom-nav-label">{label}</span>
+          </button>
+        ))}
+      </nav>
+    </div>
   );
 }
 
 export default App;
+

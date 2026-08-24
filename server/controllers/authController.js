@@ -64,6 +64,14 @@ exports.login = async (req, res) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
+        // Block professionals from logging in via the customer login endpoint
+        const profCheck = await pool.query('SELECT id FROM professionals WHERE user_id = $1', [user.id]);
+        if (profCheck.rows.length > 0) {
+            return res.status(403).json({
+                message: 'This account is registered as a professional. Please use the Professional Portal to log in.'
+            });
+        }
+
         // Generate token
         const token = jwt.sign({ id: user.id, role: 'customer' }, JWT_SECRET, { expiresIn: '7d' });
 
