@@ -52,24 +52,23 @@ function Services({ navigate }) {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
           accuracy: Math.round(position.coords.accuracy),
+          placeName: ''
         };
+        // Resolve immediately with coordinates, don't wait for reverse geocoding
+        setLocation(current);
+        setLocationStatus('ready');
+        resolve(current);
+
+        // Fetch place name in the background
         fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${current.latitude}&lon=${current.longitude}&zoom=18&addressdetails=1`)
           .then(response => {
             if (!response.ok) throw new Error('Reverse geocoding failed');
             return response.json();
           })
           .then(data => {
-            const resolvedLocation = { ...current, placeName: data.display_name || '' };
-            setLocation(resolvedLocation);
-            setLocationStatus('ready');
-            resolve(resolvedLocation);
+            setLocation(prev => prev ? { ...prev, placeName: data.display_name || '' } : prev);
           })
-          .catch(() => {
-            const fallbackLocation = { ...current, placeName: '' };
-            setLocation(fallbackLocation);
-            setLocationStatus('ready');
-            resolve(fallbackLocation);
-          });
+          .catch(() => {});
       },
       (error) => {
         const message = error.code === error.PERMISSION_DENIED
@@ -79,7 +78,7 @@ function Services({ navigate }) {
         setLocationError(message);
         reject(new Error(message));
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
     );
   });
 
@@ -87,30 +86,48 @@ function Services({ navigate }) {
     setSelected(cat);
     setProfessionals([]);
     setLoadingPros(true);
+    
+    // Request location in the background if not available
+    if (!location && locationStatus !== 'requesting' && locationStatus !== 'denied') {
+      requestLocation().catch(() => {});
+    }
+
     try {
-      const currentLocation = location || await requestLocation();
       const query = new URLSearchParams({
-        category: cat.name,
-        latitude: String(currentLocation.latitude),
-        longitude: String(currentLocation.longitude),
+        category: cat.name
       });
       const res = await fetch(`${API}/professionals?${query}`);
       const data = await res.json();
       setProfessionals(data.map(professional => ({
         ...professional,
-        distance_from_user: calculateDistanceInKm(
-          currentLocation.latitude,
-          currentLocation.longitude,
+        distance_from_user: location ? calculateDistanceInKm(
+          location.latitude,
+          location.longitude,
           Number(professional.registered_latitude),
           Number(professional.registered_longitude)
-        ),
+        ) : null,
       })));
     } catch {
-      if (locationStatus !== 'denied') showToast('Failed to load professionals', 'error');
+      showToast('Failed to load professionals', 'error');
     } finally {
       setLoadingPros(false);
     }
   };
+
+  // Update distances when location becomes available
+  useEffect(() => {
+    if (location && professionals.length > 0 && professionals.some(p => p.distance_from_user == null)) {
+      setProfessionals(prev => prev.map(pro => ({
+        ...pro,
+        distance_from_user: calculateDistanceInKm(
+          location.latitude,
+          location.longitude,
+          Number(pro.registered_latitude),
+          Number(pro.registered_longitude)
+        )
+      })));
+    }
+  }, [location]);
 
   const mapUrl = location ? (() => {
     const delta = 0.01;
