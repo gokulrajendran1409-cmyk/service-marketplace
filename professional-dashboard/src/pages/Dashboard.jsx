@@ -9,7 +9,7 @@ function Dashboard() {
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const response = await fetch("https://service-marketplace-af7p.onrender.com/api/professionals/dashboard", {
+      const response = await fetch("http://localhost:5000/api/professionals/dashboard", {
         headers: { Authorization: `Bearer ${localStorage.getItem("professionalToken")}` }
       });
       if (!response.ok) throw new Error("Failed to load dashboard");
@@ -87,3 +87,4 @@ function Dashboard() {
 }
 
 export default Dashboard;
+

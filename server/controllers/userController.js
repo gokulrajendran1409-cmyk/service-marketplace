@@ -1,6 +1,7 @@
 const pool = require('../config/database');
 const { notifyPro } = require('../utils/proSseClients');
 const { broadcast } = require('../utils/sseClients');
+const { addCustomerClient, removeCustomerClient } = require('../utils/customerSseClients');
 
 // GET /api/user/categories - list all service categories
 exports.getCategories = async (req, res) => {
@@ -171,4 +172,28 @@ exports.getMyRequests = async (req, res) => {
         console.error('getMyRequests error:', err);
         res.status(500).json({ message: 'Failed to fetch your requests' });
     }
+};
+
+// GET /api/user/notifications/stream - SSE connection for real-time customer updates
+exports.streamNotifications = (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    const customerId = req.user.id;
+    addCustomerClient(customerId, res);
+
+    const keepAlive = setInterval(() => {
+        try {
+            res.write(': keepalive\n\n');
+        } catch {
+            clearInterval(keepAlive);
+        }
+    }, 15000);
+
+    req.on('close', () => {
+        clearInterval(keepAlive);
+        removeCustomerClient(customerId, res);
+    });
 };

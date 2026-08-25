@@ -29,6 +29,7 @@ router.get('/dashboard', protectProfessional, professionalController.getDashboar
 router.get('/requests', protectProfessional, professionalController.getMyRequests);
 router.post('/requests/:id/respond', protectProfessional, professionalController.respondToRequest);
 router.patch('/requests/:id/journey', protectProfessional, professionalController.updateRequestJourney);
+router.patch('/requests/:id/location', protectProfessional, professionalController.updateLocation);
 
 const { addProClient, removeProClient } = require('../utils/proSseClients');
 

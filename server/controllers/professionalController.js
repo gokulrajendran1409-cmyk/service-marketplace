@@ -195,19 +195,21 @@ exports.getDashboardStats = async (req, res) => {
         const statsQuery = `
             SELECT 
                 COUNT(*) as total_requests,
-                COUNT(*) FILTER (WHERE status = 'pending') as pending_requests,
-                COUNT(*) FILTER (WHERE status = 'accepted') as accepted_requests
-            FROM service_offers 
-            WHERE professional_id = $1
+                COUNT(*) FILTER (WHERE so.status = 'pending') as pending_requests,
+                COUNT(*) FILTER (WHERE so.status = 'accepted' AND sr.status = 'completed') as completed_requests
+            FROM service_offers so
+            JOIN service_requests sr ON sr.id = so.request_id
+            WHERE so.professional_id = $1
         `;
         
         const result = await db.query(statsQuery, [professionalId]);
+        const row = result.rows[0];
         
-        // Mock earnings for now
         const stats = {
-            ...result.rows[0],
-            completed_requests: 0, // Need a completed status somewhere, mock to 0
-            total_earnings: result.rows[0].accepted_requests * 500 // Assuming 500 per job
+            total_requests: parseInt(row.total_requests || 0),
+            pending_requests: parseInt(row.pending_requests || 0),
+            completed_requests: parseInt(row.completed_requests || 0),
+            total_earnings: parseInt(row.completed_requests || 0) * 500 // Assuming 500 per completed job
         };
         
         res.json(stats);
@@ -387,6 +389,64 @@ exports.updateRequestJourney = async (req, res) => {
         await client.query('ROLLBACK');
         console.error('Request journey error:', error);
         res.status(500).json({ message: 'Failed to update request journey' });
+    } finally {
+        client.release();
+    }
+};
+
+exports.updateLocation = async (req, res) => {
+    const professionalId = req.professionalId;
+    const requestId = Number(req.params.id);
+    const { latitude, longitude } = req.body;
+
+    if (!Number.isInteger(requestId) || latitude == null || longitude == null) {
+        return res.status(400).json({ message: 'Request ID and location are required' });
+    }
+
+    const client = await db.connect();
+    try {
+        await client.query('BEGIN');
+        
+        // Ensure this professional actually owns the accepted/in-progress request
+        const offer = await client.query(
+            `SELECT sr.customer_id
+             FROM service_offers so
+             JOIN service_requests sr ON sr.id = so.request_id
+             WHERE so.request_id = $1 AND so.professional_id = $2 AND so.status = 'accepted'`,
+            [requestId, professionalId]
+        );
+        
+        if (!offer.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({ message: 'Not authorized for this request' });
+        }
+
+        const customerId = offer.rows[0].customer_id;
+
+        // Update professional's current location
+        await client.query(
+            `UPDATE professionals
+             SET current_latitude = $1, current_longitude = $2, location_updated_at = CURRENT_TIMESTAMP
+             WHERE id = $3`,
+            [latitude, longitude, professionalId]
+        );
+
+        await client.query('COMMIT');
+
+        // Notify the specific customer in real-time
+        const { notifyCustomer } = require('../utils/customerSseClients');
+        notifyCustomer(customerId, 'location_update', {
+            request_id: requestId,
+            professional_latitude: latitude,
+            professional_longitude: longitude,
+            timestamp: new Date().toISOString()
+        });
+
+        res.json({ message: 'Location updated successfully' });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Update location error:', error);
+        res.status(500).json({ message: 'Failed to update location' });
     } finally {
         client.release();
     }

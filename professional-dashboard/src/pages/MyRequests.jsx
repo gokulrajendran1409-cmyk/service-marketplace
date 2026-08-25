@@ -96,6 +96,53 @@ const JOURNEY_STEPS = [
   { key: 'completed', label: 'Completed' },
 ];
 
+function LiveNavigationMap({ request, professionalLocation, onClose }) {
+  const customerPoint = [Number(request.latitude), Number(request.longitude)];
+  const currentLoc = professionalLocation || { latitude: request.professional_latitude, longitude: request.professional_longitude };
+  const professionalPoint = [Number(currentLoc.latitude), Number(currentLoc.longitude)];
+  const [route, setRoute] = useState([professionalPoint, customerPoint]);
+  
+  const customerIcon = L.divIcon({ className: 'map-person-marker', html: '👤', iconSize: [32, 32], iconAnchor: [16, 16] });
+  const professionalIcon = L.divIcon({ className: 'map-professional-marker', html: '🛠️', iconSize: [32, 32], iconAnchor: [16, 16] });
+
+  useEffect(() => {
+    let active = true;
+    if (!professionalPoint[0] || !professionalPoint[1]) return;
+    
+    const routeUrl = `https://router.project-osrm.org/route/v1/driving/${professionalPoint[1]},${professionalPoint[0]};${customerPoint[1]},${customerPoint[0]}?overview=full&geometries=geojson`;
+    fetch(routeUrl)
+      .then(response => response.json())
+      .then(data => {
+        if (!active || data.code !== 'Ok' || !data.routes?.[0]) return;
+        const routeCoordinates = data.routes[0].geometry.coordinates.map(([longitude, latitude]) => [latitude, longitude]);
+        setRoute(routeCoordinates);
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [professionalPoint[0], professionalPoint[1]]);
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, background: 'var(--bg-base)', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '16px 24px', background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 18, display: 'flex', alignItems: 'center', gap: 8 }}><Navigation size={20} color="var(--accent-primary)" /> Live Navigation</h2>
+          <p style={{ margin: 0, fontSize: 14, color: 'var(--text-secondary)' }}>Heading to {request.customer_name}</p>
+        </div>
+        <button onClick={onClose} style={{ background: 'var(--bg-base)', border: '1px solid var(--border-light)', padding: '8px 16px', borderRadius: 8, cursor: 'pointer' }}>Close Map</button>
+      </div>
+      <div style={{ flex: 1, position: 'relative' }}>
+        <MapContainer center={professionalPoint} zoom={16} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          {professionalPoint[0] ? <Marker position={professionalPoint} icon={professionalIcon}><Popup>You are here</Popup></Marker> : null}
+          <Marker position={customerPoint} icon={customerIcon}><Popup>Customer</Popup></Marker>
+          <Polyline positions={route} pathOptions={{ color: '#2563eb', weight: 6, opacity: 0.8 }} />
+          <RouteBounds points={[professionalPoint, customerPoint]} />
+        </MapContainer>
+      </div>
+    </div>
+  );
+}
+
 function MyRequests() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -105,11 +152,12 @@ function MyRequests() {
   const [locationLoadingId, setLocationLoadingId] = useState(null);
   const [professionalLocation, setProfessionalLocation] = useState(null);
   const [locationStatus, setLocationStatus] = useState('idle');
+  const [showLiveMap, setShowLiveMap] = useState(false);
 
   const fetchRequests = async () => {
     setLoading(true);
     try {
-      const response = await fetch("https://service-marketplace-af7p.onrender.com/api/professionals/requests", {
+      const response = await fetch("http://localhost:5000/api/professionals/requests", {
         headers: { Authorization: `Bearer ${localStorage.getItem("professionalToken")}` }
       });
       if (!response.ok) throw new Error("Failed to load requests");
@@ -126,16 +174,51 @@ function MyRequests() {
     fetchRequests();
     const professional = JSON.parse(localStorage.getItem('professional') || '{}');
     if (!professional.id) return undefined;
-    const stream = new EventSource(`https://service-marketplace-af7p.onrender.com/api/professionals/notifications/stream/${professional.id}`);
+    const stream = new EventSource(`http://localhost:5000/api/professionals/notifications/stream/${professional.id}`);
     stream.addEventListener('new_service_request', fetchRequests);
     stream.addEventListener('request_taken', fetchRequests);
     return () => stream.close();
   }, []);
 
+  const activeNavigationRequest = requests.find(r => r.journey_status === 'start_navigation' || r.journey_status === 'on_the_way');
+
+  useEffect(() => {
+    if (!activeNavigationRequest) return;
+    let watchId;
+    if (navigator.geolocation) {
+      watchId = navigator.geolocation.watchPosition(
+        async (position) => {
+           const lat = position.coords.latitude;
+           const lng = position.coords.longitude;
+           setProfessionalLocation({ latitude: lat, longitude: lng, accuracy: position.coords.accuracy });
+           try {
+             await fetch(`http://localhost:5000/api/professionals/requests/${activeNavigationRequest.id}/location`, {
+               method: 'PATCH',
+               headers: {
+                 'Content-Type': 'application/json',
+                 Authorization: `Bearer ${localStorage.getItem("professionalToken")}`
+               },
+               body: JSON.stringify({ latitude: lat, longitude: lng })
+             });
+           } catch (err) {
+             console.error("Failed to sync live location", err);
+           }
+        },
+        (err) => console.error(err),
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+      );
+    }
+    return () => {
+      if (watchId != null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [activeNavigationRequest?.id]);
+
   const respondToRequest = async (requestId, decision) => {
     setRespondingId(requestId);
     try {
-      const response = await fetch(`https://service-marketplace-af7p.onrender.com/api/professionals/requests/${requestId}/respond`, {
+      const response = await fetch(`http://localhost:5000/api/professionals/requests/${requestId}/respond`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -164,7 +247,7 @@ function MyRequests() {
   const updateJourney = async (requestId, journeyStatus) => {
     setRespondingId(requestId);
     try {
-      const response = await fetch(`https://service-marketplace-af7p.onrender.com/api/professionals/requests/${requestId}/journey`, {
+      const response = await fetch(`http://localhost:5000/api/professionals/requests/${requestId}/journey`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -252,6 +335,14 @@ function MyRequests() {
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}><RefreshCw className="spin" size={32} color="var(--text-muted)" /></div>;
   return (
     <div>
+      {showLiveMap && activeNavigationRequest && (
+        <LiveNavigationMap 
+          request={activeNavigationRequest} 
+          professionalLocation={professionalLocation} 
+          onClose={() => setShowLiveMap(false)} 
+        />
+      )}
+      
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title">My Service Requests</h1>
@@ -310,9 +401,9 @@ function MyRequests() {
                     <div className="request-evidence">
                       <strong>Customer evidence</strong>
                       <div className="request-evidence-links">
-                        {req.photo_urls?.map((url, photoIndex) => <a key={url} href={`https://service-marketplace-af7p.onrender.com${url}`} target="_blank" rel="noreferrer">Photo {photoIndex + 1}</a>)}
-                        {req.video_url && <a href={`https://service-marketplace-af7p.onrender.com${req.video_url}`} target="_blank" rel="noreferrer">Watch video</a>}
-                        {req.voice_url && <a href={`https://service-marketplace-af7p.onrender.com${req.voice_url}`} target="_blank" rel="noreferrer">Play voice note</a>}
+                        {req.photo_urls?.map((url, photoIndex) => <a key={url} href={`http://localhost:5000${url}`} target="_blank" rel="noreferrer">Photo {photoIndex + 1}</a>)}
+                        {req.video_url && <a href={`http://localhost:5000${req.video_url}`} target="_blank" rel="noreferrer">Watch video</a>}
+                        {req.voice_url && <a href={`http://localhost:5000${req.voice_url}`} target="_blank" rel="noreferrer">Play voice note</a>}
                       </div>
                     </div>
                   )}
@@ -324,11 +415,19 @@ function MyRequests() {
                       {JOURNEY_STEPS.map((step, index) => {
                         const currentIndex = ['accepted', ...JOURNEY_STEPS.map(item => item.key)].indexOf(req.journey_status || 'accepted');
                         return index === currentIndex && (
-                          <button key={step.key} disabled={respondingId === req.id} onClick={() => updateJourney(req.id, step.key)}>
+                          <button key={step.key} disabled={respondingId === req.id} onClick={() => {
+                            updateJourney(req.id, step.key);
+                            if (step.key === 'start_navigation') setShowLiveMap(true);
+                          }}>
                             {respondingId === req.id ? 'Updating...' : step.label}
                           </button>
                         );
                       })}
+                      {(req.journey_status === 'start_navigation' || req.journey_status === 'on_the_way') && (
+                        <button onClick={() => setShowLiveMap(true)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Navigation size={14} /> View Live Map
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -378,3 +477,4 @@ function MyRequests() {
 }
 
 export default MyRequests;
+
