@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Inbox,
 } from "lucide-react";
+import { API_URL } from "../services/api";
 
 const STATUS_CONFIG = {
   pending: {
@@ -155,7 +156,7 @@ export default function Requests() {
     setError("");
     try {
       const res = await fetch(
-        "https://service-marketplace-af7p.onrender.com/api/admin/service-requests"
+        `${API_URL}/admin/service-requests`
       );
       if (!res.ok) throw new Error("Failed to fetch service requests");
       const data = await res.json();
@@ -170,7 +171,7 @@ export default function Requests() {
 
   useEffect(() => {
     fetchRequests();
-    const stream = new EventSource("https://service-marketplace-af7p.onrender.com/api/admin/notifications/stream");
+    const stream = new EventSource(`${API_URL}/admin/notifications/stream`);
     const refreshForRequestEvent = () => fetchRequests(true);
     stream.addEventListener("service_request_created", refreshForRequestEvent);
     stream.addEventListener("service_request_updated", refreshForRequestEvent);

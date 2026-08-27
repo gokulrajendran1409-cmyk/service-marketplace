@@ -19,6 +19,23 @@ const getDashboard = async (req, res) => {
             "SELECT COUNT(*) FROM service_requests"
         );
 
+        const payments = await pool.query(
+            `SELECT
+                COUNT(*) FILTER (WHERE payment_state = 'awaiting_payment')::int AS awaiting_payment,
+                COUNT(*) FILTER (WHERE payment_state = 'paid')::int AS paid_payments,
+                COALESCE(SUM(wage) FILTER (WHERE payment_state = 'paid'), 0) AS confirmed_payment_value
+             FROM (
+                SELECT wage, status,
+                       CASE
+                           WHEN payment_status = 'paid' OR (wage IS NOT NULL AND status = 'completed') THEN 'paid'
+                           WHEN payment_status = 'awaiting_payment' OR (wage IS NOT NULL AND status = 'in_progress') THEN 'awaiting_payment'
+                           ELSE payment_status
+                       END AS payment_state
+                FROM service_requests
+                WHERE wage IS NOT NULL
+             ) payment_records`
+        );
+
         res.json({
             users: Number(users.rows[0].count),
             professionals: Number(professionals.rows[0].count),
@@ -27,7 +44,10 @@ const getDashboard = async (req, res) => {
             ),
             serviceRequests: Number(
                 serviceRequests.rows[0].count
-            )
+            ),
+            awaitingPayments: payments.rows[0].awaiting_payment,
+            paidPayments: payments.rows[0].paid_payments,
+            confirmedPaymentValue: Number(payments.rows[0].confirmed_payment_value)
         });
     } catch (error) {
         console.error("Dashboard error:", error);
@@ -203,6 +223,13 @@ const getServiceRequests = async (req, res) => {
                 sr.requested_at,
                 sr.created_at,
                 sr.updated_at,
+                sr.wage,
+                sr.wage_description,
+                CASE
+                    WHEN sr.payment_status = 'paid' OR (sr.wage IS NOT NULL AND sr.status = 'completed') THEN 'paid'
+                    WHEN sr.payment_status = 'awaiting_payment' OR (sr.wage IS NOT NULL AND sr.status = 'in_progress') THEN 'awaiting_payment'
+                    ELSE sr.payment_status
+                END AS payment_status,
                 u.name   AS user_name,
                 u.email  AS user_email,
                 offer_summary.offer_count,

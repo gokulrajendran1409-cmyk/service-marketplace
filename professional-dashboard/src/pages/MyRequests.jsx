@@ -19,8 +19,23 @@ function RouteBounds({ points }) {
   const map = useMap();
 
   useEffect(() => {
-    map.fitBounds(points, { padding: [32, 32] });
+    if (points.length > 1 && points.every(point => point.every(Number.isFinite))) {
+      map.fitBounds(points, { padding: [32, 32] });
+    }
   }, [map, points]);
+
+  return null;
+}
+
+function MapResizeHandler() {
+  const map = useMap();
+
+  useEffect(() => {
+    const resizeMap = () => map.invalidateSize();
+    resizeMap();
+    const timer = window.setTimeout(resizeMap, 100);
+    return () => window.clearTimeout(timer);
+  }, [map]);
 
   return null;
 }
@@ -100,14 +115,17 @@ function LiveNavigationMap({ request, professionalLocation, onClose }) {
   const customerPoint = [Number(request.latitude), Number(request.longitude)];
   const currentLoc = professionalLocation || { latitude: request.professional_latitude, longitude: request.professional_longitude };
   const professionalPoint = [Number(currentLoc.latitude), Number(currentLoc.longitude)];
-  const [route, setRoute] = useState([professionalPoint, customerPoint]);
+  const validCustomerPoint = customerPoint.every(Number.isFinite);
+  const validProfessionalPoint = professionalPoint.every(Number.isFinite);
+  const mapCenter = validProfessionalPoint ? professionalPoint : validCustomerPoint ? customerPoint : [20.5937, 78.9629];
+  const [route, setRoute] = useState(() => [professionalPoint, customerPoint].filter(point => point.every(Number.isFinite)));
 
   const customerIcon = L.divIcon({ className: 'map-person-marker', html: '👤', iconSize: [32, 32], iconAnchor: [16, 16] });
   const professionalIcon = L.divIcon({ className: 'map-professional-marker', html: '🛠️', iconSize: [32, 32], iconAnchor: [16, 16] });
 
   useEffect(() => {
     let active = true;
-    if (!professionalPoint[0] || !professionalPoint[1]) return;
+    if (!validProfessionalPoint || !validCustomerPoint) return;
 
     const routeUrl = `https://router.project-osrm.org/route/v1/driving/${professionalPoint[1]},${professionalPoint[0]};${customerPoint[1]},${customerPoint[0]}?overview=full&geometries=geojson`;
     fetch(routeUrl)
@@ -131,12 +149,13 @@ function LiveNavigationMap({ request, professionalLocation, onClose }) {
         <button onClick={onClose} style={{ background: 'var(--bg-base)', border: '1px solid var(--border-light)', padding: '8px 16px', borderRadius: 8, cursor: 'pointer' }}>Close Map</button>
       </div>
       <div style={{ flex: 1, position: 'relative' }}>
-        <MapContainer center={professionalPoint} zoom={16} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
+          <MapContainer center={mapCenter} zoom={16} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          {professionalPoint[0] ? <Marker position={professionalPoint} icon={professionalIcon}><Popup>You are here</Popup></Marker> : null}
-          <Marker position={customerPoint} icon={customerIcon}><Popup>Customer</Popup></Marker>
-          <Polyline positions={route} pathOptions={{ color: '#2563eb', weight: 6, opacity: 0.8 }} />
-          <RouteBounds points={[professionalPoint, customerPoint]} />
+          <MapResizeHandler />
+          {validProfessionalPoint ? <Marker position={professionalPoint} icon={professionalIcon}><Popup>You are here</Popup></Marker> : null}
+          {validCustomerPoint ? <Marker position={customerPoint} icon={customerIcon}><Popup>Customer</Popup></Marker> : null}
+          {route.length > 1 ? <Polyline positions={route} pathOptions={{ color: '#2563eb', weight: 6, opacity: 0.8 }} /> : null}
+          {validProfessionalPoint && validCustomerPoint ? <RouteBounds points={[professionalPoint, customerPoint]} /> : null}
         </MapContainer>
       </div>
     </div>
@@ -273,6 +292,7 @@ function MyRequests() {
       setRequests(current => current.map(request => request.id === requestId
         ? { ...request, status: data.request.status, journey_status: data.request.journey_status, journey_updated_at: data.request.journey_updated_at }
         : request));
+      if (journeyStatus === 'start_navigation') setShowLiveMap(true);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -310,9 +330,10 @@ function MyRequests() {
   };
 
   const submitWageRequest = async () => {
-    const amount = parseFloat(wageInput);
-    if (!wageInput || isNaN(amount) || amount <= 0) {
-      alert('Please enter a valid wage amount.');
+    const normalizedWage = wageInput.trim();
+    const amount = Number(normalizedWage);
+    if (!/^\d+(\.\d{1,2})?$/.test(normalizedWage) || !Number.isFinite(amount) || amount <= 0) {
+      alert('Please enter a valid wage amount with up to 2 decimal places.');
       return;
     }
     setRespondingId(wageModalRequest);
@@ -561,7 +582,6 @@ function MyRequests() {
                           return index === currentIndex && (
                             <button key={step.key} disabled={respondingId === req.id} onClick={() => {
                               updateJourney(req.id, step.key);
-                              if (step.key === 'start_navigation') setShowLiveMap(true);
                             }}>
                               {respondingId === req.id ? 'Updating...' : step.label}
                             </button>

@@ -525,8 +525,10 @@ exports.submitWage = async (req, res) => {
     const requestId = Number(req.params.id);
     const { wage, wage_description } = req.body;
 
-    if (!Number.isInteger(requestId) || !wage || isNaN(Number(wage)) || Number(wage) <= 0) {
-        return res.status(400).json({ message: 'A valid wage amount is required' });
+    const wageText = typeof wage === 'string' ? wage.trim() : String(wage ?? '');
+    const wageAmount = Number(wageText);
+    if (!Number.isInteger(requestId) || !/^\d+(\.\d{1,2})?$/.test(wageText) || !Number.isFinite(wageAmount) || wageAmount <= 0) {
+        return res.status(400).json({ message: 'A valid wage amount with up to 2 decimal places is required' });
     }
 
     const client = await db.connect();
@@ -565,7 +567,7 @@ exports.submitWage = async (req, res) => {
                  updated_at = CURRENT_TIMESTAMP
              WHERE id = $3
              RETURNING *`,
-            [Number(wage), wage_description || null, requestId]
+            [wageAmount, wage_description || null, requestId]
         );
 
         await client.query('COMMIT');
