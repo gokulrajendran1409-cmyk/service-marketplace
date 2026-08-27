@@ -93,6 +93,7 @@ const JOURNEY_STEPS = [
   { key: 'on_the_way', label: 'On the way' },
   { key: 'arrived', label: 'Arrived' },
   { key: 'working', label: 'Working' },
+  { key: 'awaiting_payment', label: 'Awaiting Payment' },
   { key: 'completed', label: 'Completed' },
 ];
 
@@ -520,6 +521,8 @@ function MyRequests() {
           {requests.map((req, idx) => {
             const isRestricted = req.status === 'completed'
               || req.journey_status === 'completed'
+              || req.journey_status === 'awaiting_payment'
+              || req.payment_status === 'awaiting_payment'
               || (req.status === 'accepted' && req.offer_status !== 'accepted');
 
             return (
@@ -573,6 +576,24 @@ function MyRequests() {
                       </div>
                     </div>
                   )}
+                  {req.payment_status === 'awaiting_payment' && (
+                    <div style={{ marginTop: '12px', padding: '12px 14px', background: '#fefce8', borderRadius: '8px', border: '1px solid #fbbf24', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '18px' }}>⏳</span>
+                      <div>
+                        <strong style={{ fontSize: '13px', color: '#92400e', display: 'block' }}>Awaiting Customer Payment</strong>
+                        <span style={{ fontSize: '12px', color: '#b45309' }}>You have submitted ₹{Number(req.wage).toLocaleString('en-IN')}. Waiting for the customer to confirm payment.</span>
+                      </div>
+                    </div>
+                  )}
+                  {req.payment_status === 'paid' && (
+                    <div style={{ marginTop: '12px', padding: '10px 14px', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #86efac', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '18px' }}>✅</span>
+                      <div>
+                        <strong style={{ fontSize: '13px', color: '#166534', display: 'block' }}>Payment Received — Job Complete!</strong>
+                        <span style={{ fontSize: '12px', color: '#16a34a' }}>₹{Number(req.wage).toLocaleString('en-IN')} confirmed by customer.</span>
+                      </div>
+                    </div>
+                  )}
                   {!isRestricted && (req.offer_status === 'accepted' || req.offer_status === 'pending') && (
                     <div className="request-location-tools">
                       <button className="view-location-btn" onClick={() => viewingLocationId === req.id ? setViewingLocationId(null) : viewRequestLocation(req)} disabled={locationLoadingId === req.id}>
@@ -599,8 +620,12 @@ function MyRequests() {
                     Created: {new Date(req.created_at).toLocaleDateString()}
                   </div>}
                 </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <StatusBadge status={req.status} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
+                  {req.payment_status === 'awaiting_payment'
+                    ? <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', background: '#fef3c7', color: '#d97706' }}>⏳ Awaiting Payment</span>
+                    : req.payment_status === 'paid'
+                    ? <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', background: '#dcfce7', color: '#16a34a' }}>✓ Paid & Completed</span>
+                    : <StatusBadge status={req.status} />}
                   {req.offer_status === 'rejected' && req.status === 'accepted' && <span className="request-taken-label">Accepted by another professional</span>}
                   {req.offer_status === 'pending' && (
                     <>

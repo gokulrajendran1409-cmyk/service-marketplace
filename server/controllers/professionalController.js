@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const { broadcast } = require('../utils/sseClients');
 const { notifyPro } = require('../utils/proSseClients');
 
-const JOURNEY_STEPS = ['accepted', 'start_navigation', 'on_the_way', 'arrived', 'working', 'completed'];
+const JOURNEY_STEPS = ['accepted', 'start_navigation', 'on_the_way', 'arrived', 'working', 'awaiting_payment', 'completed'];
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_for_demo';
 
@@ -556,8 +556,8 @@ exports.submitWage = async (req, res) => {
 
         const result = await client.query(
             `UPDATE service_requests
-             SET journey_status = 'completed',
-                 status = 'completed',
+             SET journey_status = 'awaiting_payment',
+                 status = 'in_progress',
                  payment_status = 'awaiting_payment',
                  wage = $1,
                  wage_description = $2,
@@ -573,8 +573,8 @@ exports.submitWage = async (req, res) => {
         broadcast('service_request_updated', {
             id: requestId,
             professional_id: professionalId,
-            status: 'completed',
-            journey_status: 'completed',
+            status: 'in_progress',
+            journey_status: 'awaiting_payment',
             payment_status: 'awaiting_payment',
             timestamp: new Date().toISOString()
         });

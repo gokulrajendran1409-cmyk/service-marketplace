@@ -210,7 +210,10 @@ exports.confirmPayment = async (req, res) => {
     try {
         const result = await pool.query(
             `UPDATE service_requests
-             SET payment_status = 'paid', updated_at = CURRENT_TIMESTAMP
+             SET payment_status = 'paid',
+                 status = 'completed',
+                 journey_status = 'completed',
+                 updated_at = CURRENT_TIMESTAMP
              WHERE id = $1 AND customer_id = $2 AND payment_status = 'awaiting_payment'
              RETURNING *`,
             [requestId, customerId]
