@@ -1,5 +1,5 @@
 const express = require("express");
-const { getDashboard, getUsers, getPendingVerifications, approveProfessional, rejectProfessional, getVerifiedProfessionals, getAllVerifications, getCategories, getServiceRequests } = require("../controllers/adminController");
+const { getDashboard, getUsers, getPendingVerifications, approveProfessional, rejectProfessional, getVerifiedProfessionals, getAllVerifications, getCategories, getServiceRequests, getReviews } = require("../controllers/adminController");
 const { addClient, removeClient } = require("../utils/sseClients");
 
 const router = express.Router();
@@ -13,6 +13,7 @@ router.post("/verifications/:id/reject", rejectProfessional);
 router.get("/professionals", getVerifiedProfessionals);
 router.get("/categories", getCategories);
 router.get("/service-requests", getServiceRequests);
+router.get("/reviews", getReviews);
 
 // SSE stream – admin panel subscribes here for real-time notifications
 router.get("/notifications/stream", (req, res) => {

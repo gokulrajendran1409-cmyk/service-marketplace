@@ -267,6 +267,31 @@ const getServiceRequests = async (req, res) => {
     }
 };
 
+const getReviews = async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT
+                r.id,
+                r.rating,
+                r.comment,
+                r.created_at,
+                sr.id AS request_id,
+                sr.title AS request_title,
+                customer.name AS customer_name,
+                professional.full_name AS professional_name
+            FROM professional_reviews r
+            JOIN service_requests sr ON sr.id = r.request_id
+            JOIN users customer ON customer.id = r.customer_id
+            JOIN professionals professional ON professional.id = r.professional_id
+            ORDER BY r.created_at DESC
+        `);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching reviews:', error);
+        res.status(500).json({ message: 'Failed to fetch reviews' });
+    }
+};
+
 module.exports = {
     getDashboard,
     getUsers,
@@ -276,5 +301,6 @@ module.exports = {
     getVerifiedProfessionals,
     getAllVerifications,
     getCategories,
-    getServiceRequests
+    getServiceRequests,
+    getReviews
 };

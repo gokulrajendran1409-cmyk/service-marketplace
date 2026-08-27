@@ -217,6 +217,12 @@ exports.createReview = async (req, res) => {
             return res.status(409).json({ message: 'This service is not eligible for review or has already been reviewed' });
         }
 
+        broadcast('review_submitted', {
+            id: result.rows[0].id,
+            request_id: requestId,
+            rating: result.rows[0].rating,
+            timestamp: new Date().toISOString()
+        });
         res.status(201).json({ message: 'Review submitted successfully', review: result.rows[0] });
     } catch (err) {
         console.error('createReview error:', err);
