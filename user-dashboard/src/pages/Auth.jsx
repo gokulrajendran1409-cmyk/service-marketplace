@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Wrench, Loader2 } from 'lucide-react';
 import { useToast, Toast } from '../components/Toast';
 
-const API = 'http://localhost:5000/api/auth';
+const API = 'service-marketplace-af7p.onrender.com/api/auth';
 
 function Auth({ onLogin }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -16,10 +16,10 @@ function Auth({ onLogin }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       const endpoint = isLogin ? '/login' : '/register';
-      const payload = isLogin 
+      const payload = isLogin
         ? { email: form.email, password: form.password }
         : form;
 
@@ -85,9 +85,9 @@ function Auth({ onLogin }) {
 
         <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '14px', color: 'var(--text-secondary)' }}>
           {isLogin ? "Don't have an account? " : "Already have an account? "}
-          <button 
-            type="button" 
-            onClick={() => setIsLogin(!isLogin)} 
+          <button
+            type="button"
+            onClick={() => setIsLogin(!isLogin)}
             style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', fontWeight: '600', cursor: 'pointer' }}
           >
             {isLogin ? 'Sign up' : 'Sign in'}

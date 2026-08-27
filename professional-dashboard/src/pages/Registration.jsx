@@ -32,7 +32,7 @@ export default function Registration() {
 
   const [idProof, setIdProof] = useState(null);
   const [certificate, setCertificate] = useState(null);
-  
+
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
@@ -119,7 +119,7 @@ export default function Registration() {
       if (idProof) data.append('id_proof', idProof);
       if (certificate) data.append('certificate', certificate);
 
-      const response = await fetch('http://localhost:5000/api/professionals/register', {
+      const response = await fetch('service-marketplace-af7p.onrender.com/api/professionals/register', {
         method: 'POST',
         body: data
       });
@@ -140,10 +140,10 @@ export default function Registration() {
     return (
       <div className="registration-wrapper">
         <div className="registration-card" style={{ textAlign: 'center' }}>
-           <CheckCircle size={64} color="var(--success)" style={{ margin: '0 auto 20px' }} />
-           <h2>Registration Complete!</h2>
-           <p style={{ color: 'var(--text-secondary)', marginTop: '10px' }}>Status: Pending admin approval. The dashboard will be available after the admin accepts your registration.</p>
-           <button className="submit-btn" onClick={() => navigate('/login')}>Go to login</button>
+          <CheckCircle size={64} color="var(--success)" style={{ margin: '0 auto 20px' }} />
+          <h2>Registration Complete!</h2>
+          <p style={{ color: 'var(--text-secondary)', marginTop: '10px' }}>Status: Pending admin approval. The dashboard will be available after the admin accepts your registration.</p>
+          <button className="submit-btn" onClick={() => navigate('/login')}>Go to login</button>
         </div>
       </div>
     );
@@ -262,7 +262,7 @@ export default function Registration() {
 
           <div className="form-group">
             <label>Upload ID Proof</label>
-            <div 
+            <div
               onClick={() => idInputRef.current.click()}
               style={{
                 border: idProof ? '2px solid var(--success)' : '2px dashed var(--border-light)',
@@ -281,7 +281,7 @@ export default function Registration() {
 
           <div className="form-group">
             <label>Professional Certificate</label>
-            <div 
+            <div
               onClick={() => certInputRef.current.click()}
               style={{
                 border: certificate ? '2px solid var(--success)' : '2px dashed var(--border-light)',

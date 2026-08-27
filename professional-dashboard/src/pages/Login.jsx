@@ -16,7 +16,7 @@ export default function Login() {
     setError("");
     setStatusMessage("");
     try {
-      const response = await fetch("http://localhost:5000/api/professionals/login", {
+      const response = await fetch("service-marketplace-af7p.onrender.com/api/professionals/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password })

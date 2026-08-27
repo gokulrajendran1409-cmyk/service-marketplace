@@ -11,7 +11,7 @@ const MAX_STORED = 50; // keep at most 50 notifications in memory
  */
 export function useProfessionalNotifications(professionalId) {
     const [notifications, setNotifications] = useState([]);
-    const [unreadCount, setUnreadCount]     = useState(0);
+    const [unreadCount, setUnreadCount] = useState(0);
     const esRef = useRef(null);
     const retryTimer = useRef(null);
 
@@ -20,7 +20,7 @@ export function useProfessionalNotifications(professionalId) {
         if (esRef.current) esRef.current.close();
         if (!professionalId) return;
 
-        const SSE_URL = `http://localhost:5000/api/professionals/notifications/stream/${professionalId}`;
+        const SSE_URL = `service-marketplace-af7p.onrender.com/api/professionals/notifications/stream/${professionalId}`;
         const es = new EventSource(SSE_URL);
         esRef.current = es;
 
@@ -29,13 +29,13 @@ export function useProfessionalNotifications(professionalId) {
             try {
                 const data = JSON.parse(e.data);
                 const notification = {
-                    id:        Date.now(),
-                    type:      "new_service_request",
-                    title:     "New Service Request",
-                    message:   `${data.customer_name} requested your service!`,
+                    id: Date.now(),
+                    type: "new_service_request",
+                    title: "New Service Request",
+                    message: `${data.customer_name} requested your service!`,
                     timestamp: data.timestamp || new Date().toISOString(),
-                    read:      false,
-                    raw:       data,
+                    read: false,
+                    raw: data,
                 };
                 setNotifications((prev) =>
                     [notification, ...prev].slice(0, MAX_STORED)
