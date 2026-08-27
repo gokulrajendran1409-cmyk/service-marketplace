@@ -141,7 +141,7 @@ exports.getMyRequests = async (req, res) => {
     try {
         const customerId = req.user.id;
         const result = await pool.query(
-                    `SELECT sr.id, sr.title, sr.description, sr.requested_at, sr.location, sr.latitude, sr.longitude, sr.photo_urls, sr.video_url, sr.voice_url, sr.status, sr.journey_status, sr.journey_updated_at, sr.created_at,
+                    `SELECT sr.id, sr.title, sr.description, sr.requested_at, sr.location, sr.latitude, sr.longitude, sr.photo_urls, sr.video_url, sr.voice_url, sr.status, sr.journey_status, sr.journey_updated_at, sr.created_at, sr.otp,
                         offer_summary.offer_count,
                         offer_summary.pending_offer_count,
                     p.full_name AS professional_name,

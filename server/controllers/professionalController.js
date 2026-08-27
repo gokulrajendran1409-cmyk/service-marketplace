@@ -368,12 +368,23 @@ exports.updateRequestJourney = async (req, res) => {
         }
 
         const requestStatus = nextStatus === 'completed' ? 'completed' : 'in_progress';
+        
+        let otpQuery = '';
+        let otpParams = [nextStatus, requestStatus, requestId];
+        let otp = null;
+
+        if (nextStatus === 'start_navigation') {
+            otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit OTP
+            otpQuery = ', otp = $4';
+            otpParams.push(otp);
+        }
+
         const result = await client.query(
             `UPDATE service_requests
-             SET journey_status = $1, journey_updated_at = CURRENT_TIMESTAMP, status = $2, updated_at = CURRENT_TIMESTAMP
+             SET journey_status = $1, journey_updated_at = CURRENT_TIMESTAMP, status = $2, updated_at = CURRENT_TIMESTAMP ${otpQuery}
              WHERE id = $3
              RETURNING *`,
-            [nextStatus, requestStatus, requestId]
+            otpParams
         );
         await client.query('COMMIT');
 
@@ -389,6 +400,63 @@ exports.updateRequestJourney = async (req, res) => {
         await client.query('ROLLBACK');
         console.error('Request journey error:', error);
         res.status(500).json({ message: 'Failed to update request journey' });
+    } finally {
+        client.release();
+    }
+};
+
+exports.verifyOtp = async (req, res) => {
+    const professionalId = req.professionalId;
+    const requestId = Number(req.params.id);
+    const { otp } = req.body;
+
+    if (!Number.isInteger(requestId) || !otp || otp.length !== 6) {
+        return res.status(400).json({ message: 'A valid 6-digit OTP is required' });
+    }
+
+    const client = await db.connect();
+    try {
+        await client.query('BEGIN');
+        const current = await client.query(
+            `SELECT sr.journey_status, sr.otp
+             FROM service_requests sr
+             JOIN service_offers so ON so.request_id = sr.id
+             WHERE sr.id = $1 AND so.professional_id = $2 AND so.status = 'accepted'
+             FOR UPDATE`,
+            [requestId, professionalId]
+        );
+        
+        if (!current.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: 'Request not found for this professional' });
+        }
+
+        if (current.rows[0].otp !== otp) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ message: 'Invalid OTP' });
+        }
+
+        const result = await client.query(
+            `UPDATE service_requests
+             SET journey_status = 'arrived', journey_updated_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $1
+             RETURNING *`,
+            [requestId]
+        );
+        await client.query('COMMIT');
+
+        broadcast('service_request_updated', {
+            id: requestId,
+            professional_id: professionalId,
+            status: 'in_progress',
+            journey_status: 'arrived',
+            timestamp: new Date().toISOString()
+        });
+        res.json({ message: 'OTP verified successfully, status updated to arrived', request: result.rows[0] });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('OTP verification error:', error);
+        res.status(500).json({ message: 'Failed to verify OTP' });
     } finally {
         client.release();
     }

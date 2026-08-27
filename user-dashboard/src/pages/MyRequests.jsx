@@ -167,6 +167,12 @@ function MyRequests({ navigate }) {
                         <strong>{currentStep ? currentStep.label : 'Accepted'}</strong>
                         <p>{currentStep?.detail || 'The professional has accepted your request and is preparing to travel.'}</p>
                         {req.journey_updated_at && <small>Updated {new Date(req.journey_updated_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</small>}
+                        {(currentStatus === 'start_navigation' || currentStatus === 'on_the_way') && req.otp && (
+                          <div style={{ marginTop: '12px', padding: '12px 16px', background: '#eff6ff', borderRadius: '8px', border: '1px dashed #60a5fa', display: 'inline-block' }}>
+                            <span style={{ fontSize: '12px', color: '#3b82f6', display: 'block', marginBottom: '4px', fontWeight: '500' }}>Share this OTP with professional on arrival</span>
+                            <strong style={{ fontSize: '24px', letterSpacing: '8px', color: '#1d4ed8' }}>{req.otp}</strong>
+                          </div>
+                        )}
                       </div>
                       <div className="journey-timeline">
                       {JOURNEY_STEPS.map(step => {

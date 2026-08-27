@@ -153,6 +153,8 @@ function MyRequests() {
   const [professionalLocation, setProfessionalLocation] = useState(null);
   const [locationStatus, setLocationStatus] = useState('idle');
   const [showLiveMap, setShowLiveMap] = useState(false);
+  const [otpModalRequest, setOtpModalRequest] = useState(null);
+  const [otpInput, setOtpInput] = useState('');
 
   const fetchRequests = async () => {
     setLoading(true);
@@ -245,6 +247,10 @@ function MyRequests() {
   };
 
   const updateJourney = async (requestId, journeyStatus) => {
+    if (journeyStatus === 'arrived') {
+        setOtpModalRequest(requestId);
+        return;
+    }
     setRespondingId(requestId);
     try {
       const response = await fetch(`https://service-marketplace-af7p.onrender.com/api/professionals/requests/${requestId}/journey`, {
@@ -262,6 +268,35 @@ function MyRequests() {
         : request));
     } catch (err) {
       setError(err.message);
+    } finally {
+      setRespondingId(null);
+    }
+  };
+
+  const verifyOtpSubmit = async () => {
+    if (!otpInput || otpInput.length !== 6) {
+      alert('Please enter a valid 6-digit OTP.');
+      return;
+    }
+    setRespondingId(otpModalRequest);
+    try {
+      const response = await fetch(`https://service-marketplace-af7p.onrender.com/api/professionals/requests/${otpModalRequest}/verify-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('professionalToken')}`
+        },
+        body: JSON.stringify({ otp: otpInput })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Unable to verify OTP');
+      setRequests(current => current.map(request => request.id === otpModalRequest
+        ? { ...request, status: data.request.status, journey_status: data.request.journey_status, journey_updated_at: data.request.journey_updated_at }
+        : request));
+      setOtpModalRequest(null);
+      setOtpInput('');
+    } catch (err) {
+      alert(err.message);
     } finally {
       setRespondingId(null);
     }
@@ -341,6 +376,36 @@ function MyRequests() {
           professionalLocation={professionalLocation}
           onClose={() => setShowLiveMap(false)}
         />
+      )}
+      
+      {otpModalRequest && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
+            <h3 style={{ margin: '0 0 16px 0', color: '#111827' }}>Verify Arrival</h3>
+            <p style={{ margin: '0 0 20px 0', color: '#4b5563', fontSize: '14px' }}>Please enter the 6-digit OTP provided by the customer to confirm your arrival.</p>
+            <input 
+              type="text" 
+              maxLength="6" 
+              value={otpInput} 
+              onChange={e => setOtpInput(e.target.value.replace(/\D/g, ''))}
+              placeholder="000000"
+              style={{ width: '100%', padding: '12px', fontSize: '24px', letterSpacing: '8px', textAlign: 'center', borderRadius: '8px', border: '1px solid #d1d5db', marginBottom: '20px' }}
+            />
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                onClick={() => { setOtpModalRequest(null); setOtpInput(''); }} 
+                style={{ flex: 1, padding: '12px', background: '#f3f4f6', color: '#4b5563', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>
+                Cancel
+              </button>
+              <button 
+                onClick={verifyOtpSubmit} 
+                disabled={respondingId === otpModalRequest}
+                style={{ flex: 1, padding: '12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>
+                {respondingId === otpModalRequest ? 'Verifying...' : 'Verify OTP'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
