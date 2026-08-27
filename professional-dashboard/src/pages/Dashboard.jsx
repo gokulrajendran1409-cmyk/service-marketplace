@@ -9,7 +9,7 @@ function Dashboard() {
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/api/professionals/dashboard", {
+      const response = await fetch("service-marketplace-af7p.onrender.com/api/professionals/dashboard", {
         headers: { Authorization: `Bearer ${localStorage.getItem("professionalToken")}` }
       });
       if (!response.ok) throw new Error("Failed to load dashboard");
@@ -77,7 +77,7 @@ function Dashboard() {
           </div>
         </div>
       </div>
-      
+
       <div className="section-container">
         <h2>Recent Activity</h2>
         <p style={{ color: "var(--text-muted)" }}>Your recent notifications and updates will appear here.</p>

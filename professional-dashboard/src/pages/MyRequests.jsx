@@ -101,14 +101,14 @@ function LiveNavigationMap({ request, professionalLocation, onClose }) {
   const currentLoc = professionalLocation || { latitude: request.professional_latitude, longitude: request.professional_longitude };
   const professionalPoint = [Number(currentLoc.latitude), Number(currentLoc.longitude)];
   const [route, setRoute] = useState([professionalPoint, customerPoint]);
-  
+
   const customerIcon = L.divIcon({ className: 'map-person-marker', html: '👤', iconSize: [32, 32], iconAnchor: [16, 16] });
   const professionalIcon = L.divIcon({ className: 'map-professional-marker', html: '🛠️', iconSize: [32, 32], iconAnchor: [16, 16] });
 
   useEffect(() => {
     let active = true;
     if (!professionalPoint[0] || !professionalPoint[1]) return;
-    
+
     const routeUrl = `https://router.project-osrm.org/route/v1/driving/${professionalPoint[1]},${professionalPoint[0]};${customerPoint[1]},${customerPoint[0]}?overview=full&geometries=geojson`;
     fetch(routeUrl)
       .then(response => response.json())
@@ -117,7 +117,7 @@ function LiveNavigationMap({ request, professionalLocation, onClose }) {
         const routeCoordinates = data.routes[0].geometry.coordinates.map(([longitude, latitude]) => [latitude, longitude]);
         setRoute(routeCoordinates);
       })
-      .catch(() => {});
+      .catch(() => { });
     return () => { active = false; };
   }, [professionalPoint[0], professionalPoint[1]]);
 
@@ -157,7 +157,7 @@ function MyRequests() {
   const fetchRequests = async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/api/professionals/requests", {
+      const response = await fetch("service-marketplace-af7p.onrender.com/api/professionals/requests", {
         headers: { Authorization: `Bearer ${localStorage.getItem("professionalToken")}` }
       });
       if (!response.ok) throw new Error("Failed to load requests");
@@ -174,7 +174,7 @@ function MyRequests() {
     fetchRequests();
     const professional = JSON.parse(localStorage.getItem('professional') || '{}');
     if (!professional.id) return undefined;
-    const stream = new EventSource(`http://localhost:5000/api/professionals/notifications/stream/${professional.id}`);
+    const stream = new EventSource(`service-marketplace-af7p.onrender.com/api/professionals/notifications/stream/${professional.id}`);
     stream.addEventListener('new_service_request', fetchRequests);
     stream.addEventListener('request_taken', fetchRequests);
     return () => stream.close();
@@ -188,21 +188,21 @@ function MyRequests() {
     if (navigator.geolocation) {
       watchId = navigator.geolocation.watchPosition(
         async (position) => {
-           const lat = position.coords.latitude;
-           const lng = position.coords.longitude;
-           setProfessionalLocation({ latitude: lat, longitude: lng, accuracy: position.coords.accuracy });
-           try {
-             await fetch(`http://localhost:5000/api/professionals/requests/${activeNavigationRequest.id}/location`, {
-               method: 'PATCH',
-               headers: {
-                 'Content-Type': 'application/json',
-                 Authorization: `Bearer ${localStorage.getItem("professionalToken")}`
-               },
-               body: JSON.stringify({ latitude: lat, longitude: lng })
-             });
-           } catch (err) {
-             console.error("Failed to sync live location", err);
-           }
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          setProfessionalLocation({ latitude: lat, longitude: lng, accuracy: position.coords.accuracy });
+          try {
+            await fetch(`service-marketplace-af7p.onrender.com/api/professionals/requests/${activeNavigationRequest.id}/location`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${localStorage.getItem("professionalToken")}`
+              },
+              body: JSON.stringify({ latitude: lat, longitude: lng })
+            });
+          } catch (err) {
+            console.error("Failed to sync live location", err);
+          }
         },
         (err) => console.error(err),
         { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
@@ -218,7 +218,7 @@ function MyRequests() {
   const respondToRequest = async (requestId, decision) => {
     setRespondingId(requestId);
     try {
-      const response = await fetch(`http://localhost:5000/api/professionals/requests/${requestId}/respond`, {
+      const response = await fetch(`service-marketplace-af7p.onrender.com/api/professionals/requests/${requestId}/respond`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -233,7 +233,7 @@ function MyRequests() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Unable to update request');
       setRequests((current) => current.map((request) => request.id === requestId ? {
-          ...request,
+        ...request,
         status: data.request?.status || decision,
         offer_status: decision
       } : request));
@@ -247,7 +247,7 @@ function MyRequests() {
   const updateJourney = async (requestId, journeyStatus) => {
     setRespondingId(requestId);
     try {
-      const response = await fetch(`http://localhost:5000/api/professionals/requests/${requestId}/journey`, {
+      const response = await fetch(`service-marketplace-af7p.onrender.com/api/professionals/requests/${requestId}/journey`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -312,19 +312,19 @@ function MyRequests() {
       const currentLocation = professionalLocation || await requestProfessionalLocation();
       const professionalLatitude = currentLocation.latitude;
       const professionalLongitude = currentLocation.longitude;
-        const distance = calculateDistanceInKm(
-          professionalLatitude,
-          professionalLongitude,
-          Number(request.latitude),
-          Number(request.longitude)
-        );
-        setRequests(current => current.map(item => item.id === request.id ? {
-          ...item,
-          professional_latitude: professionalLatitude,
-          professional_longitude: professionalLongitude,
-          distance_km: distance,
-        } : item));
-        setViewingLocationId(request.id);
+      const distance = calculateDistanceInKm(
+        professionalLatitude,
+        professionalLongitude,
+        Number(request.latitude),
+        Number(request.longitude)
+      );
+      setRequests(current => current.map(item => item.id === request.id ? {
+        ...item,
+        professional_latitude: professionalLatitude,
+        professional_longitude: professionalLongitude,
+        distance_km: distance,
+      } : item));
+      setViewingLocationId(request.id);
     } catch {
       // The location helper already displays the permission or retrieval error.
     } finally {
@@ -336,13 +336,13 @@ function MyRequests() {
   return (
     <div>
       {showLiveMap && activeNavigationRequest && (
-        <LiveNavigationMap 
-          request={activeNavigationRequest} 
-          professionalLocation={professionalLocation} 
-          onClose={() => setShowLiveMap(false)} 
+        <LiveNavigationMap
+          request={activeNavigationRequest}
+          professionalLocation={professionalLocation}
+          onClose={() => setShowLiveMap(false)}
         />
       )}
-      
+
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title">My Service Requests</h1>
@@ -362,7 +362,7 @@ function MyRequests() {
             ? `Location enabled (accuracy about ${professionalLocation.accuracy}m).`
             : 'Enable your location to view the distance to each customer before deciding.'}</p>
         </div>
-        <button className="enable-location-btn" onClick={() => requestProfessionalLocation().catch(() => {})} disabled={locationStatus === 'requesting'}>
+        <button className="enable-location-btn" onClick={() => requestProfessionalLocation().catch(() => { })} disabled={locationStatus === 'requesting'}>
           {locationStatus === 'requesting' ? <Loader2 size={15} className="spin" /> : <MapPin size={15} />}
           {locationStatus === 'requesting' ? 'Finding your location...' : locationStatus === 'ready' ? 'Refresh location' : 'Enable my location'}
         </button>
@@ -381,93 +381,93 @@ function MyRequests() {
               || (req.status === 'accepted' && req.offer_status !== 'accepted');
 
             return (
-            <div key={req.id} style={{ padding: '20px 24px', borderBottom: idx !== requests.length - 1 ? '1px solid var(--border-light)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <User size={16} />
+              <div key={req.id} style={{ padding: '20px 24px', borderBottom: idx !== requests.length - 1 ? '1px solid var(--border-light)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <User size={16} />
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '15px' }}>{req.customer_name}</h4>
+                      {!isRestricted && <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{req.customer_phone || 'No phone'}</span>}
+                    </div>
                   </div>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: '15px' }}>{req.customer_name}</h4>
-                    {!isRestricted && <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{req.customer_phone || 'No phone'}</span>}
-                  </div>
-                </div>
-                <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-primary)', fontWeight: 600 }}>{req.title}</p>
-                {req.requested_at && <p className="request-schedule">Customer expects you: {new Date(req.requested_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p>}
-                {!isRestricted && <>
-                  {req.description && <p style={{ margin: '4px 0 0', fontSize: '14px', color: 'var(--text-secondary)' }}>{req.description}</p>}
-                  <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>{req.location}</p>
-                  {(req.photo_urls?.length > 0 || req.video_url || req.voice_url) && (
-                    <div className="request-evidence">
-                      <strong>Customer evidence</strong>
-                      <div className="request-evidence-links">
-                        {req.photo_urls?.map((url, photoIndex) => <a key={url} href={`http://localhost:5000${url}`} target="_blank" rel="noreferrer">Photo {photoIndex + 1}</a>)}
-                        {req.video_url && <a href={`http://localhost:5000${req.video_url}`} target="_blank" rel="noreferrer">Watch video</a>}
-                        {req.voice_url && <a href={`http://localhost:5000${req.voice_url}`} target="_blank" rel="noreferrer">Play voice note</a>}
+                  <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-primary)', fontWeight: 600 }}>{req.title}</p>
+                  {req.requested_at && <p className="request-schedule">Customer expects you: {new Date(req.requested_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p>}
+                  {!isRestricted && <>
+                    {req.description && <p style={{ margin: '4px 0 0', fontSize: '14px', color: 'var(--text-secondary)' }}>{req.description}</p>}
+                    <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>{req.location}</p>
+                    {(req.photo_urls?.length > 0 || req.video_url || req.voice_url) && (
+                      <div className="request-evidence">
+                        <strong>Customer evidence</strong>
+                        <div className="request-evidence-links">
+                          {req.photo_urls?.map((url, photoIndex) => <a key={url} href={`service-marketplace-af7p.onrender.com${url}`} target="_blank" rel="noreferrer">Photo {photoIndex + 1}</a>)}
+                          {req.video_url && <a href={`service-marketplace-af7p.onrender.com${req.video_url}`} target="_blank" rel="noreferrer">Watch video</a>}
+                          {req.voice_url && <a href={`service-marketplace-af7p.onrender.com${req.voice_url}`} target="_blank" rel="noreferrer">Play voice note</a>}
+                        </div>
+                      </div>
+                    )}
+                  </>}
+                  {req.offer_status === 'accepted' && req.journey_status !== 'completed' && (
+                    <div className="journey-controls">
+                      <strong>Update customer</strong>
+                      <div className="journey-step-buttons">
+                        {JOURNEY_STEPS.map((step, index) => {
+                          const currentIndex = ['accepted', ...JOURNEY_STEPS.map(item => item.key)].indexOf(req.journey_status || 'accepted');
+                          return index === currentIndex && (
+                            <button key={step.key} disabled={respondingId === req.id} onClick={() => {
+                              updateJourney(req.id, step.key);
+                              if (step.key === 'start_navigation') setShowLiveMap(true);
+                            }}>
+                              {respondingId === req.id ? 'Updating...' : step.label}
+                            </button>
+                          );
+                        })}
+                        {(req.journey_status === 'start_navigation' || req.journey_status === 'on_the_way') && (
+                          <button onClick={() => setShowLiveMap(true)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Navigation size={14} /> View Live Map
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
-                </>}
-                {req.offer_status === 'accepted' && req.journey_status !== 'completed' && (
-                  <div className="journey-controls">
-                    <strong>Update customer</strong>
-                    <div className="journey-step-buttons">
-                      {JOURNEY_STEPS.map((step, index) => {
-                        const currentIndex = ['accepted', ...JOURNEY_STEPS.map(item => item.key)].indexOf(req.journey_status || 'accepted');
-                        return index === currentIndex && (
-                          <button key={step.key} disabled={respondingId === req.id} onClick={() => {
-                            updateJourney(req.id, step.key);
-                            if (step.key === 'start_navigation') setShowLiveMap(true);
-                          }}>
-                            {respondingId === req.id ? 'Updating...' : step.label}
-                          </button>
-                        );
-                      })}
-                      {(req.journey_status === 'start_navigation' || req.journey_status === 'on_the_way') && (
-                        <button onClick={() => setShowLiveMap(true)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Navigation size={14} /> View Live Map
-                        </button>
+                  {!isRestricted && (req.offer_status === 'accepted' || req.offer_status === 'pending') && (
+                    <div className="request-location-tools">
+                      <button className="view-location-btn" onClick={() => viewingLocationId === req.id ? setViewingLocationId(null) : viewRequestLocation(req)} disabled={locationLoadingId === req.id}>
+                        {locationLoadingId === req.id ? <Loader2 size={14} className="spin" /> : <MapPin size={14} />}
+                        {locationLoadingId === req.id ? 'Getting your location...' : viewingLocationId === req.id ? 'Hide route' : 'View customer location and distance'}
+                      </button>
+                      {viewingLocationId === req.id && req.distance_km != null && (
+                        <div className="request-distance"><Navigation size={14} /> {req.route_distance_km != null
+                          ? `${req.route_distance_km < 1 ? `${Math.round(req.route_distance_km * 1000)} m` : `${req.route_distance_km.toFixed(2)} km`} travel distance`
+                          : `${req.distance_km < 1 ? `${Math.round(req.distance_km * 1000)} m` : `${req.distance_km.toFixed(2)} km`} direct distance`}</div>
+                      )}
+                      {viewingLocationId === req.id && req.professional_latitude != null && (
+                        <>
+                          <RequestRouteMap
+                            request={req}
+                            onRouteDistance={(distance) => setRequests(current => current.map(item => item.id === req.id ? { ...item, route_distance_km: distance } : item))}
+                          />
+                          <div className="map-route-legend"><span>🛠️ Professional</span><span className="route-line-key" /> <span>👤 Customer</span></div>
+                        </>
                       )}
                     </div>
-                  </div>
-                )}
-                {!isRestricted && (req.offer_status === 'accepted' || req.offer_status === 'pending') && (
-                  <div className="request-location-tools">
-                    <button className="view-location-btn" onClick={() => viewingLocationId === req.id ? setViewingLocationId(null) : viewRequestLocation(req)} disabled={locationLoadingId === req.id}>
-                      {locationLoadingId === req.id ? <Loader2 size={14} className="spin" /> : <MapPin size={14} />}
-                      {locationLoadingId === req.id ? 'Getting your location...' : viewingLocationId === req.id ? 'Hide route' : 'View customer location and distance'}
-                    </button>
-                    {viewingLocationId === req.id && req.distance_km != null && (
-                      <div className="request-distance"><Navigation size={14} /> {req.route_distance_km != null
-                        ? `${req.route_distance_km < 1 ? `${Math.round(req.route_distance_km * 1000)} m` : `${req.route_distance_km.toFixed(2)} km`} travel distance`
-                        : `${req.distance_km < 1 ? `${Math.round(req.distance_km * 1000)} m` : `${req.distance_km.toFixed(2)} km`} direct distance`}</div>
-                    )}
-                    {viewingLocationId === req.id && req.professional_latitude != null && (
-                      <>
-                        <RequestRouteMap
-                          request={req}
-                          onRouteDistance={(distance) => setRequests(current => current.map(item => item.id === req.id ? { ...item, route_distance_km: distance } : item))}
-                        />
-                        <div className="map-route-legend"><span>🛠️ Professional</span><span className="route-line-key" /> <span>👤 Customer</span></div>
-                      </>
-                    )}
-                  </div>
-                )}
-                {!isRestricted && <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
-                  Created: {new Date(req.created_at).toLocaleDateString()}
-                </div>}
+                  )}
+                  {!isRestricted && <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                    Created: {new Date(req.created_at).toLocaleDateString()}
+                  </div>}
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <StatusBadge status={req.status} />
+                  {req.offer_status === 'rejected' && req.status === 'accepted' && <span className="request-taken-label">Accepted by another professional</span>}
+                  {req.offer_status === 'pending' && (
+                    <>
+                      <button disabled={respondingId === req.id} onClick={() => respondToRequest(req.id, 'accepted')} style={{ border: 'none', background: 'var(--success)', color: 'white', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}>Accept</button>
+                      <button disabled={respondingId === req.id} onClick={() => respondToRequest(req.id, 'rejected')} style={{ border: 'none', background: 'var(--error)', color: 'white', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}>Reject</button>
+                    </>
+                  )}
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <StatusBadge status={req.status} />
-                {req.offer_status === 'rejected' && req.status === 'accepted' && <span className="request-taken-label">Accepted by another professional</span>}
-                {req.offer_status === 'pending' && (
-                  <>
-                    <button disabled={respondingId === req.id} onClick={() => respondToRequest(req.id, 'accepted')} style={{ border: 'none', background: 'var(--success)', color: 'white', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}>Accept</button>
-                    <button disabled={respondingId === req.id} onClick={() => respondToRequest(req.id, 'rejected')} style={{ border: 'none', background: 'var(--error)', color: 'white', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}>Reject</button>
-                  </>
-                )}
-              </div>
-            </div>
             );
           })}
         </div>
