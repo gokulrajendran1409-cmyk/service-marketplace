@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const { broadcast } = require('../utils/sseClients');
 const { notifyPro } = require('../utils/proSseClients');
 
-const JOURNEY_STEPS = ['accepted', 'start_navigation', 'on_the_way', 'arrived', 'working', 'awaiting_payment', 'completed'];
+const JOURNEY_STEPS = ['accepted', 'start_navigation', 'on_the_way', 'arrived', 'working'];
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_for_demo';
 

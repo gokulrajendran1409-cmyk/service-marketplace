@@ -94,7 +94,12 @@ function MyRequests({ navigate }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to confirm payment');
-      setRequests(current => current.map(r => r.id === requestId ? { ...r, payment_status: 'paid' } : r));
+      setRequests(current => current.map(r => r.id === requestId ? {
+        ...r,
+        status: data.request.status,
+        journey_status: data.request.journey_status,
+        payment_status: data.request.payment_status
+      } : r));
       showToast('Payment confirmed! Thank you.', 'success');
     } catch (err) {
       showToast(err.message, 'error');

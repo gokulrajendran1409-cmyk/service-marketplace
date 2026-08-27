@@ -93,7 +93,6 @@ const JOURNEY_STEPS = [
   { key: 'on_the_way', label: 'On the way' },
   { key: 'arrived', label: 'Arrived' },
   { key: 'working', label: 'Working' },
-  { key: 'awaiting_payment', label: 'Awaiting Payment' },
   { key: 'completed', label: 'Completed' },
 ];
 
