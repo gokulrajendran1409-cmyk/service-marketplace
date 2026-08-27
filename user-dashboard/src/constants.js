@@ -14,5 +14,5 @@ export const categoryIcons = {
   'Photography & Videography': '📸',
 };
 
-export const API = 'http://localhost:5000/api/user';
+export const API = 'https://service-marketplace-af7p.onrender.com/api/user';
 
