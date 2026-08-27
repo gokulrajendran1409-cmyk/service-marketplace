@@ -146,7 +146,10 @@ exports.getMyRequests = async (req, res) => {
                         offer_summary.pending_offer_count,
                     p.full_name AS professional_name,
                     p.current_latitude AS professional_latitude,
-                    p.current_longitude AS professional_longitude
+                    p.current_longitude AS professional_longitude,
+                    review.id AS review_id,
+                    review.rating AS review_rating,
+                    review.comment AS review_comment
                  FROM service_requests sr
                       LEFT JOIN LATERAL (
                           SELECT COUNT(*)::int AS offer_count,
@@ -163,6 +166,12 @@ exports.getMyRequests = async (req, res) => {
                           LIMIT 1
                       ) selected_offer ON true
                      LEFT JOIN professionals p ON p.id = selected_offer.professional_id
+                     LEFT JOIN LATERAL (
+                         SELECT id, rating, comment
+                         FROM professional_reviews
+                         WHERE request_id = sr.id AND customer_id = $1
+                         LIMIT 1
+                     ) review ON true
              WHERE sr.customer_id = $1
                  ORDER BY sr.created_at DESC`,
             [customerId]
@@ -171,6 +180,47 @@ exports.getMyRequests = async (req, res) => {
     } catch (err) {
         console.error('getMyRequests error:', err);
         res.status(500).json({ message: 'Failed to fetch your requests' });
+    }
+};
+
+// POST /api/user/requests/:id/review - review a paid service
+exports.createReview = async (req, res) => {
+    const customerId = req.user.id;
+    const requestId = Number(req.params.id);
+    const rating = Number(req.body.rating);
+    const comment = typeof req.body.comment === 'string' ? req.body.comment.trim() : null;
+
+    if (!Number.isInteger(requestId) || !Number.isInteger(rating) || rating < 1 || rating > 5) {
+        return res.status(400).json({ message: 'A rating from 1 to 5 is required' });
+    }
+
+    try {
+        const result = await pool.query(
+            `INSERT INTO professional_reviews (request_id, customer_id, professional_id, rating, comment)
+             SELECT sr.id, sr.customer_id, accepted_offer.professional_id, $3, $4
+             FROM service_requests sr
+             JOIN LATERAL (
+                 SELECT professional_id
+                 FROM service_offers
+                 WHERE request_id = sr.id AND status = 'accepted'
+                 LIMIT 1
+             ) accepted_offer ON true
+             WHERE sr.id = $1 AND sr.customer_id = $2
+               AND sr.payment_status = 'paid'
+               AND sr.status = 'completed'
+             ON CONFLICT (request_id) DO NOTHING
+             RETURNING id, request_id, rating, comment, created_at`,
+            [requestId, customerId, rating, comment || null]
+        );
+
+        if (!result.rows.length) {
+            return res.status(409).json({ message: 'This service is not eligible for review or has already been reviewed' });
+        }
+
+        res.status(201).json({ message: 'Review submitted successfully', review: result.rows[0] });
+    } catch (err) {
+        console.error('createReview error:', err);
+        res.status(500).json({ message: 'Failed to submit review' });
     }
 };
 

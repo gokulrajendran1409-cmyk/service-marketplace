@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
 const router = express.Router();
-const { getCategories, getProfessionals, createRequest, getMyRequests, streamNotifications, confirmPayment } = require('../controllers/userController');
+const { getCategories, getProfessionals, createRequest, getMyRequests, streamNotifications, confirmPayment, createReview } = require('../controllers/userController');
 const { protectCustomer } = require('../middleware/authMiddleware');
 
 if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
@@ -23,6 +23,7 @@ router.post('/requests', protectCustomer, upload.fields([
 ]), createRequest);
 router.get('/requests', protectCustomer, getMyRequests);
 router.post('/requests/:id/confirm-payment', protectCustomer, confirmPayment);
+router.post('/requests/:id/review', protectCustomer, createReview);
 router.get('/notifications/stream', protectCustomer, streamNotifications);
 
 module.exports = router;
