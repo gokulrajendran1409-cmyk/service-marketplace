@@ -20,7 +20,7 @@ export function useProfessionalNotifications(professionalId) {
         if (esRef.current) esRef.current.close();
         if (!professionalId) return;
 
-        const SSE_URL = `service-marketplace-af7p.onrender.com/api/professionals/notifications/stream/${professionalId}`;
+        const SSE_URL = `http://localhost:5000/api/professionals/notifications/stream/${professionalId}`;
         const es = new EventSource(SSE_URL);
         esRef.current = es;
 
