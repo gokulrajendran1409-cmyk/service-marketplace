@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS professional_reviews (
+    id SERIAL PRIMARY KEY,
+    request_id INTEGER NOT NULL UNIQUE REFERENCES service_requests(id) ON DELETE CASCADE,
+    customer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    professional_id INTEGER NOT NULL REFERENCES professionals(id) ON DELETE CASCADE,
+    rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comment TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

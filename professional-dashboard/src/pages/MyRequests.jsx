@@ -19,8 +19,23 @@ function RouteBounds({ points }) {
   const map = useMap();
 
   useEffect(() => {
-    map.fitBounds(points, { padding: [32, 32] });
+    if (points.length > 1 && points.every(point => point.every(Number.isFinite))) {
+      map.fitBounds(points, { padding: [32, 32] });
+    }
   }, [map, points]);
+
+  return null;
+}
+
+function MapResizeHandler() {
+  const map = useMap();
+
+  useEffect(() => {
+    const resizeMap = () => map.invalidateSize();
+    resizeMap();
+    const timer = window.setTimeout(resizeMap, 100);
+    return () => window.clearTimeout(timer);
+  }, [map]);
 
   return null;
 }
@@ -100,14 +115,17 @@ function LiveNavigationMap({ request, professionalLocation, onClose }) {
   const customerPoint = [Number(request.latitude), Number(request.longitude)];
   const currentLoc = professionalLocation || { latitude: request.professional_latitude, longitude: request.professional_longitude };
   const professionalPoint = [Number(currentLoc.latitude), Number(currentLoc.longitude)];
-  const [route, setRoute] = useState([professionalPoint, customerPoint]);
+  const validCustomerPoint = customerPoint.every(Number.isFinite);
+  const validProfessionalPoint = professionalPoint.every(Number.isFinite);
+  const mapCenter = validProfessionalPoint ? professionalPoint : validCustomerPoint ? customerPoint : [20.5937, 78.9629];
+  const [route, setRoute] = useState(() => [professionalPoint, customerPoint].filter(point => point.every(Number.isFinite)));
 
   const customerIcon = L.divIcon({ className: 'map-person-marker', html: '👤', iconSize: [32, 32], iconAnchor: [16, 16] });
   const professionalIcon = L.divIcon({ className: 'map-professional-marker', html: '🛠️', iconSize: [32, 32], iconAnchor: [16, 16] });
 
   useEffect(() => {
     let active = true;
-    if (!professionalPoint[0] || !professionalPoint[1]) return;
+    if (!validProfessionalPoint || !validCustomerPoint) return;
 
     const routeUrl = `https://router.project-osrm.org/route/v1/driving/${professionalPoint[1]},${professionalPoint[0]};${customerPoint[1]},${customerPoint[0]}?overview=full&geometries=geojson`;
     fetch(routeUrl)
@@ -131,12 +149,13 @@ function LiveNavigationMap({ request, professionalLocation, onClose }) {
         <button onClick={onClose} style={{ background: 'var(--bg-base)', border: '1px solid var(--border-light)', padding: '8px 16px', borderRadius: 8, cursor: 'pointer' }}>Close Map</button>
       </div>
       <div style={{ flex: 1, position: 'relative' }}>
-        <MapContainer center={professionalPoint} zoom={16} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
+          <MapContainer center={mapCenter} zoom={16} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          {professionalPoint[0] ? <Marker position={professionalPoint} icon={professionalIcon}><Popup>You are here</Popup></Marker> : null}
-          <Marker position={customerPoint} icon={customerIcon}><Popup>Customer</Popup></Marker>
-          <Polyline positions={route} pathOptions={{ color: '#2563eb', weight: 6, opacity: 0.8 }} />
-          <RouteBounds points={[professionalPoint, customerPoint]} />
+          <MapResizeHandler />
+          {validProfessionalPoint ? <Marker position={professionalPoint} icon={professionalIcon}><Popup>You are here</Popup></Marker> : null}
+          {validCustomerPoint ? <Marker position={customerPoint} icon={customerIcon}><Popup>Customer</Popup></Marker> : null}
+          {route.length > 1 ? <Polyline positions={route} pathOptions={{ color: '#2563eb', weight: 6, opacity: 0.8 }} /> : null}
+          {validProfessionalPoint && validCustomerPoint ? <RouteBounds points={[professionalPoint, customerPoint]} /> : null}
         </MapContainer>
       </div>
     </div>
@@ -153,11 +172,16 @@ function MyRequests() {
   const [professionalLocation, setProfessionalLocation] = useState(null);
   const [locationStatus, setLocationStatus] = useState('idle');
   const [showLiveMap, setShowLiveMap] = useState(false);
+  const [otpModalRequest, setOtpModalRequest] = useState(null);
+  const [otpInput, setOtpInput] = useState('');
+  const [wageModalRequest, setWageModalRequest] = useState(null);
+  const [wageInput, setWageInput] = useState('');
+  const [wageDescription, setWageDescription] = useState('');
 
   const fetchRequests = async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/api/professionals/requests", {
+      const response = await fetch("https://service-marketplace-af7p.onrender.com/api/professionals/requests", {
         headers: { Authorization: `Bearer ${localStorage.getItem("professionalToken")}` }
       });
       if (!response.ok) throw new Error("Failed to load requests");
@@ -174,7 +198,7 @@ function MyRequests() {
     fetchRequests();
     const professional = JSON.parse(localStorage.getItem('professional') || '{}');
     if (!professional.id) return undefined;
-    const stream = new EventSource(`http://localhost:5000/api/professionals/notifications/stream/${professional.id}`);
+    const stream = new EventSource(`https://service-marketplace-af7p.onrender.com/api/professionals/notifications/stream/${professional.id}`);
     stream.addEventListener('new_service_request', fetchRequests);
     stream.addEventListener('request_taken', fetchRequests);
     return () => stream.close();
@@ -192,7 +216,7 @@ function MyRequests() {
           const lng = position.coords.longitude;
           setProfessionalLocation({ latitude: lat, longitude: lng, accuracy: position.coords.accuracy });
           try {
-            await fetch(`http://localhost:5000/api/professionals/requests/${activeNavigationRequest.id}/location`, {
+            await fetch(`https://service-marketplace-af7p.onrender.com/api/professionals/requests/${activeNavigationRequest.id}/location`, {
               method: 'PATCH',
               headers: {
                 'Content-Type': 'application/json',
@@ -218,7 +242,7 @@ function MyRequests() {
   const respondToRequest = async (requestId, decision) => {
     setRespondingId(requestId);
     try {
-      const response = await fetch(`http://localhost:5000/api/professionals/requests/${requestId}/respond`, {
+      const response = await fetch(`https://service-marketplace-af7p.onrender.com/api/professionals/requests/${requestId}/respond`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -245,9 +269,17 @@ function MyRequests() {
   };
 
   const updateJourney = async (requestId, journeyStatus) => {
+    if (journeyStatus === 'arrived') {
+        setOtpModalRequest(requestId);
+        return;
+    }
+    if (journeyStatus === 'completed') {
+        setWageModalRequest(requestId);
+        return;
+    }
     setRespondingId(requestId);
     try {
-      const response = await fetch(`http://localhost:5000/api/professionals/requests/${requestId}/journey`, {
+      const response = await fetch(`https://service-marketplace-af7p.onrender.com/api/professionals/requests/${requestId}/journey`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -260,8 +292,70 @@ function MyRequests() {
       setRequests(current => current.map(request => request.id === requestId
         ? { ...request, status: data.request.status, journey_status: data.request.journey_status, journey_updated_at: data.request.journey_updated_at }
         : request));
+      if (journeyStatus === 'start_navigation') setShowLiveMap(true);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setRespondingId(null);
+    }
+  };
+
+  const verifyOtpSubmit = async () => {
+    if (!otpInput || otpInput.length !== 6) {
+      alert('Please enter a valid 6-digit OTP.');
+      return;
+    }
+    setRespondingId(otpModalRequest);
+    try {
+      const response = await fetch(`https://service-marketplace-af7p.onrender.com/api/professionals/requests/${otpModalRequest}/verify-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('professionalToken')}`
+        },
+        body: JSON.stringify({ otp: otpInput })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Unable to verify OTP');
+      setRequests(current => current.map(request => request.id === otpModalRequest
+        ? { ...request, status: data.request.status, journey_status: data.request.journey_status, journey_updated_at: data.request.journey_updated_at }
+        : request));
+      setOtpModalRequest(null);
+      setOtpInput('');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setRespondingId(null);
+    }
+  };
+
+  const submitWageRequest = async () => {
+    const normalizedWage = wageInput.trim();
+    const amount = Number(normalizedWage);
+    if (!/^\d+(\.\d{1,2})?$/.test(normalizedWage) || !Number.isFinite(amount) || amount <= 0) {
+      alert('Please enter a valid wage amount with up to 2 decimal places.');
+      return;
+    }
+    setRespondingId(wageModalRequest);
+    try {
+      const response = await fetch(`https://service-marketplace-af7p.onrender.com/api/professionals/requests/${wageModalRequest}/submit-wage`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('professionalToken')}`
+        },
+        body: JSON.stringify({ wage: amount, wage_description: wageDescription })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Unable to submit wage');
+      setRequests(current => current.map(request => request.id === wageModalRequest
+        ? { ...request, status: data.request.status, journey_status: data.request.journey_status, payment_status: data.request.payment_status, wage: data.request.wage, wage_description: data.request.wage_description }
+        : request));
+      setWageModalRequest(null);
+      setWageInput('');
+      setWageDescription('');
+    } catch (err) {
+      alert(err.message);
     } finally {
       setRespondingId(null);
     }
@@ -342,6 +436,75 @@ function MyRequests() {
           onClose={() => setShowLiveMap(false)}
         />
       )}
+      
+      {otpModalRequest && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
+            <h3 style={{ margin: '0 0 16px 0', color: '#111827' }}>Verify Arrival</h3>
+            <p style={{ margin: '0 0 20px 0', color: '#4b5563', fontSize: '14px' }}>Please enter the 6-digit OTP provided by the customer to confirm your arrival.</p>
+            <input 
+              type="text" 
+              maxLength="6" 
+              value={otpInput} 
+              onChange={e => setOtpInput(e.target.value.replace(/\D/g, ''))}
+              placeholder="000000"
+              style={{ width: '100%', padding: '12px', fontSize: '24px', letterSpacing: '8px', textAlign: 'center', borderRadius: '8px', border: '1px solid #d1d5db', marginBottom: '20px' }}
+            />
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                onClick={() => { setOtpModalRequest(null); setOtpInput(''); }} 
+                style={{ flex: 1, padding: '12px', background: '#f3f4f6', color: '#4b5563', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>
+                Cancel
+              </button>
+              <button 
+                onClick={verifyOtpSubmit} 
+                disabled={respondingId === otpModalRequest}
+                style={{ flex: 1, padding: '12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>
+                {respondingId === otpModalRequest ? 'Verifying...' : 'Verify OTP'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {wageModalRequest && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', padding: '28px 24px', borderRadius: '14px', width: '90%', maxWidth: '420px', boxShadow: '0 12px 30px rgba(0,0,0,0.15)' }}>
+            <h3 style={{ margin: '0 0 6px 0', color: '#111827', fontSize: '18px' }}>Submit Wage</h3>
+            <p style={{ margin: '0 0 20px 0', color: '#6b7280', fontSize: '14px' }}>Enter the amount you are charging for this job. The customer will review and confirm payment.</p>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Wage Amount (₹) *</label>
+            <input
+              type="number"
+              min="1"
+              value={wageInput}
+              onChange={e => setWageInput(e.target.value)}
+              placeholder="e.g. 500"
+              style={{ width: '100%', padding: '12px', fontSize: '20px', borderRadius: '8px', border: '1px solid #d1d5db', marginBottom: '16px', boxSizing: 'border-box' }}
+            />
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Breakdown / Description (optional)</label>
+            <textarea
+              value={wageDescription}
+              onChange={e => setWageDescription(e.target.value)}
+              placeholder="e.g. 2 hours labour + ₹150 parts"
+              rows={3}
+              style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '8px', border: '1px solid #d1d5db', marginBottom: '20px', resize: 'vertical', boxSizing: 'border-box' }}
+            />
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => { setWageModalRequest(null); setWageInput(''); setWageDescription(''); }}
+                style={{ flex: 1, padding: '12px', background: '#f3f4f6', color: '#4b5563', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>
+                Cancel
+              </button>
+              <button
+                onClick={submitWageRequest}
+                disabled={respondingId === wageModalRequest}
+                style={{ flex: 1, padding: '12px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>
+                {respondingId === wageModalRequest ? 'Submitting...' : '✓ Submit Wage'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
@@ -378,6 +541,8 @@ function MyRequests() {
           {requests.map((req, idx) => {
             const isRestricted = req.status === 'completed'
               || req.journey_status === 'completed'
+              || req.journey_status === 'awaiting_payment'
+              || req.payment_status === 'awaiting_payment'
               || (req.status === 'accepted' && req.offer_status !== 'accepted');
 
             return (
@@ -401,9 +566,9 @@ function MyRequests() {
                       <div className="request-evidence">
                         <strong>Customer evidence</strong>
                         <div className="request-evidence-links">
-                          {req.photo_urls?.map((url, photoIndex) => <a key={url} href={`http://localhost:5000${url}`} target="_blank" rel="noreferrer">Photo {photoIndex + 1}</a>)}
-                          {req.video_url && <a href={`http://localhost:5000${req.video_url}`} target="_blank" rel="noreferrer">Watch video</a>}
-                          {req.voice_url && <a href={`http://localhost:5000${req.voice_url}`} target="_blank" rel="noreferrer">Play voice note</a>}
+                          {req.photo_urls?.map((url, photoIndex) => <a key={url} href={`https://service-marketplace-af7p.onrender.com${url}`} target="_blank" rel="noreferrer">Photo {photoIndex + 1}</a>)}
+                          {req.video_url && <a href={`https://service-marketplace-af7p.onrender.com${req.video_url}`} target="_blank" rel="noreferrer">Watch video</a>}
+                          {req.voice_url && <a href={`https://service-marketplace-af7p.onrender.com${req.voice_url}`} target="_blank" rel="noreferrer">Play voice note</a>}
                         </div>
                       </div>
                     )}
@@ -417,7 +582,6 @@ function MyRequests() {
                           return index === currentIndex && (
                             <button key={step.key} disabled={respondingId === req.id} onClick={() => {
                               updateJourney(req.id, step.key);
-                              if (step.key === 'start_navigation') setShowLiveMap(true);
                             }}>
                               {respondingId === req.id ? 'Updating...' : step.label}
                             </button>
@@ -428,6 +592,24 @@ function MyRequests() {
                             <Navigation size={14} /> View Live Map
                           </button>
                         )}
+                      </div>
+                    </div>
+                  )}
+                  {req.payment_status === 'awaiting_payment' && (
+                    <div style={{ marginTop: '12px', padding: '12px 14px', background: '#fefce8', borderRadius: '8px', border: '1px solid #fbbf24', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '18px' }}>⏳</span>
+                      <div>
+                        <strong style={{ fontSize: '13px', color: '#92400e', display: 'block' }}>Awaiting Customer Payment</strong>
+                        <span style={{ fontSize: '12px', color: '#b45309' }}>You have submitted ₹{Number(req.wage).toLocaleString('en-IN')}. Waiting for the customer to confirm payment.</span>
+                      </div>
+                    </div>
+                  )}
+                  {req.payment_status === 'paid' && (
+                    <div style={{ marginTop: '12px', padding: '10px 14px', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #86efac', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '18px' }}>✅</span>
+                      <div>
+                        <strong style={{ fontSize: '13px', color: '#166534', display: 'block' }}>Payment Received — Job Complete!</strong>
+                        <span style={{ fontSize: '12px', color: '#16a34a' }}>₹{Number(req.wage).toLocaleString('en-IN')} confirmed by customer.</span>
                       </div>
                     </div>
                   )}
@@ -457,8 +639,12 @@ function MyRequests() {
                     Created: {new Date(req.created_at).toLocaleDateString()}
                   </div>}
                 </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <StatusBadge status={req.status} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
+                  {req.payment_status === 'awaiting_payment'
+                    ? <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', background: '#fef3c7', color: '#d97706' }}>⏳ Awaiting Payment</span>
+                    : req.payment_status === 'paid'
+                    ? <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', background: '#dcfce7', color: '#16a34a' }}>✓ Paid & Completed</span>
+                    : <StatusBadge status={req.status} />}
                   {req.offer_status === 'rejected' && req.status === 'accepted' && <span className="request-taken-label">Accepted by another professional</span>}
                   {req.offer_status === 'pending' && (
                     <>

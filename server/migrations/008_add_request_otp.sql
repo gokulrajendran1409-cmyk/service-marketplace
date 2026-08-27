@@ -1,0 +1,1 @@
+ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS otp VARCHAR(6);

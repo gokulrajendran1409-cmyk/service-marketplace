@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { API_URL } from "../services/api";
 
-const SSE_URL = "https://service-marketplace-af7p.onrender.com/api/admin/notifications/stream";
+const SSE_URL = `${API_URL}/admin/notifications/stream`;
 const MAX_STORED = 50; // keep at most 50 notifications in memory
 
 /**

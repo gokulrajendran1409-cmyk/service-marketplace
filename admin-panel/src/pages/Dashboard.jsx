@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { getDashboard } from "../services/api";
-import { Users, UserCog, ShieldAlert, ClipboardList } from 'lucide-react';
+import { API_URL, getDashboard } from "../services/api";
+import { Users, UserCog, ShieldAlert, ClipboardList, CreditCard, CheckCircle } from 'lucide-react';
 
 function Dashboard() {
   const [data, setData] = useState({
@@ -8,16 +8,26 @@ function Dashboard() {
     professionals: 0,
     pendingVerification: 0,
     serviceRequests: 0,
+    awaitingPayments: 0,
+    paidPayments: 0,
+    confirmedPaymentValue: 0,
   });
 
   useEffect(() => {
-    getDashboard()
+    const fetchDashboard = () => getDashboard()
       .then((result) => {
         setData(result);
       })
       .catch((error) => {
         console.error(error);
       });
+    fetchDashboard();
+
+    const stream = new EventSource(`${API_URL}/admin/notifications/stream`);
+    const refresh = () => fetchDashboard();
+    stream.addEventListener("service_request_updated", refresh);
+    stream.addEventListener("payment_confirmed", refresh);
+    return () => stream.close();
   }, []);
 
   return (
@@ -73,6 +83,36 @@ function Dashboard() {
             <div className="stat-icon">
               <ClipboardList size={24} />
             </div>
+          </div>
+        </div>
+
+        <div className="stat-card orange">
+          <div className="stat-header">
+            <div>
+              <div className="stat-title">Awaiting Payment</div>
+              <div className="stat-value">{data.awaitingPayments}</div>
+            </div>
+            <div className="stat-icon"><CreditCard size={24} /></div>
+          </div>
+        </div>
+
+        <div className="stat-card blue">
+          <div className="stat-header">
+            <div>
+              <div className="stat-title">Paid Jobs</div>
+              <div className="stat-value">{data.paidPayments}</div>
+            </div>
+            <div className="stat-icon"><CheckCircle size={24} /></div>
+          </div>
+        </div>
+
+        <div className="stat-card purple">
+          <div className="stat-header">
+            <div>
+              <div className="stat-title">Confirmed Value</div>
+              <div className="stat-value">₹{Number(data.confirmedPaymentValue).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            </div>
+            <div className="stat-icon"><CreditCard size={24} /></div>
           </div>
         </div>
       </div>

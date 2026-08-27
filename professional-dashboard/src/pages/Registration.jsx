@@ -119,7 +119,7 @@ export default function Registration() {
       if (idProof) data.append('id_proof', idProof);
       if (certificate) data.append('certificate', certificate);
 
-      const response = await fetch('http://localhost:5000/api/professionals/register', {
+      const response = await fetch('https://service-marketplace-af7p.onrender.com/api/professionals/register', {
         method: 'POST',
         body: data
       });

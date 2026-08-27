@@ -64,6 +64,10 @@ function MyRequests({ navigate }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewingLocationId, setViewingLocationId] = useState(null);
+  const [reviewingRequestId, setReviewingRequestId] = useState(null);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const { toast, showToast } = useToast();
 
   const fetchRequests = async () => {
@@ -84,6 +88,55 @@ function MyRequests({ navigate }) {
   };
 
   useEffect(() => { fetchRequests(); }, []);
+
+  const confirmPayment = async (requestId) => {
+    try {
+      const token = localStorage.getItem('userToken');
+      const res = await fetch(`${API}/requests/${requestId}/confirm-payment`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to confirm payment');
+      setRequests(current => current.map(r => r.id === requestId ? {
+        ...r,
+        status: data.request.status,
+        journey_status: data.request.journey_status,
+        payment_status: data.request.payment_status
+      } : r));
+      showToast('Payment confirmed! Thank you.', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  const submitReview = async (requestId) => {
+    if (!reviewRating) {
+      showToast('Please select a rating.', 'error');
+      return;
+    }
+    setReviewSubmitting(true);
+    try {
+      const res = await fetch(`${API}/requests/${requestId}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('userToken')}` },
+        body: JSON.stringify({ rating: reviewRating, comment: reviewComment })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to submit review');
+      setRequests(current => current.map(request => request.id === requestId
+        ? { ...request, review_id: data.review.id, review_rating: data.review.rating, review_comment: data.review.comment }
+        : request));
+      setReviewingRequestId(null);
+      setReviewRating(0);
+      setReviewComment('');
+      showToast('Review submitted. Thank you!', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
 
   const statusLabel = {
     pending: 'Pending',
@@ -167,6 +220,12 @@ function MyRequests({ navigate }) {
                         <strong>{currentStep ? currentStep.label : 'Accepted'}</strong>
                         <p>{currentStep?.detail || 'The professional has accepted your request and is preparing to travel.'}</p>
                         {req.journey_updated_at && <small>Updated {new Date(req.journey_updated_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</small>}
+                        {(currentStatus === 'start_navigation' || currentStatus === 'on_the_way') && req.otp && (
+                          <div style={{ marginTop: '12px', padding: '12px 16px', background: '#eff6ff', borderRadius: '8px', border: '1px dashed #60a5fa', display: 'inline-block' }}>
+                            <span style={{ fontSize: '12px', color: '#3b82f6', display: 'block', marginBottom: '4px', fontWeight: '500' }}>Share this OTP with professional on arrival</span>
+                            <strong style={{ fontSize: '24px', letterSpacing: '8px', color: '#1d4ed8' }}>{req.otp}</strong>
+                          </div>
+                        )}
                       </div>
                       <div className="journey-timeline">
                       {JOURNEY_STEPS.map(step => {
@@ -202,7 +261,50 @@ function MyRequests({ navigate }) {
                     ? JOURNEY_STEPS.find(step => step.key === req.journey_status)?.label || statusLabel[req.status]
                     : statusLabel[req.status] || req.status}
                 </span>
+                {req.payment_status === 'paid' && (
+                  <span style={{ display: 'inline-block', marginTop: '6px', padding: '4px 10px', background: '#dcfce7', color: '#16a34a', borderRadius: '12px', fontSize: '12px', fontWeight: '600' }}>✓ Paid</span>
+                )}
               </div>
+              {req.payment_status === 'awaiting_payment' && (
+                <div style={{ marginTop: '16px', padding: '16px', background: '#fffbeb', borderRadius: '10px', border: '1px solid #fbbf24' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <strong style={{ fontSize: '14px', color: '#92400e' }}>💼 Payment Due</strong>
+                    <strong style={{ fontSize: '22px', color: '#b45309' }}>₹{Number(req.wage).toLocaleString('en-IN')}</strong>
+                  </div>
+                  {req.wage_description && (
+                    <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#78350f' }}>{req.wage_description}</p>
+                  )}
+                  <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#92400e' }}>Charged by <strong>{req.professional_name}</strong> for completing the service.</p>
+                  <button
+                    onClick={() => confirmPayment(req.id)}
+                    style={{ width: '100%', padding: '12px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>
+                    ✓ Confirm Payment
+                  </button>
+                </div>
+              )}
+              {req.payment_status === 'paid' && (
+                <div style={{ marginTop: '16px', padding: '16px', background: '#f8fafc', borderRadius: '10px', border: '1px solid var(--border-light)' }}>
+                  {req.review_id ? (
+                    <div style={{ color: '#b45309', fontWeight: 700 }}>Your rating: {'★'.repeat(Number(req.review_rating))}{'☆'.repeat(5 - Number(req.review_rating))}</div>
+                  ) : reviewingRequestId === req.id ? (
+                    <>
+                      <strong style={{ display: 'block', marginBottom: '8px' }}>Rate this professional</strong>
+                      <div style={{ display: 'flex', gap: '4px', marginBottom: '10px' }}>
+                        {[1, 2, 3, 4, 5].map(star => (
+                          <button key={star} type="button" aria-label={`${star} star${star > 1 ? 's' : ''}`} onClick={() => setReviewRating(star)} style={{ border: 'none', background: 'transparent', padding: '2px', cursor: 'pointer', color: star <= reviewRating ? '#f59e0b' : '#cbd5e1', fontSize: '28px' }}>★</button>
+                        ))}
+                      </div>
+                      <textarea value={reviewComment} onChange={event => setReviewComment(event.target.value)} placeholder="Share your experience (optional)" rows={3} style={{ width: '100%', boxSizing: 'border-box', padding: '10px', border: '1px solid var(--border-light)', borderRadius: '8px', resize: 'vertical' }} />
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                        <button type="button" onClick={() => setReviewingRequestId(null)} style={{ padding: '8px 12px', border: '1px solid var(--border-light)', borderRadius: '6px', background: '#fff', cursor: 'pointer' }}>Cancel</button>
+                        <button type="button" onClick={() => submitReview(req.id)} disabled={reviewSubmitting} style={{ padding: '8px 12px', border: 'none', borderRadius: '6px', background: '#16a34a', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>{reviewSubmitting ? 'Submitting...' : 'Submit Review'}</button>
+                      </div>
+                    </>
+                  ) : (
+                    <button type="button" onClick={() => { setReviewingRequestId(req.id); setReviewRating(0); setReviewComment(''); }} style={{ padding: '9px 14px', border: '1px solid #f59e0b', borderRadius: '7px', background: '#fff7ed', color: '#b45309', cursor: 'pointer', fontWeight: 700 }}>Rate Professional</button>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>

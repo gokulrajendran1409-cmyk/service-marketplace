@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const { broadcast } = require('../utils/sseClients');
 const { notifyPro } = require('../utils/proSseClients');
 
-const JOURNEY_STEPS = ['accepted', 'start_navigation', 'on_the_way', 'arrived', 'working', 'completed'];
+const JOURNEY_STEPS = ['accepted', 'start_navigation', 'on_the_way', 'arrived', 'working'];
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_for_demo';
 
@@ -368,12 +368,23 @@ exports.updateRequestJourney = async (req, res) => {
         }
 
         const requestStatus = nextStatus === 'completed' ? 'completed' : 'in_progress';
+        
+        let otpQuery = '';
+        let otpParams = [nextStatus, requestStatus, requestId];
+        let otp = null;
+
+        if (nextStatus === 'start_navigation') {
+            otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit OTP
+            otpQuery = ', otp = $4';
+            otpParams.push(otp);
+        }
+
         const result = await client.query(
             `UPDATE service_requests
-             SET journey_status = $1, journey_updated_at = CURRENT_TIMESTAMP, status = $2, updated_at = CURRENT_TIMESTAMP
+             SET journey_status = $1, journey_updated_at = CURRENT_TIMESTAMP, status = $2, updated_at = CURRENT_TIMESTAMP ${otpQuery}
              WHERE id = $3
              RETURNING *`,
-            [nextStatus, requestStatus, requestId]
+            otpParams
         );
         await client.query('COMMIT');
 
@@ -389,6 +400,63 @@ exports.updateRequestJourney = async (req, res) => {
         await client.query('ROLLBACK');
         console.error('Request journey error:', error);
         res.status(500).json({ message: 'Failed to update request journey' });
+    } finally {
+        client.release();
+    }
+};
+
+exports.verifyOtp = async (req, res) => {
+    const professionalId = req.professionalId;
+    const requestId = Number(req.params.id);
+    const { otp } = req.body;
+
+    if (!Number.isInteger(requestId) || !otp || otp.length !== 6) {
+        return res.status(400).json({ message: 'A valid 6-digit OTP is required' });
+    }
+
+    const client = await db.connect();
+    try {
+        await client.query('BEGIN');
+        const current = await client.query(
+            `SELECT sr.journey_status, sr.otp
+             FROM service_requests sr
+             JOIN service_offers so ON so.request_id = sr.id
+             WHERE sr.id = $1 AND so.professional_id = $2 AND so.status = 'accepted'
+             FOR UPDATE`,
+            [requestId, professionalId]
+        );
+        
+        if (!current.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: 'Request not found for this professional' });
+        }
+
+        if (current.rows[0].otp !== otp) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ message: 'Invalid OTP' });
+        }
+
+        const result = await client.query(
+            `UPDATE service_requests
+             SET journey_status = 'arrived', journey_updated_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $1
+             RETURNING *`,
+            [requestId]
+        );
+        await client.query('COMMIT');
+
+        broadcast('service_request_updated', {
+            id: requestId,
+            professional_id: professionalId,
+            status: 'in_progress',
+            journey_status: 'arrived',
+            timestamp: new Date().toISOString()
+        });
+        res.json({ message: 'OTP verified successfully, status updated to arrived', request: result.rows[0] });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('OTP verification error:', error);
+        res.status(500).json({ message: 'Failed to verify OTP' });
     } finally {
         client.release();
     }
@@ -447,6 +515,77 @@ exports.updateLocation = async (req, res) => {
         await client.query('ROLLBACK');
         console.error('Update location error:', error);
         res.status(500).json({ message: 'Failed to update location' });
+    } finally {
+        client.release();
+    }
+};
+
+exports.submitWage = async (req, res) => {
+    const professionalId = req.professionalId;
+    const requestId = Number(req.params.id);
+    const { wage, wage_description } = req.body;
+
+    const wageText = typeof wage === 'string' ? wage.trim() : String(wage ?? '');
+    const wageAmount = Number(wageText);
+    if (!Number.isInteger(requestId) || !/^\d+(\.\d{1,2})?$/.test(wageText) || !Number.isFinite(wageAmount) || wageAmount <= 0) {
+        return res.status(400).json({ message: 'A valid wage amount with up to 2 decimal places is required' });
+    }
+
+    const client = await db.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Verify this professional owns the accepted request and it's in 'working' journey state
+        const current = await client.query(
+            `SELECT sr.journey_status, sr.status, sr.customer_id
+             FROM service_requests sr
+             JOIN service_offers so ON so.request_id = sr.id
+             WHERE sr.id = $1 AND so.professional_id = $2 AND so.status = 'accepted'
+             FOR UPDATE`,
+            [requestId, professionalId]
+        );
+
+        if (!current.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: 'Accepted request not found for this professional' });
+        }
+
+        const { journey_status } = current.rows[0];
+        if (journey_status !== 'working') {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ message: 'Wage can only be submitted after the work is in progress (working status)' });
+        }
+
+        const result = await client.query(
+            `UPDATE service_requests
+             SET journey_status = 'awaiting_payment',
+                 status = 'in_progress',
+                 payment_status = 'awaiting_payment',
+                 wage = $1,
+                 wage_description = $2,
+                 journey_updated_at = CURRENT_TIMESTAMP,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $3
+             RETURNING *`,
+            [wageAmount, wage_description || null, requestId]
+        );
+
+        await client.query('COMMIT');
+
+        broadcast('service_request_updated', {
+            id: requestId,
+            professional_id: professionalId,
+            status: 'in_progress',
+            journey_status: 'awaiting_payment',
+            payment_status: 'awaiting_payment',
+            timestamp: new Date().toISOString()
+        });
+
+        res.json({ message: 'Wage submitted, awaiting customer payment confirmation', request: result.rows[0] });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Submit wage error:', error);
+        res.status(500).json({ message: 'Failed to submit wage' });
     } finally {
         client.release();
     }

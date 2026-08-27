@@ -966,7 +966,7 @@ textarea.form-input { min-height: 100px; resize: vertical; }
 /* ── Toast ── */
 .toast {
   position: fixed;
-  bottom: 32px;
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px) + 16px);
   right: 32px;
   background: #1e293b;
   color: white;
@@ -974,7 +974,7 @@ textarea.form-input { min-height: 100px; resize: vertical; }
   border-radius: 12px;
   font-size: 14px;
   font-weight: 500;
-  z-index: 999;
+  z-index: 1100;
   box-shadow: var(--shadow-lg);
   display: flex;
   align-items: center;
