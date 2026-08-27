@@ -155,6 +155,9 @@ function MyRequests() {
   const [showLiveMap, setShowLiveMap] = useState(false);
   const [otpModalRequest, setOtpModalRequest] = useState(null);
   const [otpInput, setOtpInput] = useState('');
+  const [wageModalRequest, setWageModalRequest] = useState(null);
+  const [wageInput, setWageInput] = useState('');
+  const [wageDescription, setWageDescription] = useState('');
 
   const fetchRequests = async () => {
     setLoading(true);
@@ -251,6 +254,10 @@ function MyRequests() {
         setOtpModalRequest(requestId);
         return;
     }
+    if (journeyStatus === 'completed') {
+        setWageModalRequest(requestId);
+        return;
+    }
     setRespondingId(requestId);
     try {
       const response = await fetch(`https://service-marketplace-af7p.onrender.com/api/professionals/requests/${requestId}/journey`, {
@@ -295,6 +302,37 @@ function MyRequests() {
         : request));
       setOtpModalRequest(null);
       setOtpInput('');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setRespondingId(null);
+    }
+  };
+
+  const submitWageRequest = async () => {
+    const amount = parseFloat(wageInput);
+    if (!wageInput || isNaN(amount) || amount <= 0) {
+      alert('Please enter a valid wage amount.');
+      return;
+    }
+    setRespondingId(wageModalRequest);
+    try {
+      const response = await fetch(`https://service-marketplace-af7p.onrender.com/api/professionals/requests/${wageModalRequest}/submit-wage`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('professionalToken')}`
+        },
+        body: JSON.stringify({ wage: amount, wage_description: wageDescription })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Unable to submit wage');
+      setRequests(current => current.map(request => request.id === wageModalRequest
+        ? { ...request, status: data.request.status, journey_status: data.request.journey_status, payment_status: data.request.payment_status, wage: data.request.wage, wage_description: data.request.wage_description }
+        : request));
+      setWageModalRequest(null);
+      setWageInput('');
+      setWageDescription('');
     } catch (err) {
       alert(err.message);
     } finally {
@@ -402,6 +440,45 @@ function MyRequests() {
                 disabled={respondingId === otpModalRequest}
                 style={{ flex: 1, padding: '12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>
                 {respondingId === otpModalRequest ? 'Verifying...' : 'Verify OTP'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {wageModalRequest && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', padding: '28px 24px', borderRadius: '14px', width: '90%', maxWidth: '420px', boxShadow: '0 12px 30px rgba(0,0,0,0.15)' }}>
+            <h3 style={{ margin: '0 0 6px 0', color: '#111827', fontSize: '18px' }}>Submit Wage</h3>
+            <p style={{ margin: '0 0 20px 0', color: '#6b7280', fontSize: '14px' }}>Enter the amount you are charging for this job. The customer will review and confirm payment.</p>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Wage Amount (₹) *</label>
+            <input
+              type="number"
+              min="1"
+              value={wageInput}
+              onChange={e => setWageInput(e.target.value)}
+              placeholder="e.g. 500"
+              style={{ width: '100%', padding: '12px', fontSize: '20px', borderRadius: '8px', border: '1px solid #d1d5db', marginBottom: '16px', boxSizing: 'border-box' }}
+            />
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Breakdown / Description (optional)</label>
+            <textarea
+              value={wageDescription}
+              onChange={e => setWageDescription(e.target.value)}
+              placeholder="e.g. 2 hours labour + ₹150 parts"
+              rows={3}
+              style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '8px', border: '1px solid #d1d5db', marginBottom: '20px', resize: 'vertical', boxSizing: 'border-box' }}
+            />
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => { setWageModalRequest(null); setWageInput(''); setWageDescription(''); }}
+                style={{ flex: 1, padding: '12px', background: '#f3f4f6', color: '#4b5563', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>
+                Cancel
+              </button>
+              <button
+                onClick={submitWageRequest}
+                disabled={respondingId === wageModalRequest}
+                style={{ flex: 1, padding: '12px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>
+                {respondingId === wageModalRequest ? 'Submitting...' : '✓ Submit Wage'}
               </button>
             </div>
           </div>

@@ -30,6 +30,7 @@ router.get('/requests', protectProfessional, professionalController.getMyRequest
 router.post('/requests/:id/respond', protectProfessional, professionalController.respondToRequest);
 router.patch('/requests/:id/journey', protectProfessional, professionalController.updateRequestJourney);
 router.post('/requests/:id/verify-otp', protectProfessional, professionalController.verifyOtp);
+router.post('/requests/:id/submit-wage', protectProfessional, professionalController.submitWage);
 router.patch('/requests/:id/location', protectProfessional, professionalController.updateLocation);
 
 const { addProClient, removeProClient } = require('../utils/proSseClients');

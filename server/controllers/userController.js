@@ -141,7 +141,7 @@ exports.getMyRequests = async (req, res) => {
     try {
         const customerId = req.user.id;
         const result = await pool.query(
-                    `SELECT sr.id, sr.title, sr.description, sr.requested_at, sr.location, sr.latitude, sr.longitude, sr.photo_urls, sr.video_url, sr.voice_url, sr.status, sr.journey_status, sr.journey_updated_at, sr.created_at, sr.otp,
+                    `SELECT sr.id, sr.title, sr.description, sr.requested_at, sr.location, sr.latitude, sr.longitude, sr.photo_urls, sr.video_url, sr.voice_url, sr.status, sr.journey_status, sr.journey_updated_at, sr.created_at, sr.otp, sr.wage, sr.wage_description, sr.payment_status,
                         offer_summary.offer_count,
                         offer_summary.pending_offer_count,
                     p.full_name AS professional_name,
@@ -196,4 +196,41 @@ exports.streamNotifications = (req, res) => {
         clearInterval(keepAlive);
         removeCustomerClient(customerId, res);
     });
+};
+
+// POST /api/user/requests/:id/confirm-payment
+exports.confirmPayment = async (req, res) => {
+    const customerId = req.user.id;
+    const requestId = Number(req.params.id);
+
+    if (!Number.isInteger(requestId)) {
+        return res.status(400).json({ message: 'Invalid request ID' });
+    }
+
+    try {
+        const result = await pool.query(
+            `UPDATE service_requests
+             SET payment_status = 'paid', updated_at = CURRENT_TIMESTAMP
+             WHERE id = $1 AND customer_id = $2 AND payment_status = 'awaiting_payment'
+             RETURNING *`,
+            [requestId, customerId]
+        );
+
+        if (!result.rows.length) {
+            return res.status(404).json({ message: 'Request not found or payment already confirmed' });
+        }
+
+        const { broadcast: broadcastSse } = require('../utils/sseClients');
+        broadcastSse('payment_confirmed', {
+            id: requestId,
+            customer_id: customerId,
+            payment_status: 'paid',
+            timestamp: new Date().toISOString()
+        });
+
+        res.json({ message: 'Payment confirmed successfully', request: result.rows[0] });
+    } catch (err) {
+        console.error('confirmPayment error:', err);
+        res.status(500).json({ message: 'Failed to confirm payment' });
+    }
 };

@@ -519,3 +519,72 @@ exports.updateLocation = async (req, res) => {
         client.release();
     }
 };
+
+exports.submitWage = async (req, res) => {
+    const professionalId = req.professionalId;
+    const requestId = Number(req.params.id);
+    const { wage, wage_description } = req.body;
+
+    if (!Number.isInteger(requestId) || !wage || isNaN(Number(wage)) || Number(wage) <= 0) {
+        return res.status(400).json({ message: 'A valid wage amount is required' });
+    }
+
+    const client = await db.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Verify this professional owns the accepted request and it's in 'working' journey state
+        const current = await client.query(
+            `SELECT sr.journey_status, sr.status, sr.customer_id
+             FROM service_requests sr
+             JOIN service_offers so ON so.request_id = sr.id
+             WHERE sr.id = $1 AND so.professional_id = $2 AND so.status = 'accepted'
+             FOR UPDATE`,
+            [requestId, professionalId]
+        );
+
+        if (!current.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: 'Accepted request not found for this professional' });
+        }
+
+        const { journey_status } = current.rows[0];
+        if (journey_status !== 'working') {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ message: 'Wage can only be submitted after the work is in progress (working status)' });
+        }
+
+        const result = await client.query(
+            `UPDATE service_requests
+             SET journey_status = 'completed',
+                 status = 'completed',
+                 payment_status = 'awaiting_payment',
+                 wage = $1,
+                 wage_description = $2,
+                 journey_updated_at = CURRENT_TIMESTAMP,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $3
+             RETURNING *`,
+            [Number(wage), wage_description || null, requestId]
+        );
+
+        await client.query('COMMIT');
+
+        broadcast('service_request_updated', {
+            id: requestId,
+            professional_id: professionalId,
+            status: 'completed',
+            journey_status: 'completed',
+            payment_status: 'awaiting_payment',
+            timestamp: new Date().toISOString()
+        });
+
+        res.json({ message: 'Wage submitted, awaiting customer payment confirmation', request: result.rows[0] });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Submit wage error:', error);
+        res.status(500).json({ message: 'Failed to submit wage' });
+    } finally {
+        client.release();
+    }
+};

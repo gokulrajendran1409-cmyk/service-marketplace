@@ -85,6 +85,22 @@ function MyRequests({ navigate }) {
 
   useEffect(() => { fetchRequests(); }, []);
 
+  const confirmPayment = async (requestId) => {
+    try {
+      const token = localStorage.getItem('userToken');
+      const res = await fetch(`${API}/requests/${requestId}/confirm-payment`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to confirm payment');
+      setRequests(current => current.map(r => r.id === requestId ? { ...r, payment_status: 'paid' } : r));
+      showToast('Payment confirmed! Thank you.', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
   const statusLabel = {
     pending: 'Pending',
     accepted: 'Accepted',
@@ -208,7 +224,27 @@ function MyRequests({ navigate }) {
                     ? JOURNEY_STEPS.find(step => step.key === req.journey_status)?.label || statusLabel[req.status]
                     : statusLabel[req.status] || req.status}
                 </span>
+                {req.payment_status === 'paid' && (
+                  <span style={{ display: 'inline-block', marginTop: '6px', padding: '4px 10px', background: '#dcfce7', color: '#16a34a', borderRadius: '12px', fontSize: '12px', fontWeight: '600' }}>✓ Paid</span>
+                )}
               </div>
+              {req.payment_status === 'awaiting_payment' && (
+                <div style={{ marginTop: '16px', padding: '16px', background: '#fffbeb', borderRadius: '10px', border: '1px solid #fbbf24' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <strong style={{ fontSize: '14px', color: '#92400e' }}>💼 Payment Due</strong>
+                    <strong style={{ fontSize: '22px', color: '#b45309' }}>₹{Number(req.wage).toLocaleString('en-IN')}</strong>
+                  </div>
+                  {req.wage_description && (
+                    <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#78350f' }}>{req.wage_description}</p>
+                  )}
+                  <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#92400e' }}>Charged by <strong>{req.professional_name}</strong> for completing the service.</p>
+                  <button
+                    onClick={() => confirmPayment(req.id)}
+                    style={{ width: '100%', padding: '12px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>
+                    ✓ Confirm Payment
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
