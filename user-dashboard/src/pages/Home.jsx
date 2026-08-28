@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { MapPin, Bell, Search, ChevronRight, RefreshCw } from 'lucide-react';
-import { categoryIcons, API } from '../constants';
+import { serviceGroups, API } from '../constants';
 import cleanerImg from '../assets/cleaner.jpg';
 
 const features = [
@@ -45,10 +45,11 @@ function Home({ navigate }) {
     }
   }, []);
 
-  const filteredCategories = categories.filter(c =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
+  const filteredGroups = serviceGroups.filter(group => {
+    const query = searchQuery.toLowerCase();
+    return group.name.toLowerCase().includes(query)
+      || group.categories.some(category => category.toLowerCase().includes(query));
+  });
   return (
     <div className="home-app-root">
 
@@ -102,19 +103,19 @@ function Home({ navigate }) {
           </div>
         ) : (
           <div className="home-categories-grid">
-            {filteredCategories.slice(0, 6).map(cat => (
+            {filteredGroups.map(group => (
               <div
-                key={cat.id}
+                key={group.name}
                 className="home-category-card"
-                onClick={() => navigate('services')}
+                onClick={() => navigate('services', group.name)}
                 role="button"
                 tabIndex={0}
                 onKeyDown={e => e.key === 'Enter' && navigate('services')}
               >
                 <div className="home-category-icon-wrap">
-                  <span className="home-category-emoji">{categoryIcons[cat.name] || '🛠️'}</span>
+                  <group.icon className="home-category-icon" size={28} strokeWidth={2} style={{ color: group.color }} />
                 </div>
-                <div className="home-category-label">{cat.name}</div>
+                <div className="home-category-label">{group.name}</div>
               </div>
             ))}
           </div>
