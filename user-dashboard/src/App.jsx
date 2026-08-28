@@ -23,6 +23,7 @@ function App() {
   const [page, setPage] = useState('home');
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
+  const [navigationGroup, setNavigationGroup] = useState(null);
 
   useEffect(() => {
     const savedToken = localStorage.getItem('userToken');
@@ -63,13 +64,16 @@ function App() {
     return <Auth onLogin={handleLogin} />;
   }
 
-  const navigate = (target) => setPage(target);
+  const navigate = (target, group = null) => {
+    setNavigationGroup(target === 'services' ? group : null);
+    setPage(target);
+  };
 
   return (
     <div className="app-layout">
       <div className="app-content">
         {page === 'home'          && <Home navigate={navigate} />}
-        {page === 'services'      && <Services navigate={navigate} />}
+        {page === 'services'      && <Services navigate={navigate} initialGroup={navigationGroup} />}
         {page === 'requests'      && <MyRequests navigate={navigate} />}
         {page === 'notifications' && <Notifications navigate={navigate} />}
         {page === 'profile'  && (

@@ -24,7 +24,10 @@ app.use("/api/auth", authRoutes);
 const PORT = process.env.PORT || 5000;
 
 async function startServer() {
-    await pool.query(`
+    app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+
+    try {
+        await pool.query(`
         CREATE TABLE IF NOT EXISTS professional_reviews (
             id SERIAL PRIMARY KEY,
             request_id INTEGER NOT NULL UNIQUE REFERENCES service_requests(id) ON DELETE CASCADE,
@@ -34,8 +37,10 @@ async function startServer() {
             comment TEXT,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
-    `);
-    app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+        `);
+    } catch (error) {
+        console.error('Professional reviews table initialization failed:', error.message);
+    }
 }
 
 startServer().catch(error => {

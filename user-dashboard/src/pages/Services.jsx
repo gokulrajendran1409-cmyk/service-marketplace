@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { MapPin, RefreshCw } from 'lucide-react';
-import { categoryIcons, API } from '../constants';
+import { ChevronDown, ChevronRight, MapPin, RefreshCw, Tags } from 'lucide-react';
+import { categoryColors, categoryIcons, serviceGroups, API } from '../constants';
 import { BookingModal } from '../components/BookingModal';
 import { useToast, Toast } from '../components/Toast';
 
-function Services({ navigate }) {
+function Services({ navigate, initialGroup = null }) {
   const [categories, setCategories] = useState([]);
+  const [expandedGroup, setExpandedGroup] = useState(initialGroup);
   const [selected, setSelected] = useState(null);
   const [professionals, setProfessionals] = useState([]);
   const [loadingCats, setLoadingCats] = useState(true);
@@ -143,6 +144,8 @@ function Services({ navigate }) {
 
   const nearbyProfessionals = professionals.filter(professional => professional.distance_from_user != null && professional.distance_from_user <= nearbyLimitKm);
 
+  const categoriesByName = new Map(categories.map(category => [category.name, category]));
+
   const renderProfessionalCard = (pro, allowDirectBooking = false) => (
     <div key={pro.id} className="pro-card fade-up">
       <div className="pro-header">
@@ -207,27 +210,61 @@ function Services({ navigate }) {
         </div>
       )}
 
-      {/* Category grid */}
+      {/* Main categories expand into the leaf categories returned by the API. */}
       {loadingCats ? (
         <div style={{ textAlign: 'center', padding: '60px' }}>
           <RefreshCw className="spin" size={32} color="var(--text-muted)" />
         </div>
       ) : (
-        <div className="categories-grid">
-          {categories.map(cat => (
-            <div
-              key={cat.id}
-              className={`category-card fade-up ${selected?.id === cat.id ? 'selected' : ''}`}
-              onClick={() => selectCategory(cat)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={e => e.key === 'Enter' && selectCategory(cat)}
-            >
-              <div className="category-icon">{categoryIcons[cat.name] || '🛠️'}</div>
-              <div className="category-name">{cat.name}</div>
-              <div className="category-desc">{cat.description}</div>
-            </div>
-          ))}
+        <div className="service-groups">
+          {serviceGroups.map(group => {
+            const isExpanded = expandedGroup === group.name;
+            const GroupIcon = group.icon;
+            const groupCategories = group.categories.map(name => categoriesByName.get(name) || {
+              id: name,
+              name,
+              description: 'Browse available professionals',
+            });
+
+            return (
+              <section key={group.name} className={`service-group fade-up ${isExpanded ? 'expanded' : ''}`}>
+                <button
+                  className="service-group-toggle"
+                  onClick={() => setExpandedGroup(isExpanded ? null : group.name)}
+                  aria-expanded={isExpanded}
+                >
+                  <span className="service-group-icon" style={{ color: group.color }}><GroupIcon size={22} strokeWidth={2} /></span>
+                  <span className="service-group-name">{group.name}</span>
+                  <span className="service-group-count">{groupCategories.length} services</span>
+                  {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                </button>
+
+                {isExpanded && (
+                  <div className="subcategory-list">
+                    {groupCategories.map(cat => (
+                      (() => {
+                        const CategoryIcon = categoryIcons[cat.name] || Tags;
+                        return (
+                      <button
+                        key={cat.id}
+                        className={`subcategory-item ${selected?.id === cat.id ? 'selected' : ''}`}
+                        onClick={() => selectCategory(cat)}
+                      >
+                        <span className="subcategory-icon" style={{ color: categoryColors[cat.name] || 'var(--accent-primary)' }}><CategoryIcon size={19} strokeWidth={2} /></span>
+                        <span>
+                          <strong>{cat.name}</strong>
+                          <small>{cat.description}</small>
+                        </span>
+                        <ChevronRight size={17} />
+                      </button>
+                        );
+                      })()
+                    ))}
+                  </div>
+                )}
+              </section>
+            );
+          })}
         </div>
       )}
 
@@ -236,7 +273,11 @@ function Services({ navigate }) {
         <div style={{ marginTop: 48 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h2 style={{ fontSize: 20, fontWeight: 700 }}>
-              {categoryIcons[selected.name]} {selected.name} Professionals
+              {(() => {
+                const CategoryIcon = categoryIcons[selected.name] || Tags;
+                return <CategoryIcon size={20} style={{ color: categoryColors[selected.name] || 'var(--accent-primary)', verticalAlign: 'middle', marginRight: 6 }} />;
+              })()}
+              {selected.name} Professionals
             </h2>
             <button
               className="broadcast-request-btn"
