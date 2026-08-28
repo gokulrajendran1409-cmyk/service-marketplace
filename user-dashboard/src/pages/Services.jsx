@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ChevronDown, ChevronRight, MapPin, RefreshCw, Tags } from 'lucide-react';
+import { ArrowLeft, BriefcaseBusiness, CheckCircle2, ChevronRight, Link, MapPin, RefreshCw, Star, Tags } from 'lucide-react';
 import { categoryColors, categoryIcons, serviceGroups, API } from '../constants';
 import { BookingModal } from '../components/BookingModal';
 import { useToast, Toast } from '../components/Toast';
 
-function Services({ navigate, initialGroup = null }) {
+function Services({ navigate, initialGroup = null, initialCategory = null }) {
   const [categories, setCategories] = useState([]);
-  const [expandedGroup, setExpandedGroup] = useState(initialGroup);
   const [selected, setSelected] = useState(null);
   const [professionals, setProfessionals] = useState([]);
   const [loadingCats, setLoadingCats] = useState(true);
@@ -115,6 +114,12 @@ function Services({ navigate, initialGroup = null }) {
     }
   };
 
+  useEffect(() => {
+    if (!initialCategory || categories.length === 0 || selected?.name === initialCategory) return;
+    const category = categories.find(item => item.name === initialCategory);
+    if (category) selectCategory(category);
+  }, [categories, initialCategory]);
+
   // Update distances when location becomes available
   useEffect(() => {
     if (location && professionals.length > 0 && professionals.some(p => p.distance_from_user == null)) {
@@ -149,7 +154,7 @@ function Services({ navigate, initialGroup = null }) {
   const renderProfessionalCard = (pro, allowDirectBooking = false) => (
     <div key={pro.id} className="pro-card fade-up">
       <div className="pro-header">
-        <div className="pro-avatar">{pro.full_name.charAt(0).toUpperCase()}</div>
+        <div className="pro-avatar">{pro.profile_photo ? <img src={pro.profile_photo} alt={pro.full_name} /> : pro.full_name.charAt(0).toUpperCase()}</div>
         <div>
           <div className="pro-name">{pro.full_name}</div>
           <span className="pro-category">{pro.category}</span>
@@ -175,8 +180,19 @@ function Services({ navigate, initialGroup = null }) {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1 className="page-title">Find a Service</h1>
-        <p className="page-subtitle">Choose a category and send one request to nearby professionals.</p>
+        <div className="services-heading-row">
+          <div>
+            <h1 className="page-title">{initialGroup || 'Find a Service'}</h1>
+            <p className="page-subtitle">{initialGroup
+              ? `Choose a ${initialGroup.toLowerCase()} service and connect with a trusted professional.`
+              : 'Choose a category and send one request to nearby professionals.'}</p>
+          </div>
+          {initialGroup && (
+            <button className="show-all-services-btn" onClick={() => navigate('services')}>
+              <Tags size={16} /> Show all services
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="location-panel">
@@ -210,15 +226,13 @@ function Services({ navigate, initialGroup = null }) {
         </div>
       )}
 
-      {/* Main categories expand into the leaf categories returned by the API. */}
-      {loadingCats ? (
+      {!selected && loadingCats ? (
         <div style={{ textAlign: 'center', padding: '60px' }}>
           <RefreshCw className="spin" size={32} color="var(--text-muted)" />
         </div>
-      ) : (
+      ) : !selected && (
         <div className="service-groups">
-          {serviceGroups.map(group => {
-            const isExpanded = expandedGroup === group.name;
+          {serviceGroups.filter(group => !initialGroup || group.name === initialGroup).map(group => {
             const GroupIcon = group.icon;
             const groupCategories = group.categories.map(name => categoriesByName.get(name) || {
               id: name,
@@ -227,20 +241,17 @@ function Services({ navigate, initialGroup = null }) {
             });
 
             return (
-              <section key={group.name} className={`service-group fade-up ${isExpanded ? 'expanded' : ''}`}>
-                <button
-                  className="service-group-toggle"
-                  onClick={() => setExpandedGroup(isExpanded ? null : group.name)}
-                  aria-expanded={isExpanded}
-                >
+              <section key={group.name} className="service-group fade-up expanded">
+                <div className="service-group-toggle">
                   <span className="service-group-icon" style={{ color: group.color }}><GroupIcon size={22} strokeWidth={2} /></span>
-                  <span className="service-group-name">{group.name}</span>
-                  <span className="service-group-count">{groupCategories.length} services</span>
-                  {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                </button>
+                  <span className="service-group-copy">
+                    <span className="service-group-name">{group.name}</span>
+                    <span className="service-group-count">{groupCategories.length} services to explore</span>
+                  </span>
+                  <span className="service-group-arrow" aria-hidden="true"><ChevronRight size={20} /></span>
+                </div>
 
-                {isExpanded && (
-                  <div className="subcategory-list">
+                <div className="subcategory-list">
                     {groupCategories.map(cat => (
                       (() => {
                         const CategoryIcon = categoryIcons[cat.name] || Tags;
@@ -250,7 +261,7 @@ function Services({ navigate, initialGroup = null }) {
                         className={`subcategory-item ${selected?.id === cat.id ? 'selected' : ''}`}
                         onClick={() => selectCategory(cat)}
                       >
-                        <span className="subcategory-icon" style={{ color: categoryColors[cat.name] || 'var(--accent-primary)' }}><CategoryIcon size={19} strokeWidth={2} /></span>
+                        <span className="subcategory-icon" style={{ color: categoryColors[cat.name] || 'var(--accent-primary)' }}><CategoryIcon size={22} strokeWidth={2} /></span>
                         <span>
                           <strong>{cat.name}</strong>
                           <small>{cat.description}</small>
@@ -260,8 +271,7 @@ function Services({ navigate, initialGroup = null }) {
                         );
                       })()
                     ))}
-                  </div>
-                )}
+                </div>
               </section>
             );
           })}
@@ -270,20 +280,27 @@ function Services({ navigate, initialGroup = null }) {
 
       {/* Professionals section */}
       {selected && (
-        <div style={{ marginTop: 48 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h2 style={{ fontSize: 20, fontWeight: 700 }}>
+        <div className="provider-selection-page">
+          <button className="provider-back-btn" onClick={() => setSelected(null)}>
+            <ArrowLeft size={16} /> Back to services
+          </button>
+          <div className="provider-selection-header">
+            <div>
+              <span className="service-group-eyebrow">STEP 2 OF 2</span>
+              <h2>
               {(() => {
                 const CategoryIcon = categoryIcons[selected.name] || Tags;
                 return <CategoryIcon size={20} style={{ color: categoryColors[selected.name] || 'var(--accent-primary)', verticalAlign: 'middle', marginRight: 6 }} />;
               })()}
               {selected.name} Professionals
-            </h2>
+              </h2>
+              <p>Choose a provider or send your request to nearby professionals.</p>
+            </div>
             <button
               className="broadcast-request-btn"
               onClick={() => setBooking({ professional: null, category: selected.name, location })}
             >
-              Send request nearby
+              Auto-assign for me
             </button>
           </div>
 
@@ -343,7 +360,7 @@ function Services({ navigate, initialGroup = null }) {
         <div className="modal-overlay" onClick={(event) => event.target === event.currentTarget && setProfileProfessional(null)}>
           <div className="modal profile-modal fade-up">
             <div className="profile-modal-header">
-              <div className="pro-avatar">{profileProfessional.full_name.charAt(0).toUpperCase()}</div>
+              <div className="profile-modal-avatar">{profileProfessional.profile_photo ? <img src={profileProfessional.profile_photo} alt={profileProfessional.full_name} /> : profileProfessional.full_name.charAt(0).toUpperCase()}</div>
               <div>
                 <h2 className="modal-title">{profileProfessional.full_name}</h2>
                 <span className="pro-category">{profileProfessional.category}</span>
@@ -351,9 +368,14 @@ function Services({ navigate, initialGroup = null }) {
               <button className="profile-close-btn" onClick={() => setProfileProfessional(null)} aria-label="Close profile">×</button>
             </div>
             <div className="profile-details">
-              <div><strong>Experience</strong><span>{profileProfessional.experience_years || 0} years</span></div>
-              <div><strong>Location</strong><span>{[profileProfessional.city, profileProfessional.state].filter(Boolean).join(', ') || 'Not provided'}</span></div>
-              {profileProfessional.distance_from_user != null && <div><strong>Distance</strong><span>{profileProfessional.distance_from_user.toFixed(2)} km away</span></div>}
+              <div><BriefcaseBusiness size={16} /><strong>Experience</strong><span>{profileProfessional.experience_years || 0} years</span></div>
+              <div><CheckCircle2 size={16} /><strong>Completed work</strong><span>{profileProfessional.completed_requests || 0} jobs</span></div>
+              <div><MapPin size={16} /><strong>Location</strong><span>{[profileProfessional.city, profileProfessional.state].filter(Boolean).join(', ') || 'Not provided'}</span></div>
+              {profileProfessional.distance_from_user != null && <div><MapPin size={16} /><strong>Distance</strong><span>{profileProfessional.distance_from_user.toFixed(2)} km away</span></div>}
+            </div>
+            <div className="profile-social-row">
+              <span><Star size={16} fill="currentColor" /> Verified professional</span>
+              {profileProfessional.instagram_url && <a href={profileProfessional.instagram_url} target="_blank" rel="noreferrer"><Link size={16} /> Instagram</a>}
             </div>
             <div className="profile-bio-block">
               <strong>About this professional</strong>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import './index.css';
 import './App.css';
-import { Wrench, LayoutGrid, ClipboardList, LogOut, UserRound } from 'lucide-react';
+import { Wrench, LayoutGrid, ClipboardList, UserRound } from 'lucide-react';
 import Home from './pages/Home';
 import Services from './pages/Services';
 import MyRequests from './pages/MyRequests';
@@ -9,6 +9,7 @@ import Auth from './pages/Auth';
 import Landing from './pages/Landing';
 
 import Notifications from './pages/Notifications';
+import Profile from './pages/Profile';
 
 const PAGES = [
   { id: 'home',     label: 'Home',     icon: LayoutGrid },
@@ -24,6 +25,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [navigationGroup, setNavigationGroup] = useState(null);
+  const [navigationCategory, setNavigationCategory] = useState(null);
 
   useEffect(() => {
     const savedToken = localStorage.getItem('userToken');
@@ -52,6 +54,11 @@ function App() {
     setStage('landing');
   };
 
+  const updateUser = (updatedUser) => {
+    setUser(updatedUser);
+    localStorage.setItem('userData', JSON.stringify(updatedUser));
+  };
+
   if (stage === 'landing') {
     return (
       <Landing
@@ -64,8 +71,9 @@ function App() {
     return <Auth onLogin={handleLogin} />;
   }
 
-  const navigate = (target, group = null) => {
+  const navigate = (target, group = null, category = null) => {
     setNavigationGroup(target === 'services' ? group : null);
+    setNavigationCategory(target === 'services' ? category : null);
     setPage(target);
   };
 
@@ -73,23 +81,10 @@ function App() {
     <div className="app-layout">
       <div className="app-content">
         {page === 'home'          && <Home navigate={navigate} />}
-        {page === 'services'      && <Services navigate={navigate} initialGroup={navigationGroup} />}
+        {page === 'services'      && <Services navigate={navigate} initialGroup={navigationGroup} initialCategory={navigationCategory} />}
         {page === 'requests'      && <MyRequests navigate={navigate} />}
         {page === 'notifications' && <Notifications navigate={navigate} />}
-        {page === 'profile'  && (
-          <div className="page-container" style={{ padding: '40px 20px', textAlign: 'center' }}>
-            <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'var(--accent-light)', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-              <UserRound size={40} />
-            </div>
-            <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>{user?.name || 'Customer'}</h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: 32 }}>{user?.email}</p>
-            
-            <button className="btn-hire" onClick={handleLogout} style={{ background: '#FEE2E2', color: '#DC2626', width: '100%', padding: 16 }}>
-              <LogOut size={18} style={{ display: 'inline', marginRight: 8, verticalAlign: 'text-bottom' }} />
-              Log Out
-            </button>
-          </div>
-        )}
+        {page === 'profile'  && <Profile user={user} onUserUpdate={updateUser} onLogout={handleLogout} />}
       </div>
 
       {/* Bottom Nav Bar */}
