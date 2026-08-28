@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MapPin, Calendar, RefreshCw, Plus, Navigation } from 'lucide-react';
+import { Calendar, CheckCircle2, Clock3, MapPin, Navigation, Plus, RefreshCw, Search, ShieldCheck } from 'lucide-react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -64,6 +64,10 @@ function MyRequests({ navigate }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewingLocationId, setViewingLocationId] = useState(null);
+  const [selectedRequestId, setSelectedRequestId] = useState(null);
+  const [requestFilter, setRequestFilter] = useState('all');
+  const [requestSearch, setRequestSearch] = useState('');
+  const [requestSort, setRequestSort] = useState('newest');
   const [reviewingRequestId, setReviewingRequestId] = useState(null);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState('');
@@ -80,6 +84,13 @@ function MyRequests({ navigate }) {
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
       setRequests(data);
+      setViewingLocationId(current => current || data.find(request => (
+        ['accepted', 'in_progress'].includes(request.status)
+        && request.latitude != null
+        && request.longitude != null
+        && request.professional_latitude != null
+        && request.professional_longitude != null
+      ))?.id || null);
     } catch {
       showToast('Failed to load your requests', 'error');
     } finally {
@@ -146,6 +157,32 @@ function MyRequests({ navigate }) {
     cancelled: 'Cancelled',
   };
 
+  const selectedRequest = requests.find(request => request.id === selectedRequestId);
+  const filterOptions = [
+    { key: 'active', label: 'Active', matches: request => ['accepted', 'in_progress'].includes(request.status) },
+    { key: 'pending', label: 'Pending', matches: request => request.status === 'pending' },
+    { key: 'completed', label: 'Completed', matches: request => request.status === 'completed' },
+    { key: 'all', label: 'All requests', matches: () => true },
+  ];
+  const currentFilter = filterOptions.find(option => option.key === requestFilter) || filterOptions[0];
+  const filteredRequests = requests
+    .filter(currentFilter.matches)
+    .filter(request => [request.title, request.description, request.location, request.professional_name, request.category]
+      .filter(Boolean)
+      .some(value => value.toLowerCase().includes(requestSearch.toLowerCase().trim())))
+    .sort((first, second) => {
+      const difference = new Date(second.created_at) - new Date(first.created_at);
+      return requestSort === 'newest' ? difference : -difference;
+    });
+  const formatDuration = (request) => {
+    if (!request?.journey_updated_at || request.journey_status !== 'completed') return 'In progress';
+    const minutes = Math.max(0, Math.round((new Date(request.journey_updated_at) - new Date(request.created_at)) / 60000));
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours}h ${remainingMinutes}m`;
+  };
+
   return (
     <div className="page-container">
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
@@ -184,9 +221,35 @@ function MyRequests({ navigate }) {
           </button>
         </div>
       ) : (
+        <>
+        <div className="request-tools">
+          <label className="request-search-box">
+            <Search size={16} />
+            <input value={requestSearch} onChange={event => setRequestSearch(event.target.value)} placeholder="Search requests..." aria-label="Search requests" />
+          </label>
+          <label className="request-sort-box">
+            <span>Sort by</span>
+            <select value={requestSort} onChange={event => setRequestSort(event.target.value)} aria-label="Sort requests by date">
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+            </select>
+          </label>
+        </div>
+        <div className="request-filter-bar" role="tablist" aria-label="Filter requests">
+          {filterOptions.map(option => {
+            const count = requests.filter(option.matches).length;
+            return <button key={option.key} className={requestFilter === option.key ? 'active' : ''} onClick={() => setRequestFilter(option.key)} role="tab" aria-selected={requestFilter === option.key}>{option.label}<span>{count}</span></button>;
+          })}
+        </div>
+        {filteredRequests.length === 0 ? (
+          <div className="request-filter-empty"><h3>No {currentFilter.label.toLowerCase()} requests</h3><p>Your requests will appear here as their status changes.</p></div>
+        ) : (
         <div className="requests-list">
-          {requests.map(req => (
-            <div key={req.id} className="request-item fade-up">
+          <div className="requests-list-heading"><div><span>REQUESTS</span><h2>{currentFilter.label}</h2></div><strong>{filteredRequests.length} {filteredRequests.length === 1 ? 'request' : 'requests'}</strong></div>
+          {filteredRequests.map(req => (
+            <div key={req.id} className={`request-item fade-up request-card-clickable ${['accepted', 'in_progress'].includes(req.status) ? 'live-request-item' : ''}`} onClick={(event) => {
+              if (!event.target.closest('button')) setSelectedRequestId(req.id);
+            }}>
               <div style={{ flex: 1 }}>
                 <div className="request-title">{req.title}</div>
                 <div className="request-location">
@@ -208,7 +271,13 @@ function MyRequests({ navigate }) {
                       : `Request sent to ${req.professional_name || 'the selected professional'}. Waiting for them to accept.`}
                   </p>
                 )}
-                {(req.status === 'accepted' || req.status === 'in_progress' || req.status === 'completed') && req.professional_name && <p className="request-accepted-note">Professional: {req.professional_name}</p>}
+                {(req.status === 'accepted' || req.status === 'in_progress' || req.status === 'completed') && req.professional_name && (
+                  <div className="request-provider-summary">
+                    <div className="request-provider-avatar">{req.professional_name.charAt(0).toUpperCase()}</div>
+                    <div><strong>{req.professional_name}</strong><span><ShieldCheck size={13} /> Verified provider · {req.category || 'Service professional'}</span></div>
+                    <div className="request-provider-state"><CheckCircle2 size={15} /> {req.status === 'completed' ? 'Completed' : 'On the way'}</div>
+                  </div>
+                )}
                 {(req.status === 'accepted' || req.status === 'in_progress' || req.status === 'completed') && req.journey_status && (
                   (() => {
                     const currentStatus = req.journey_status || 'accepted';
@@ -307,6 +376,43 @@ function MyRequests({ navigate }) {
               )}
             </div>
           ))}
+        </div>
+        )}
+        </>
+      )}
+
+      {selectedRequest && (
+        <div className="request-detail-overlay">
+          <div className="request-detail-page">
+            <div className="request-detail-topbar">
+              <button onClick={() => setSelectedRequestId(null)}><span>←</span> Back to requests</button>
+              <span className={`status-badge ${selectedRequest.status}`}>{statusLabel[selectedRequest.status] || selectedRequest.status}</span>
+            </div>
+            <div className="request-detail-heading">
+              <div><span className="request-detail-kicker">REQUEST DETAILS</span><h2>{selectedRequest.title}</h2><p>{selectedRequest.location}</p></div>
+              <div className="request-detail-date"><Calendar size={15} />{new Date(selectedRequest.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+            </div>
+            {selectedRequest.professional_name && (
+              <div className="request-detail-provider">
+                <div className="request-provider-avatar">{selectedRequest.professional_name.charAt(0).toUpperCase()}</div>
+                <div><span className="request-detail-kicker">YOUR PROVIDER</span><h3>{selectedRequest.professional_name}</h3><p><ShieldCheck size={13} /> Verified professional</p></div>
+                <span className="request-provider-state"><CheckCircle2 size={16} /> {selectedRequest.status === 'completed' ? 'Work completed' : 'Assigned to you'}</span>
+              </div>
+            )}
+            <div className="request-detail-grid">
+              <div className="request-detail-main">
+                {selectedRequest.description && <div className="request-detail-section"><span className="request-detail-kicker">JOB DESCRIPTION</span><p>{selectedRequest.description}</p></div>}
+                <div className="request-detail-stats">
+                  <div><Clock3 size={18} /><span>Time taken</span><strong>{formatDuration(selectedRequest)}</strong></div>
+                  <div><Calendar size={18} /><span>Requested on</span><strong>{new Date(selectedRequest.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</strong></div>
+                </div>
+              </div>
+              <aside className="request-detail-side">
+                <div className="request-payment-card"><span className="request-detail-kicker">ESTIMATED BILL</span><strong>{selectedRequest.wage != null ? `₹${Number(selectedRequest.wage).toLocaleString('en-IN')}` : 'Not set yet'}</strong><p>{selectedRequest.wage_description || (selectedRequest.payment_status === 'paid' ? 'Payment confirmed for this service.' : 'The provider will share the final amount after reviewing the work.')}</p>{selectedRequest.payment_status === 'awaiting_payment' && <button className="btn-submit" onClick={() => confirmPayment(selectedRequest.id)}>Confirm payment</button>}{selectedRequest.payment_status === 'paid' && <span className="request-paid-label">Payment confirmed</span>}</div>
+                {selectedRequest.review_id ? <div className="request-detail-review">Your rating: {'★'.repeat(Number(selectedRequest.review_rating))}{'☆'.repeat(5 - Number(selectedRequest.review_rating))}</div> : selectedRequest.payment_status === 'paid' && <button className="request-detail-review-btn" onClick={() => { setSelectedRequestId(null); setReviewingRequestId(selectedRequest.id); }}>Rate this professional</button>}
+              </aside>
+            </div>
+          </div>
         </div>
       )}
 

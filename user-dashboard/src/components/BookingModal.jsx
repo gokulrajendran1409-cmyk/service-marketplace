@@ -96,22 +96,27 @@ export function BookingModal({ professional, category, currentLocation, onClose,
   };
 
   return (
-    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal fade-up">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+    <div className="modal-overlay booking-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal booking-modal fade-up">
+        <div className="booking-page-header">
+          <div className="booking-page-intro">
+            <span className="booking-kicker">SERVICE REQUEST</span>
           <h2 className="modal-title">Book a Service</h2>
+          <p className="booking-page-subtitle">Tell us what you need and we’ll help the right professional get started.</p>
+          </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
             <X size={22} />
           </button>
         </div>
-        {professional && (
-          <p className="modal-sub">Sending request to <strong>{professional.full_name}</strong> · {professional.category}</p>
-        )}
-        {!professional && category && (
-          <p className="modal-sub">Requesting a <strong>{category}</strong> professional</p>
-        )}
+        <div className="booking-context-bar">
+          <span className="booking-context-icon"><FileText size={18} /></span>
+          <span><small>{professional ? 'YOUR SELECTED PROVIDER' : 'YOUR REQUEST'}</small><strong>{professional ? professional.full_name : `${category} professional`}</strong></span>
+          <span className="booking-context-category">{professional?.category || category}</span>
+        </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="booking-form-layout">
+          <div className="booking-form-main">
+            <div className="booking-form-section-title"><span>01</span><div><strong>Tell us about the job</strong><small>Give the professional enough detail to help quickly.</small></div></div>
           <div className="form-group">
             <label htmlFor="title"><FileText size={13} style={{ display: 'inline', marginRight: 4 }} />Service Title</label>
             <input
@@ -135,6 +140,9 @@ export function BookingModal({ professional, category, currentLocation, onClose,
               onChange={handleChange}
             />
           </div>
+          </div>
+          <div className="booking-form-side">
+            <div className="booking-form-section-title"><span>02</span><div><strong>When and where</strong><small>Choose a convenient time and location.</small></div></div>
           <div className="form-group">
             <label htmlFor="location"><MapPin size={13} style={{ display: 'inline', marginRight: 4 }} />Your Location / Address</label>
             <input
@@ -160,6 +168,7 @@ export function BookingModal({ professional, category, currentLocation, onClose,
               required
             />
             {scheduleError && <p className="schedule-error">{scheduleError}</p>}
+          </div>
           </div>
           <div className="booking-evidence">
             <div className="booking-evidence-title">Help the professional understand the problem (optional)</div>
