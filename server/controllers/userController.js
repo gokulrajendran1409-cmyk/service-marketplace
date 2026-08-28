@@ -3,6 +3,38 @@ const { notifyPro } = require('../utils/proSseClients');
 const { broadcast } = require('../utils/sseClients');
 const { addCustomerClient, removeCustomerClient } = require('../utils/customerSseClients');
 
+exports.getProfile = async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT id, name, email, phone, address FROM users WHERE id = $1',
+            [req.user.id]
+        );
+        if (!result.rows[0]) return res.status(404).json({ message: 'Profile not found' });
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('getProfile error:', err);
+        res.status(500).json({ message: 'Failed to fetch profile' });
+    }
+};
+
+exports.updateProfile = async (req, res) => {
+    try {
+        const { phone, address } = req.body;
+        if (!phone?.trim()) return res.status(400).json({ message: 'Phone number is required' });
+
+        const result = await pool.query(
+            `UPDATE users SET phone = $1, address = $2
+             WHERE id = $3 RETURNING id, name, email, phone, address`,
+            [phone.trim(), address?.trim() || null, req.user.id]
+        );
+        if (!result.rows[0]) return res.status(404).json({ message: 'Profile not found' });
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('updateProfile error:', err);
+        res.status(500).json({ message: 'Failed to update profile' });
+    }
+};
+
 // GET /api/user/categories - list all service categories
 exports.getCategories = async (req, res) => {
     try {
@@ -27,8 +59,12 @@ exports.getProfessionals = async (req, res) => {
             where += ` AND p.category = $${params.length}`;
         }
         const query = `
-                 SELECT id, full_name, category, experience_years, bio, city, state,
-                     registered_latitude, registered_longitude
+                 SELECT p.id, p.full_name, p.category, p.experience_years, p.bio, p.city, p.state,
+                     p.registered_latitude, p.registered_longitude,
+                     (SELECT COUNT(*)
+                        FROM service_offers so
+                        JOIN service_requests sr ON sr.id = so.request_id
+                       WHERE so.professional_id = p.id AND sr.status = 'completed') AS completed_requests
             FROM professionals p
             ${where}
             ORDER BY experience_years DESC
