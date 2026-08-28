@@ -4,6 +4,32 @@ import { useToast, Toast } from '../components/Toast';
 
 const API = `${import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com'}/api/auth`;
 const GOOGLE_CLIENT_ID = '215103121223-i90tgh8pdlcug4ft1ij78i67h5go75es.apps.googleusercontent.com';
+let googleScriptPromise;
+let googleInitialized = false;
+
+function loadGoogleScript() {
+  if (window.google?.accounts?.id) return Promise.resolve();
+  if (googleScriptPromise) return googleScriptPromise;
+
+  googleScriptPromise = new Promise((resolve, reject) => {
+    const existingScript = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+    if (existingScript) {
+      existingScript.addEventListener('load', resolve, { once: true });
+      existingScript.addEventListener('error', reject, { once: true });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+
+  return googleScriptPromise;
+}
 
 function Auth({ onLogin }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -12,30 +38,43 @@ function Auth({ onLogin }) {
 
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
   const googleButtonRef = useRef(null);
+  const onLoginRef = useRef(onLogin);
+  const showToastRef = useRef(showToast);
 
   useEffect(() => {
+    onLoginRef.current = onLogin;
+    showToastRef.current = showToast;
+  }, [onLogin, showToast]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const googleButton = googleButtonRef.current;
+
     const renderGoogleButton = () => {
       if (!googleButtonRef.current || !window.google?.accounts?.id) return;
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: async (response) => {
-          setLoading(true);
-          try {
-            const result = await fetch(`${API}/google`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ idToken: response.credential }),
-            });
-            const data = await result.json();
-            if (!result.ok) throw new Error(data.message || 'Google authentication failed');
-            onLogin(data.user, data.token);
-          } catch (error) {
-            showToast(error.message, 'error');
-          } finally {
-            setLoading(false);
-          }
-        },
-      });
+      if (!googleInitialized) {
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: async (response) => {
+            setLoading(true);
+            try {
+              const result = await fetch(`${API}/google`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idToken: response.credential }),
+              });
+              const data = await result.json();
+              if (!result.ok) throw new Error(data.message || 'Google authentication failed');
+              onLoginRef.current(data.user, data.token);
+            } catch (error) {
+              showToastRef.current(error.message, 'error');
+            } finally {
+              setLoading(false);
+            }
+          },
+        });
+        googleInitialized = true;
+      }
       googleButtonRef.current.innerHTML = '';
       window.google.accounts.id.renderButton(googleButtonRef.current, {
         theme: 'outline',
@@ -45,19 +84,17 @@ function Auth({ onLogin }) {
       });
     };
 
-    if (window.google?.accounts?.id) {
-      renderGoogleButton();
-      return undefined;
-    }
+    loadGoogleScript()
+      .then(() => {
+        if (!cancelled) renderGoogleButton();
+      })
+      .catch(() => {});
 
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    script.onload = renderGoogleButton;
-    document.head.appendChild(script);
-    return () => script.remove();
-  }, [onLogin, showToast]);
+    return () => {
+      cancelled = true;
+      if (googleButton) googleButton.innerHTML = '';
+    };
+  }, []);
 
   const handleChange = (e) => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
