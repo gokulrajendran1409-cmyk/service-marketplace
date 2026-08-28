@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Wrench, Loader2 } from 'lucide-react';
 import { useToast, Toast } from '../components/Toast';
 
-const API = 'https://service-marketplace-af7p.onrender.com/api/auth';
+const API = `${import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com'}/api/auth`;
+const GOOGLE_CLIENT_ID = '215103121223-i90tgh8pdlcug4ft1ij78i67h5go75es.apps.googleusercontent.com';
 
 function Auth({ onLogin }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -10,6 +11,53 @@ function Auth({ onLogin }) {
   const { toast, showToast } = useToast();
 
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
+  const googleButtonRef = useRef(null);
+
+  useEffect(() => {
+    const renderGoogleButton = () => {
+      if (!googleButtonRef.current || !window.google?.accounts?.id) return;
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: async (response) => {
+          setLoading(true);
+          try {
+            const result = await fetch(`${API}/google`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ idToken: response.credential }),
+            });
+            const data = await result.json();
+            if (!result.ok) throw new Error(data.message || 'Google authentication failed');
+            onLogin(data.user, data.token);
+          } catch (error) {
+            showToast(error.message, 'error');
+          } finally {
+            setLoading(false);
+          }
+        },
+      });
+      googleButtonRef.current.innerHTML = '';
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: 'outline',
+        size: 'large',
+        text: 'continue_with',
+        width: 360,
+      });
+    };
+
+    if (window.google?.accounts?.id) {
+      renderGoogleButton();
+      return undefined;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = renderGoogleButton;
+    document.head.appendChild(script);
+    return () => script.remove();
+  }, [onLogin, showToast]);
 
   const handleChange = (e) => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
@@ -82,6 +130,9 @@ function Auth({ onLogin }) {
             {loading ? <Loader2 size={18} className="spin" style={{ display: 'inline' }} /> : (isLogin ? 'Sign In' : 'Create Account')}
           </button>
         </form>
+
+        <div className="auth-divider"><span>or</span></div>
+        <div className="google-signin-wrap" ref={googleButtonRef} />
 
         <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '14px', color: 'var(--text-secondary)' }}>
           {isLogin ? "Don't have an account? " : "Already have an account? "}
