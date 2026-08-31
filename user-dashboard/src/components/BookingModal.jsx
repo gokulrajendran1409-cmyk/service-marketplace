@@ -173,14 +173,27 @@ export function BookingModal({ professional, category, currentLocation, onClose,
           <div className="booking-evidence">
             <div className="booking-evidence-title">Help the professional understand the problem (optional)</div>
             <div className="booking-media-grid">
-              <label className="media-upload-btn"><ImagePlus size={17} /> Add photos
+              <label className="media-attachment-btn">
+                <div className="media-attachment-icon-circle photo">
+                  <ImagePlus size={24} strokeWidth={1.5} />
+                </div>
+                <span>Photos</span>
                 <input type="file" accept="image/*" multiple onChange={event => setPhotos(Array.from(event.target.files || []).slice(0, 5))} />
               </label>
-              <label className="media-upload-btn"><Video size={17} /> Add video
+
+              <label className="media-attachment-btn">
+                <div className="media-attachment-icon-circle video">
+                  <Video size={24} strokeWidth={1.5} />
+                </div>
+                <span>Video</span>
                 <input type="file" accept="video/*" onChange={event => setVideo(event.target.files?.[0] || null)} />
               </label>
-              <button type="button" className={`media-upload-btn ${recording ? 'recording' : ''}`} onClick={toggleRecording}>
-                {recording ? <Square size={15} /> : <Mic size={17} />} {recording ? 'Stop recording' : 'Record voice'}
+
+              <button type="button" className={`media-attachment-btn ${recording ? 'recording' : ''}`} onClick={toggleRecording}>
+                <div className={`media-attachment-icon-circle voice ${recording ? 'recording-active' : ''}`}>
+                  {recording ? <Square size={22} fill="currentColor" /> : <Mic size={24} strokeWidth={1.5} />}
+                </div>
+                <span>{recording ? 'Stop' : 'Voice'}</span>
               </button>
             </div>
             {photos.length > 0 && <p className="media-selection">{photos.length} photo{photos.length > 1 ? 's' : ''} selected</p>}

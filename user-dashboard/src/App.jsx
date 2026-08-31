@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import './index.css';
 import './App.css';
-import { Wrench, LayoutGrid, ClipboardList, UserRound } from 'lucide-react';
+import { Wrench, House, ClipboardList, UserRound } from 'lucide-react';
 import Home from './pages/Home';
 import Services from './pages/Services';
 import MyRequests from './pages/MyRequests';
@@ -12,9 +12,9 @@ import Notifications from './pages/Notifications';
 import Profile from './pages/Profile';
 
 const PAGES = [
-  { id: 'home',     label: 'Home',     icon: LayoutGrid },
+  { id: 'home',     label: 'Home',     icon: House },
   { id: 'services', label: 'Services', icon: Wrench },
-  { id: 'requests', label: 'Requests', icon: ClipboardList },
+  { id: 'requests', label: 'My Bookings', icon: ClipboardList },
   { id: 'profile',  label: 'Profile',  icon: UserRound },
 ];
 
@@ -95,8 +95,10 @@ function App() {
             className={`bottom-nav-item ${page === id ? 'active' : ''}`}
             onClick={() => setPage(id)}
           >
-            <Icon size={22} className="bottom-nav-icon" />
-            <span className="bottom-nav-label">{label}</span>
+            <span className="bottom-nav-pill">
+              <Icon size={20} className="bottom-nav-icon" />
+              {page === id && <span className="bottom-nav-label">{label}</span>}
+            </span>
           </button>
         ))}
       </nav>

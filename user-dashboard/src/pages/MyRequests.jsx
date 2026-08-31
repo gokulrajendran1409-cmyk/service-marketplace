@@ -162,7 +162,7 @@ function MyRequests({ navigate }) {
     { key: 'active', label: 'Active', matches: request => ['accepted', 'in_progress'].includes(request.status) },
     { key: 'pending', label: 'Pending', matches: request => request.status === 'pending' },
     { key: 'completed', label: 'Completed', matches: request => request.status === 'completed' },
-    { key: 'all', label: 'All requests', matches: () => true },
+    { key: 'all', label: 'All bookings', matches: () => true },
   ];
   const currentFilter = filterOptions.find(option => option.key === requestFilter) || filterOptions[0];
   const filteredRequests = requests
@@ -187,8 +187,8 @@ function MyRequests({ navigate }) {
     <div className="page-container">
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
-          <h1 className="page-title">My Requests</h1>
-          <p className="page-subtitle">Track the status of all your service requests.</p>
+          <h1 className="page-title">My Bookings</h1>
+          <p className="page-subtitle">Track the status of all your service bookings.</p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button
@@ -214,7 +214,7 @@ function MyRequests({ navigate }) {
       ) : requests.length === 0 ? (
         <div className="empty-state">
           <div style={{ fontSize: 48 }}>📋</div>
-          <h3>No requests yet</h3>
+          <h3>No bookings yet</h3>
           <p>Browse services and book your first professional!</p>
           <button className="btn-hire" style={{ width: 'auto', padding: '12px 28px', marginTop: 20 }} onClick={() => navigate('services')}>
             Browse Services
@@ -225,27 +225,27 @@ function MyRequests({ navigate }) {
         <div className="request-tools">
           <label className="request-search-box">
             <Search size={16} />
-            <input value={requestSearch} onChange={event => setRequestSearch(event.target.value)} placeholder="Search requests..." aria-label="Search requests" />
+            <input value={requestSearch} onChange={event => setRequestSearch(event.target.value)} placeholder="Search bookings..." aria-label="Search bookings" />
           </label>
           <label className="request-sort-box">
             <span>Sort by</span>
-            <select value={requestSort} onChange={event => setRequestSort(event.target.value)} aria-label="Sort requests by date">
+            <select value={requestSort} onChange={event => setRequestSort(event.target.value)} aria-label="Sort bookings by date">
               <option value="newest">Newest first</option>
               <option value="oldest">Oldest first</option>
             </select>
           </label>
         </div>
-        <div className="request-filter-bar" role="tablist" aria-label="Filter requests">
+        <div className="request-filter-bar" role="tablist" aria-label="Filter bookings">
           {filterOptions.map(option => {
             const count = requests.filter(option.matches).length;
             return <button key={option.key} className={requestFilter === option.key ? 'active' : ''} onClick={() => setRequestFilter(option.key)} role="tab" aria-selected={requestFilter === option.key}>{option.label}<span>{count}</span></button>;
           })}
         </div>
         {filteredRequests.length === 0 ? (
-          <div className="request-filter-empty"><h3>No {currentFilter.label.toLowerCase()} requests</h3><p>Your requests will appear here as their status changes.</p></div>
+          <div className="request-filter-empty"><h3>No {currentFilter.label.toLowerCase()} bookings</h3><p>Your bookings will appear here as their status changes.</p></div>
         ) : (
         <div className="requests-list">
-          <div className="requests-list-heading"><div><span>REQUESTS</span><h2>{currentFilter.label}</h2></div><strong>{filteredRequests.length} {filteredRequests.length === 1 ? 'request' : 'requests'}</strong></div>
+          <div className="requests-list-heading"><div><span>BOOKINGS</span><h2>{currentFilter.label}</h2></div><strong>{filteredRequests.length} {filteredRequests.length === 1 ? 'booking' : 'bookings'}</strong></div>
           {filteredRequests.map(req => (
             <div key={req.id} className={`request-item fade-up request-card-clickable ${['accepted', 'in_progress'].includes(req.status) ? 'live-request-item' : ''}`} onClick={(event) => {
               if (!event.target.closest('button')) setSelectedRequestId(req.id);
@@ -385,7 +385,7 @@ function MyRequests({ navigate }) {
         <div className="request-detail-overlay">
           <div className="request-detail-page">
             <div className="request-detail-topbar">
-              <button onClick={() => setSelectedRequestId(null)}><span>←</span> Back to requests</button>
+              <button onClick={() => setSelectedRequestId(null)}><span>←</span> Back to bookings</button>
               <span className={`status-badge ${selectedRequest.status}`}>{statusLabel[selectedRequest.status] || selectedRequest.status}</span>
             </div>
             <div className="request-detail-heading">

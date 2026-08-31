@@ -231,50 +231,40 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
           <RefreshCw className="spin" size={32} color="var(--text-muted)" />
         </div>
       ) : !selected && (
-        <div className="service-groups">
-          {serviceGroups.filter(group => !initialGroup || group.name === initialGroup).map(group => {
-            const GroupIcon = group.icon;
-            const groupCategories = group.categories.map(name => categoriesByName.get(name) || {
+        <div className="subcategory-list">
+          {serviceGroups
+            .filter(group => !initialGroup || group.name === initialGroup)
+            .flatMap(group => group.categories.map(name => categoriesByName.get(name) || {
               id: name,
               name,
               description: 'Browse available professionals',
-            });
-
-            return (
-              <section key={group.name} className="service-group fade-up expanded">
-                <div className="service-group-toggle">
-                  <span className="service-group-icon" style={{ color: group.color }}><GroupIcon size={22} strokeWidth={2} /></span>
-                  <span className="service-group-copy">
-                    <span className="service-group-name">{group.name}</span>
-                    <span className="service-group-count">{groupCategories.length} services to explore</span>
-                  </span>
-                  <span className="service-group-arrow" aria-hidden="true"><ChevronRight size={20} /></span>
-                </div>
-
-                <div className="subcategory-list">
-                    {groupCategories.map(cat => (
-                      (() => {
-                        const CategoryIcon = categoryIcons[cat.name] || Tags;
-                        return (
-                      <button
-                        key={cat.id}
-                        className={`subcategory-item ${selected?.id === cat.id ? 'selected' : ''}`}
-                        onClick={() => selectCategory(cat)}
-                      >
-                        <span className="subcategory-icon" style={{ color: categoryColors[cat.name] || 'var(--accent-primary)' }}><CategoryIcon size={22} strokeWidth={2} /></span>
-                        <span>
-                          <strong>{cat.name}</strong>
-                          <small>{cat.description}</small>
-                        </span>
-                        <ChevronRight size={17} />
-                      </button>
-                        );
-                      })()
-                    ))}
-                </div>
-              </section>
-            );
-          })}
+            }))
+            .map((cat, index) => {
+              const CategoryIcon = categoryIcons[cat.name] || Tags;
+              const iconColor = categoryColors[cat.name] || 'var(--accent-primary)';
+              const dummyPrice = (14.25 + (index * 4.5)).toFixed(2);
+              
+              return (
+                <button
+                  key={cat.id}
+                  className={`subcategory-item ${selected?.id === cat.id ? 'selected' : ''}`}
+                  onClick={() => selectCategory(cat)}
+                >
+                  <div className="subcategory-item-image">
+                    <CategoryIcon size={52} strokeWidth={1.5} color={iconColor} />
+                  </div>
+                  <div className="subcategory-item-content">
+                    <h3 className="subcategory-item-title">{cat.name}</h3>
+                    <div className="subcategory-item-bottom">
+                      <span className="subcategory-item-price">${dummyPrice} <small>/hr</small></span>
+                      <div className="subcategory-item-add-btn">
+                        <ChevronRight size={14} strokeWidth={3} />
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
         </div>
       )}
 
@@ -296,12 +286,14 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
               </h2>
               <p>Choose a provider or send your request to nearby professionals.</p>
             </div>
-            <button
-              className="broadcast-request-btn"
-              onClick={() => setBooking({ professional: null, category: selected.name, location })}
-            >
-              Auto-assign for me
-            </button>
+            {nearbyProfessionals.length > 0 && (
+              <button
+                className="broadcast-request-btn"
+                onClick={() => setBooking({ professional: null, category: selected.name, location })}
+              >
+                Auto-assign for me
+              </button>
+            )}
           </div>
 
           {loadingPros ? (

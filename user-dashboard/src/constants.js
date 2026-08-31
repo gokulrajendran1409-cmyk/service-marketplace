@@ -37,7 +37,7 @@ export const categoryColors = {
   'Carpentry': '#a16207',
   'Painting': '#ec4899',
   'Cleaning': '#8b5cf6',
-  'Home Repair & Maintenance': '#f97316',
+  'Home Repair & Maintenance': '#6366F1',
   'CCTV & Security': '#6366f1',
   'Vehicle Services': '#64748b',
   'Gardening & Landscaping': '#10b981',
@@ -67,13 +67,13 @@ export const serviceGroups = [
   {
     name: 'Home Services',
     icon: Home,
-    color: '#f97316',
+    color: '#6366F1',
     categories: ['CCTV & Security', 'Photography & Videography'],
   },
   {
     name: 'Home Repairs',
     icon: Tags,
-    color: '#f97316',
+    color: '#6366F1',
     categories: ['Plumbing', 'Electrical', 'AC & Appliance Repair', 'Carpentry', 'Painting', 'Home Repair & Maintenance'],
   },
 ];

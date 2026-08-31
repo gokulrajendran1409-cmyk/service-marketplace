@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, Award, BadgePercent, Bell, CheckCircle2, ChefHat, ChevronRight, MapPin, Navigation, Palette, Scissors, Search, ShieldCheck, Sparkles, Star, UserRoundCheck, Wrench, Zap } from 'lucide-react';
+import { API } from '../constants';
 
 function Home({ navigate }) {
   const [locationName, setLocationName] = useState('Detecting location...');
   const [searchQuery, setSearchQuery] = useState('');
   const [userName, setUserName] = useState('there');
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
+  const [dbCategories, setDbCategories] = useState([]);
 
   const serviceCategoryItems = [
     {
@@ -63,7 +65,7 @@ function Home({ navigate }) {
       reviews: 128,
       price: '$25 - $30',
       provider: 'Sparkle Cleaners',
-      avatarBg: '#0f766e',
+      avatarBg: '#6366F1',
       initials: 'SC',
     },
     {
@@ -76,7 +78,7 @@ function Home({ navigate }) {
       reviews: 95,
       price: '$25 - $30',
       provider: 'Stella Kitchen',
-      avatarBg: '#ea580c',
+      avatarBg: '#6366F1',
       initials: 'SK',
     },
     {
@@ -89,7 +91,7 @@ function Home({ navigate }) {
       reviews: 84,
       price: '$40 - $60',
       provider: 'Apex Home Finish',
-      avatarBg: '#7c3aed',
+      avatarBg: '#8B5CF6',
       initials: 'AP',
     },
     {
@@ -102,7 +104,7 @@ function Home({ navigate }) {
       reviews: 152,
       price: '$30 - $45',
       provider: 'QuickFix Plumbers',
-      avatarBg: '#0284c7',
+      avatarBg: '#6366F1',
       initials: 'QF',
     },
   ];
@@ -163,21 +165,21 @@ function Home({ navigate }) {
       title: 'Solution, One Tap!',
       description: 'Verified professionals ready to help.',
       buttonText: 'Explore',
-      color: 'linear-gradient(135deg, #164e63 0%, #0f766e 100%)',
+      color: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
       emoji: '✨',
     },
     {
       title: 'Trusted & Verified!',
       description: 'Real reviews from real customers.',
       buttonText: 'See More',
-      color: 'linear-gradient(135deg, #7c2d12 0%, #b45309 100%)',
+      color: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)',
       emoji: '⭐',
     },
     {
       title: 'Fast Bookings!',
       description: 'Connected in minutes, not days.',
       buttonText: 'Book Now',
-      color: 'linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%)',
+      color: 'linear-gradient(135deg, #4338CA 0%, #6366F1 100%)',
       emoji: '⚡',
     },
   ];
@@ -189,6 +191,13 @@ function Home({ navigate }) {
     } catch {
       setUserName('there');
     }
+  }, []);
+
+  useEffect(() => {
+    fetch(`${API}/categories`)
+      .then(r => r.json())
+      .then(data => setDbCategories(data))
+      .catch(() => console.error('Failed to load categories'));
   }, []);
 
   useEffect(() => {
@@ -294,7 +303,10 @@ function Home({ navigate }) {
           </button>
         </div>
         <div className="home-categories-grid-row">
-          {serviceCategoryItems.map(item => (
+          {serviceCategoryItems
+            .filter(item => dbCategories.some(dbCat => dbCat.name === item.category))
+            .slice(0, 4)
+            .map(item => (
             <button
               key={item.id}
               className="home-cat-item-card"
@@ -422,7 +434,7 @@ function Home({ navigate }) {
         <div className="home-steps-container">
           <div className="home-step-card">
             <div className="home-step-top">
-              <div className="home-step-icon-wrap step-orange">
+              <div className="home-step-icon-wrap step-violet">
                 <Search size={22} />
               </div>
               <span className="home-step-number">01</span>
@@ -435,7 +447,7 @@ function Home({ navigate }) {
 
           <div className="home-step-card">
             <div className="home-step-top">
-              <div className="home-step-icon-wrap step-teal">
+              <div className="home-step-icon-wrap step-indigo">
                 <UserRoundCheck size={22} />
               </div>
               <span className="home-step-number">02</span>
