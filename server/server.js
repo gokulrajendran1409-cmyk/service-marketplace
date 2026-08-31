@@ -27,6 +27,13 @@ async function startServer() {
     app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
 
     try {
+        await pool.query('ALTER TABLE users ALTER COLUMN phone DROP NOT NULL');
+        await pool.query('ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL');
+    } catch (error) {
+        console.error('OAuth user schema initialization failed:', error.message);
+    }
+
+    try {
         await pool.query(`
         CREATE TABLE IF NOT EXISTS professional_reviews (
             id SERIAL PRIMARY KEY,

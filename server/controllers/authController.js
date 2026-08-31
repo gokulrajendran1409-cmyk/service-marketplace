@@ -3,7 +3,14 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_for_demo';
+const { OAuth2Client } = require('google-auth-library');
 
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_WEB_CLIENT_ID ||
+    '215103121223-i90tgh8pdlcug4ft1ij78i67h5go75es.apps.googleusercontent.com';
+const GOOGLE_ANDROID_CLIENT_ID = process.env.GOOGLE_ANDROID_CLIENT_ID ||
+    '215103121223-13hgcip8sqh5bnj2g9vvc6hhrs3g4bl1.apps.googleusercontent.com';
+
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 exports.register = async (req, res) => {
     try {
         const { name, email, phone, password } = req.body;
@@ -86,5 +93,96 @@ exports.login = async (req, res) => {
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ message: 'Failed to login' });
+    }
+};
+
+exports.googleLogin = async (req, res) => {
+    try {
+        const { idToken } = req.body;
+
+        if (!idToken) {
+            return res.status(400).json({
+                message: 'Google ID token is required'
+            });
+        }
+
+        // Verify token with Google
+        const ticket = await googleClient.verifyIdToken({
+            idToken,
+            audience: [GOOGLE_CLIENT_ID, GOOGLE_ANDROID_CLIENT_ID]
+        });
+
+        const payload = ticket.getPayload();
+
+        const email = payload.email;
+        const name = payload.name || 'Google User';
+
+        if (!email || payload.email_verified !== true) {
+            return res.status(400).json({
+                message: 'Google account email could not be verified'
+            });
+        }
+
+        // Check existing user
+        let result = await pool.query(
+            'SELECT id, name, email, phone FROM users WHERE email = $1',
+            [email]
+        );
+
+        let user;
+
+        if (result.rows.length > 0) {
+            user = result.rows[0];
+        } else {
+            // Create new Google user
+            result = await pool.query(
+                `INSERT INTO users (name, email, phone, password_hash)
+                 VALUES ($1, $2, $3, $4)
+                 RETURNING id, name, email, phone`,
+                [name, email, `g${payload.sub.slice(-19)}`, `google-${payload.sub}`]
+            );
+
+            user = result.rows[0];
+        }
+
+        // Check professional account
+        const profCheck = await pool.query(
+            'SELECT id FROM professionals WHERE user_id = $1',
+            [user.id]
+        );
+
+        if (profCheck.rows.length > 0) {
+            return res.status(403).json({
+                message: 'This account is registered as a professional.'
+            });
+        }
+
+        // Generate your own JWT
+        const token = jwt.sign(
+            {
+                id: user.id,
+                role: 'customer'
+            },
+            JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        res.json({
+            message: 'Google login successful',
+            token,
+            user
+        });
+
+    } catch (error) {
+        console.error('Google login error:', error);
+        const isGoogleTokenError = error.message?.includes('Wrong number of segments')
+            || error.message?.includes('Invalid token')
+            || error.message?.includes('Wrong audience')
+            || error.message?.includes('Token used too late')
+            || error.message?.includes('Token used too early');
+
+        res.status(isGoogleTokenError ? 401 : 500).json({
+            message: isGoogleTokenError ? 'Google token verification failed' : 'Google login could not be completed'
+        });
     }
 };
