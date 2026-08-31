@@ -53,8 +53,8 @@ function App() {
   };
 
   const navigate = (target, group = null, category = null) => {
-    setNavigationGroup(target === 'services' ? group : null);
-    setNavigationCategory(target === 'services' ? category : null);
+    setNavigationGroup(group);
+    setNavigationCategory(category);
     setPage(target);
   };
 
