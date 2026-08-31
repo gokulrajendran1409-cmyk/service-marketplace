@@ -1,14 +1,186 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, Bell, CalendarCheck, CheckCircle2, ChevronRight, ClipboardList, MapPin, RefreshCw, Search, ShieldCheck, Sparkles, UserRoundCheck, Wrench } from 'lucide-react';
-import { serviceGroups, API } from '../constants';
-import workflowImage from '../assets/hero_home.png';
+import { ArrowRight, Award, BadgePercent, Bell, CheckCircle2, ChefHat, ChevronRight, MapPin, Navigation, Palette, Scissors, Search, ShieldCheck, Sparkles, Star, UserRoundCheck, Wrench, Zap } from 'lucide-react';
 
 function Home({ navigate }) {
-  const [categories, setCategories] = useState([]);
-  const [loadingCats, setLoadingCats] = useState(true);
   const [locationName, setLocationName] = useState('Detecting location...');
   const [searchQuery, setSearchQuery] = useState('');
   const [userName, setUserName] = useState('there');
+  const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
+
+  const serviceCategoryItems = [
+    {
+      id: 'hairdresser',
+      title: 'Hairdresser',
+      icon: Scissors,
+      group: 'Personal Care',
+      category: 'Hairdresser',
+    },
+    {
+      id: 'cleaning',
+      title: 'Cleaning',
+      icon: Sparkles,
+      group: 'Personal Care',
+      category: 'Cleaning',
+    },
+    {
+      id: 'painting',
+      title: 'Painting',
+      icon: Palette,
+      group: 'Home Repairs',
+      category: 'Painting',
+    },
+    {
+      id: 'cooking',
+      title: 'Cooking',
+      icon: ChefHat,
+      group: 'Personal Care',
+      category: 'Cooking',
+    },
+    {
+      id: 'plumbing',
+      title: 'Plumbing',
+      icon: Wrench,
+      group: 'Home Repairs',
+      category: 'Plumbing',
+    },
+    {
+      id: 'electrician',
+      title: 'Electrician',
+      icon: Zap,
+      group: 'Home Repairs',
+      category: 'Electrical',
+    },
+  ];
+
+  const popularServices = [
+    {
+      id: 'clean-1',
+      title: 'Home Cleaning',
+      category: 'Cleaning',
+      group: 'Personal Care',
+      image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&auto=format&fit=crop&q=80',
+      rating: 4.8,
+      reviews: 128,
+      price: '$25 - $30',
+      provider: 'Sparkle Cleaners',
+      avatarBg: '#0f766e',
+      initials: 'SC',
+    },
+    {
+      id: 'cook-1',
+      title: 'Cooking & Meal Prep',
+      category: 'Cooking',
+      group: 'Personal Care',
+      image: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=600&auto=format&fit=crop&q=80',
+      rating: 4.9,
+      reviews: 95,
+      price: '$25 - $30',
+      provider: 'Stella Kitchen',
+      avatarBg: '#ea580c',
+      initials: 'SK',
+    },
+    {
+      id: 'paint-1',
+      title: 'Interior Painting',
+      category: 'Painting',
+      group: 'Home Repairs',
+      image: 'https://images.unsplash.com/photo-1562259949-e8e7689d7828?w=600&auto=format&fit=crop&q=80',
+      rating: 4.7,
+      reviews: 84,
+      price: '$40 - $60',
+      provider: 'Apex Home Finish',
+      avatarBg: '#7c3aed',
+      initials: 'AP',
+    },
+    {
+      id: 'plumb-1',
+      title: 'Plumbing & Repairs',
+      category: 'Plumbing',
+      group: 'Home Repairs',
+      image: 'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?w=600&auto=format&fit=crop&q=80',
+      rating: 4.9,
+      reviews: 152,
+      price: '$30 - $45',
+      provider: 'QuickFix Plumbers',
+      avatarBg: '#0284c7',
+      initials: 'QF',
+    },
+  ];
+
+  const topProfessionals = [
+    {
+      id: 'pro-1',
+      name: 'Sarah Jenkins',
+      title: 'Hair & Styling Specialist',
+      category: 'Hairdresser',
+      group: 'Personal Care',
+      rating: 4.9,
+      reviews: 184,
+      hourlyRate: '$35/hr',
+      distance: '2.1 km',
+      image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80',
+    },
+    {
+      id: 'pro-2',
+      name: 'Marcus Vance',
+      title: 'Master Electrician',
+      category: 'Electrical',
+      group: 'Home Repairs',
+      rating: 5.0,
+      reviews: 210,
+      hourlyRate: '$45/hr',
+      distance: '3.5 km',
+      image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&auto=format&fit=crop&q=80',
+    },
+    {
+      id: 'pro-3',
+      name: 'Elena Gomez',
+      title: 'Deep Cleaning Expert',
+      category: 'Cleaning',
+      group: 'Personal Care',
+      rating: 4.9,
+      reviews: 160,
+      hourlyRate: '$30/hr',
+      distance: '1.8 km',
+      image: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&auto=format&fit=crop&q=80',
+    },
+    {
+      id: 'pro-4',
+      name: 'David Chen',
+      title: 'Plumbing Specialist',
+      category: 'Plumbing',
+      group: 'Home Repairs',
+      rating: 4.8,
+      reviews: 145,
+      hourlyRate: '$40/hr',
+      distance: '4.2 km',
+      image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
+    },
+  ];
+
+  const promoSlides = [
+    {
+      title: 'Solution, One Tap!',
+      description: 'Verified professionals ready to help.',
+      buttonText: 'Explore',
+      color: 'linear-gradient(135deg, #164e63 0%, #0f766e 100%)',
+      emoji: '✨',
+    },
+    {
+      title: 'Trusted & Verified!',
+      description: 'Real reviews from real customers.',
+      buttonText: 'See More',
+      color: 'linear-gradient(135deg, #7c2d12 0%, #b45309 100%)',
+      emoji: '⭐',
+    },
+    {
+      title: 'Fast Bookings!',
+      description: 'Connected in minutes, not days.',
+      buttonText: 'Book Now',
+      color: 'linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%)',
+      emoji: '⚡',
+    },
+  ];
 
   useEffect(() => {
     try {
@@ -20,13 +192,13 @@ function Home({ navigate }) {
   }, []);
 
   useEffect(() => {
-    // Load categories from backend (same as Services.jsx)
-    fetch(`${API}/categories`)
-      .then(r => r.json())
-      .then(data => setCategories(data))
-      .catch(() => {})
-      .finally(() => setLoadingCats(false));
+    const timer = setInterval(() => {
+      setCurrentPromoIndex((prev) => (prev + 1) % promoSlides.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [promoSlides.length]);
 
+  useEffect(() => {
     // Detect location name
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -48,12 +220,6 @@ function Home({ navigate }) {
     }
   }, []);
 
-  const filteredGroups = serviceGroups.filter(group => {
-    const query = searchQuery.toLowerCase();
-    return group.name.toLowerCase().includes(query)
-      || group.categories.some(category => category.toLowerCase().includes(query));
-  });
-
   const submitSearch = (event) => {
     event.preventDefault();
     navigate('services');
@@ -72,15 +238,6 @@ function Home({ navigate }) {
         </button>
       </div>
 
-      <section className="home-welcome home-order-welcome">
-        <div>
-          <p className="home-eyebrow">SERVICEHUB <span>•</span> YOUR LOCAL HELP</p>
-          <h1>What can we<br /><em>fix</em> for you, {userName}?</h1>
-          <p className="home-welcome-sub">Book trusted professionals for the jobs that keep your day moving.</p>
-        </div>
-        <div className="home-welcome-mark"><Sparkles size={22} /></div>
-      </section>
-
       <form className="home-search-wrap home-order-search" onSubmit={submitSearch}>
         <div className="home-search-bar">
           <Search size={16} className="home-search-icon" />
@@ -96,126 +253,250 @@ function Home({ navigate }) {
         </div>
       </form>
 
-      <section className="home-quick-actions home-order-actions">
-        <button className="home-quick-action" onClick={() => navigate('services')}>
-          <span className="home-quick-icon quick-orange"><CalendarCheck size={20} /></span>
-          <span><strong>Book a service</strong><small>Find your expert</small></span>
-          <ChevronRight size={16} />
-        </button>
-        <button className="home-quick-action" onClick={() => navigate('requests')}>
-          <span className="home-quick-icon quick-blue"><ClipboardList size={20} /></span>
-          <span><strong>Track a request</strong><small>See your bookings</small></span>
-          <ChevronRight size={16} />
-        </button>
-      </section>
-
-      <section className="home-how-it-works home-order-workflow">
-        <div className="home-section-header">
-          <div><p className="home-section-kicker">SIMPLE FROM START TO FINISH</p><h2 className="home-section-title">How ServiceHub works</h2></div>
-          <div className="home-workflow-visual"><img src={workflowImage} alt="Home service workflow" /></div>
-        </div>
-        <div className="home-workflow-steps">
-          <div className="home-workflow-step">
-            <span className="home-workflow-number">01</span>
-            <div className="home-workflow-icon workflow-orange"><CalendarCheck size={19} /></div>
-            <strong>Book a service</strong>
-            <p>Choose what you need and send your request in a few taps.</p>
-          </div>
-          <div className="home-workflow-line" />
-          <div className="home-workflow-step">
-            <span className="home-workflow-number">02</span>
-            <div className="home-workflow-icon workflow-teal"><UserRoundCheck size={19} /></div>
-            <strong>Get a provider</strong>
-            <p>A verified professional reviews your request and reaches out.</p>
-          </div>
-          <div className="home-workflow-line" />
-          <div className="home-workflow-step">
-            <span className="home-workflow-number">03</span>
-            <div className="home-workflow-icon workflow-blue"><CheckCircle2 size={19} /></div>
-            <strong>Track the work</strong>
-            <p>Stay updated from assignment to completion, all in one place.</p>
-          </div>
-        </div>
-      </section>
-
-      <div className="home-section home-services-section home-order-services">
-        <div className="home-section-header">
-          <div><p className="home-section-kicker">EXPLORE</p><h2 className="home-section-title">Services for every job</h2></div>
-          <button className="home-view-all" onClick={() => navigate('services')}>See all <ArrowRight size={14} /></button>
-        </div>
-
-        {loadingCats ? (
-          <div className="home-loading">
-            <RefreshCw size={24} className="spin" style={{ color: 'var(--text-muted)' }} />
-          </div>
-        ) : (
-          <div className="home-categories-grid">
-            {filteredGroups.map(group => (
-              <button
-                key={group.name}
-                className="home-category-card"
-                onClick={() => navigate('services', group.name)}
-                aria-label={`Open ${group.name} services`}
-              >
-                <div className="home-category-icon-wrap">
-                  <group.icon className="home-category-icon" size={28} strokeWidth={2} style={{ color: group.color }} />
-                </div>
-                <div className="home-category-label">{group.name}</div>
-                <span className="home-category-count">{group.categories.length} services</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {!loadingCats && filteredGroups.length > 0 && (
-          <div className="home-service-directory">
-            <div className="home-directory-heading">
-              <div>
-                <p className="home-section-kicker">QUICK BROWSE</p>
-                <h3>What do you need help with?</h3>
-              </div>
-              <span>{filteredGroups.reduce((count, group) => count + group.categories.length, 0)} services</span>
-            </div>
-            {filteredGroups.map(group => (
-              <section className="home-directory-group" key={`directory-${group.name}`}>
-                <button className="home-directory-title" onClick={() => navigate('services', group.name)}>
-                  <span className="home-directory-icon" style={{ color: group.color }}><group.icon size={17} /></span>
-                  <strong>{group.name}</strong>
-                  <ChevronRight size={15} />
+      <section className="home-promo-carousel home-order-promo">
+        <div className="home-promo-slides" style={{ transform: `translateX(-${currentPromoIndex * 100}%)` }}>
+          {promoSlides.map((slide, index) => (
+            <div key={index} className="home-promo-card" style={{ background: slide.color }}>
+              <div className="home-promo-content">
+                <h2 className="home-promo-title">{slide.title}</h2>
+                <p className="home-promo-description">{slide.description}</p>
+                <button className="home-promo-btn" onClick={() => navigate('services')}>
+                  {slide.buttonText}
                 </button>
-                <div className="home-directory-items">
-                  {group.categories.map(category => (
-                    <button key={category} onClick={() => navigate('services', group.name, category)}>
-                      <span>{category}</span><ArrowRight size={13} />
-                    </button>
-                  ))}
-                </div>
-              </section>
+              </div>
+              <div className="home-promo-visual">
+                <div className="home-promo-placeholder">{slide.emoji}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        <div className="home-promo-controls">
+          <div className="home-promo-dots">
+            {promoSlides.map((_, index) => (
+              <button
+                key={index}
+                className={`home-promo-dot ${index === currentPromoIndex ? 'active' : ''}`}
+                onClick={() => setCurrentPromoIndex(index)}
+                aria-label={`Go to slide ${index + 1}`}
+              />
             ))}
           </div>
-        )}
-
-      </div>
-
-      <section className="home-provider-card home-order-provider">
-        <div className="home-provider-badge"><ShieldCheck size={24} /></div>
-        <div className="home-provider-copy">
-          <span className="home-section-kicker">BOOK WITH CONFIDENCE</span>
-          <h2>Trusted, verified providers.</h2>
-          <p>Every professional is reviewed and verified so you can choose help with peace of mind.</p>
-          <div className="home-provider-points"><span>✓ Verified profiles</span><span>✓ Real customer reviews</span></div>
         </div>
-        <div className="home-provider-pattern" aria-hidden="true"><span /><span /><span /></div>
       </section>
 
-      <div className="home-all-services">
-        <button onClick={() => navigate('services')}>
-          <span className="home-all-services-icon"><Wrench size={19} /></span>
-          <span><strong>Show all services</strong><small>Browse every service category</small></span>
-          <ArrowRight size={17} />
-        </button>
-      </div>
+      {/* Service Categories Section */}
+      <section className="home-featured-section home-order-categories">
+        <div className="home-section-head">
+          <h2>Service Categories</h2>
+          <button className="home-view-all" onClick={() => navigate('services')}>
+            View all <ChevronRight size={15} />
+          </button>
+        </div>
+        <div className="home-categories-grid-row">
+          {serviceCategoryItems.map(item => (
+            <button
+              key={item.id}
+              className="home-cat-item-card"
+              onClick={() => navigate('services', item.group, item.category)}
+            >
+              <div className="home-cat-item-left">
+                <div className="home-cat-icon-box">
+                  <item.icon size={22} strokeWidth={2.2} />
+                </div>
+                <span className="home-cat-title">{item.title}</span>
+              </div>
+              <ChevronRight size={15} className="home-cat-arrow" />
+            </button>
+          ))}
+        </div>
+      </section>
 
+      {/* Popular Services Section */}
+      <section className="home-featured-section home-order-popular">
+        <div className="home-section-head">
+          <h2>Popular Services</h2>
+          <button className="home-view-all" onClick={() => navigate('services')}>
+            View all <ChevronRight size={15} />
+          </button>
+        </div>
+        <div className="home-popular-scroll">
+          {popularServices.map(service => (
+            <div
+              key={service.id}
+              className="home-popular-card"
+              onClick={() => navigate('services', service.group, service.category)}
+            >
+              <div className="home-popular-img-wrap">
+                <img src={service.image} alt={service.title} className="home-popular-img" />
+              </div>
+              <div className="home-popular-body">
+                <div className="home-popular-rating">
+                  <Star size={13} className="home-popular-rating-star" />
+                  <span className="home-popular-rating-score">{service.rating}</span>
+                  <span className="home-popular-rating-count">({service.reviews} Reviews)</span>
+                </div>
+                <h3 className="home-popular-title">{service.title}</h3>
+                <div className="home-popular-price">{service.price}</div>
+                <div className="home-popular-footer">
+                  <div className="home-popular-avatar" style={{ background: service.avatarBg }}>
+                    {service.initials}
+                  </div>
+                  <span className="home-popular-provider-name">{service.provider}</span>
+                  <span className="home-popular-verified" title="Verified Provider">
+                    <CheckCircle2 size={15} />
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Top Professionals Section */}
+      <section className="home-featured-section home-order-pros">
+        <div className="home-section-head">
+          <h2>Top Professionals</h2>
+          <button className="home-view-all" onClick={() => navigate('services')}>
+            View all <ChevronRight size={15} />
+          </button>
+        </div>
+        <div className="home-pros-scroll">
+          {topProfessionals.map(pro => (
+            <div
+              key={pro.id}
+              className="home-pro-card"
+              onClick={() => navigate('services', pro.group, pro.category)}
+            >
+              <div className="home-pro-header">
+                <div className="home-pro-avatar-wrap">
+                  <img src={pro.image} alt={pro.name} className="home-pro-avatar" />
+                  <span className="home-pro-verified-badge" title="Verified Professional">
+                    <CheckCircle2 size={12} />
+                  </span>
+                </div>
+                <div className="home-pro-info">
+                  <h3 className="home-pro-name">{pro.name}</h3>
+                  <span className="home-pro-title-label">{pro.title}</span>
+                  <div className="home-pro-distance">
+                    <MapPin size={11} />
+                    <span>{pro.distance}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="home-pro-stats-row">
+                <div className="home-pro-rating">
+                  <Star size={13} className="home-pro-star" />
+                  <strong>{pro.rating}</strong>
+                  <span>({pro.reviews})</span>
+                </div>
+                <div className="home-pro-rate">{pro.hourlyRate}</div>
+              </div>
+
+              <button
+                type="button"
+                className="home-pro-action-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate('services', pro.group, pro.category);
+                }}
+              >
+                <span>Book Service</span>
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* How Our App Works Section */}
+      <section className="home-how-it-works-section home-order-workflow">
+        <div className="home-section-head" style={{ padding: 0 }}>
+          <div>
+            <span className="home-section-kicker">SIMPLE & FAST</span>
+            <h2>How Our App Works</h2>
+          </div>
+        </div>
+
+        <div className="home-steps-container">
+          <div className="home-step-card">
+            <div className="home-step-top">
+              <div className="home-step-icon-wrap step-orange">
+                <Search size={22} />
+              </div>
+              <span className="home-step-number">01</span>
+            </div>
+            <h3 className="home-step-title">Choose a Service</h3>
+            <p className="home-step-desc">
+              Browse categories or search for the exact service you need in seconds.
+            </p>
+          </div>
+
+          <div className="home-step-card">
+            <div className="home-step-top">
+              <div className="home-step-icon-wrap step-teal">
+                <UserRoundCheck size={22} />
+              </div>
+              <span className="home-step-number">02</span>
+            </div>
+            <h3 className="home-step-title">Book a Verified Pro</h3>
+            <p className="home-step-desc">
+              Connect with background-checked, top-rated local professionals.
+            </p>
+          </div>
+
+          <div className="home-step-card">
+            <div className="home-step-top">
+              <div className="home-step-icon-wrap step-blue">
+                <CheckCircle2 size={22} />
+              </div>
+              <span className="home-step-number">03</span>
+            </div>
+            <h3 className="home-step-title">Track & Enjoy</h3>
+            <p className="home-step-desc">
+              Track work status in real time and enjoy guaranteed satisfaction.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Trust Highlights Section */}
+      <section className="home-trust-banner home-order-trust">
+        <div className="home-trust-item">
+          <div className="home-trust-icon-box">
+            <ShieldCheck size={26} strokeWidth={1.9} />
+          </div>
+          <span className="home-trust-label">Verified Professionals</span>
+        </div>
+
+        <div className="home-trust-divider" />
+
+        <div className="home-trust-item">
+          <div className="home-trust-icon-box">
+            <BadgePercent size={26} strokeWidth={1.9} />
+          </div>
+          <span className="home-trust-label">Transparent Pricing</span>
+        </div>
+
+        <div className="home-trust-divider" />
+
+        <div className="home-trust-item">
+          <div className="home-trust-icon-box">
+            <Award size={26} strokeWidth={1.9} />
+          </div>
+          <span className="home-trust-label">Up to 30 Days Warranty</span>
+        </div>
+
+        <div className="home-trust-divider" />
+
+        <div className="home-trust-item">
+          <div className="home-trust-icon-box">
+            <Navigation size={26} strokeWidth={1.9} />
+          </div>
+          <span className="home-trust-label">Live Tracking</span>
+        </div>
+      </section>
     </div>
   );
 }
