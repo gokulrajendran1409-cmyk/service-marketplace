@@ -1,40 +1,60 @@
-import { useState } from 'react';
-import { Wrench, Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowRight, ChevronRight, Eye, EyeOff, Loader2, Mail, Phone, ShieldCheck, User, Lock } from 'lucide-react';
 import { useToast, Toast } from '../components/Toast';
+import { API } from '../constants';
 
-const API = 'https://service-marketplace-af7p.onrender.com/api/auth';
+// The API base for auth (strip the /user suffix)
+const AUTH_API = API.replace('/api/user', '/api/auth');
 
-function Auth({ onLogin }) {
-  const [isLogin, setIsLogin] = useState(true);
+export default function Auth({ onLogin }) {
+  const [mode, setMode] = useState('login');      // 'login' | 'register'
   const [loading, setLoading] = useState(false);
+  const [showPass, setShowPass] = useState(false);
   const { toast, showToast } = useToast();
 
-  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [regForm, setRegForm] = useState({ name: '', email: '', phone: '', password: '' });
 
-  const handleChange = (e) => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
-
-  const handleSubmit = async (e) => {
+  // ── LOGIN ──────────────────────────────────────────────────────────────────
+  const handleLogin = async (e) => {
     e.preventDefault();
+    if (!loginForm.email || !loginForm.password) {
+      showToast('Please enter email and password', 'error');
+      return;
+    }
     setLoading(true);
-
     try {
-      const endpoint = isLogin ? '/login' : '/register';
-      const payload = isLogin
-        ? { email: form.email, password: form.password }
-        : form;
-
-      const res = await fetch(`${API}${endpoint}`, {
+      const res = await fetch(`${AUTH_API}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(loginForm),
       });
-
       const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Login failed');
+      onLogin(data.user, data.token);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      if (!res.ok) {
-        throw new Error(data.message || 'Authentication failed');
-      }
-
+  // ── REGISTER ───────────────────────────────────────────────────────────────
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    if (!regForm.name || !regForm.email || !regForm.phone || !regForm.password) {
+      showToast('All fields are required', 'error');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${AUTH_API}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(regForm),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Registration failed');
       onLogin(data.user, data.token);
     } catch (err) {
       showToast(err.message, 'error');
@@ -44,59 +64,171 @@ function Auth({ onLogin }) {
   };
 
   return (
-    <div className="registration-wrapper">
-      <div className="registration-card fade-up">
-        <div className="brand-header">
-          <div className="brand-icon">
-            <Wrench size={24} />
-          </div>
-          <h1>{isLogin ? 'Welcome back' : 'Create an account'}</h1>
-          <p>{isLogin ? 'Sign in to book and manage services' : 'Join ServiceHub to find the best professionals'}</p>
+    <div className="min-h-screen bg-[#FFFBF0] flex flex-col items-center justify-center px-6 py-10 font-['Inter',sans-serif]">
+
+      {/* Logo / Brand */}
+      <div className="flex flex-col items-center mb-8">
+        <div className="w-16 h-16 bg-[#2E7D32] rounded-[20px] flex items-center justify-center mb-4 shadow-[0_8px_20px_rgba(46,125,50,0.3)]">
+          <ShieldCheck size={32} color="white" strokeWidth={2} />
         </div>
+        <h1 className="text-[28px] font-bold text-[#0A3D0A] tracking-[-0.02em]">Seva</h1>
+        <p className="text-[13px] font-medium text-gray-500 mt-1">Trusted home services near you</p>
+      </div>
 
-        <form onSubmit={handleSubmit} className="form-grid" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {!isLogin && (
-            <>
-              <div className="form-group">
-                <label>Full Name</label>
-                <input className="form-input" name="name" type="text" required value={form.name} onChange={handleChange} />
-              </div>
-              <div className="form-group">
-                <label>Phone Number</label>
-                <input className="form-input" name="phone" type="tel" required value={form.phone} onChange={handleChange} />
-              </div>
-            </>
-          )}
+      {/* Tab switcher */}
+      <div className="flex bg-white border border-gray-100 rounded-[16px] p-1 mb-6 w-full max-w-[340px] shadow-sm">
+        {['login', 'register'].map(m => (
+          <button key={m} onClick={() => setMode(m)}
+            className={`flex-1 py-2.5 rounded-[12px] text-[14px] font-bold transition-all capitalize ${
+              mode === m ? 'bg-[#2E7D32] text-white shadow-sm' : 'text-gray-500'
+            }`}>
+            {m === 'login' ? 'Sign In' : 'Sign Up'}
+          </button>
+        ))}
+      </div>
 
-          <div className="form-group">
-            <label>Email Address</label>
-            <input className="form-input" name="email" type="email" required value={form.email} onChange={handleChange} />
+      {/* ── LOGIN FORM ── */}
+      {mode === 'login' && (
+        <form onSubmit={handleLogin} className="w-full max-w-[340px] flex flex-col gap-4">
+          <div>
+            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Email Address</label>
+            <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-[14px] px-4 py-3.5 focus-within:border-[#2E7D32] transition-colors">
+              <Mail size={17} className="text-gray-400 shrink-0" />
+              <input
+                type="email"
+                value={loginForm.email}
+                onChange={e => setLoginForm(p => ({ ...p, email: e.target.value }))}
+                placeholder="you@example.com"
+                required
+                className="flex-1 outline-none bg-transparent text-[14px] font-medium text-gray-800 placeholder-gray-400"
+              />
+            </div>
           </div>
 
-          <div className="form-group">
-            <label>Password</label>
-            <input className="form-input" name="password" type="password" required value={form.password} onChange={handleChange} />
+          <div>
+            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Password</label>
+            <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-[14px] px-4 py-3.5 focus-within:border-[#2E7D32] transition-colors">
+              <Lock size={17} className="text-gray-400 shrink-0" />
+              <input
+                type={showPass ? 'text' : 'password'}
+                value={loginForm.password}
+                onChange={e => setLoginForm(p => ({ ...p, password: e.target.value }))}
+                placeholder="Your password"
+                required
+                className="flex-1 outline-none bg-transparent text-[14px] font-medium text-gray-800 placeholder-gray-400"
+              />
+              <button type="button" onClick={() => setShowPass(v => !v)} className="text-gray-400">
+                {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
 
-          <button type="submit" className="submit-btn" disabled={loading}>
-            {loading ? <Loader2 size={18} className="spin" style={{ display: 'inline' }} /> : (isLogin ? 'Sign In' : 'Create Account')}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full h-14 bg-[#FF7A00] text-white rounded-[16px] text-[15px] font-bold flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(255,111,0,0.3)] active:scale-[0.98] transition-all disabled:opacity-60 mt-2">
+            {loading
+              ? <Loader2 size={20} className="animate-spin" />
+              : <><span>Sign In</span><ArrowRight size={18} strokeWidth={2.5} /></>
+            }
           </button>
         </form>
+      )}
 
-        <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '14px', color: 'var(--text-secondary)' }}>
-          {isLogin ? "Don't have an account? " : "Already have an account? "}
+      {/* ── REGISTER FORM ── */}
+      {mode === 'register' && (
+        <form onSubmit={handleRegister} className="w-full max-w-[340px] flex flex-col gap-4">
+          <div>
+            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Full Name</label>
+            <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-[14px] px-4 py-3.5 focus-within:border-[#2E7D32] transition-colors">
+              <User size={17} className="text-gray-400 shrink-0" />
+              <input
+                type="text"
+                value={regForm.name}
+                onChange={e => setRegForm(p => ({ ...p, name: e.target.value }))}
+                placeholder="Your full name"
+                required
+                className="flex-1 outline-none bg-transparent text-[14px] font-medium text-gray-800 placeholder-gray-400"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Email Address</label>
+            <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-[14px] px-4 py-3.5 focus-within:border-[#2E7D32] transition-colors">
+              <Mail size={17} className="text-gray-400 shrink-0" />
+              <input
+                type="email"
+                value={regForm.email}
+                onChange={e => setRegForm(p => ({ ...p, email: e.target.value }))}
+                placeholder="you@example.com"
+                required
+                className="flex-1 outline-none bg-transparent text-[14px] font-medium text-gray-800 placeholder-gray-400"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Phone Number</label>
+            <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-[14px] px-4 py-3.5 focus-within:border-[#2E7D32] transition-colors">
+              <Phone size={17} className="text-gray-400 shrink-0" />
+              <input
+                type="tel"
+                value={regForm.phone}
+                onChange={e => setRegForm(p => ({ ...p, phone: e.target.value }))}
+                placeholder="+91 98765 43210"
+                required
+                className="flex-1 outline-none bg-transparent text-[14px] font-medium text-gray-800 placeholder-gray-400"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Password</label>
+            <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-[14px] px-4 py-3.5 focus-within:border-[#2E7D32] transition-colors">
+              <Lock size={17} className="text-gray-400 shrink-0" />
+              <input
+                type={showPass ? 'text' : 'password'}
+                value={regForm.password}
+                onChange={e => setRegForm(p => ({ ...p, password: e.target.value }))}
+                placeholder="Create a password"
+                required
+                className="flex-1 outline-none bg-transparent text-[14px] font-medium text-gray-800 placeholder-gray-400"
+              />
+              <button type="button" onClick={() => setShowPass(v => !v)} className="text-gray-400">
+                {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
           <button
-            type="button"
-            onClick={() => setIsLogin(!isLogin)}
-            style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', fontWeight: '600', cursor: 'pointer' }}
-          >
-            {isLogin ? 'Sign up' : 'Sign in'}
+            type="submit"
+            disabled={loading}
+            className="w-full h-14 bg-[#FF7A00] text-white rounded-[16px] text-[15px] font-bold flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(255,111,0,0.3)] active:scale-[0.98] transition-all disabled:opacity-60 mt-2">
+            {loading
+              ? <Loader2 size={20} className="animate-spin" />
+              : <><span>Create Account</span><ArrowRight size={18} strokeWidth={2.5} /></>
+            }
           </button>
+        </form>
+      )}
+
+      {/* Trust badge */}
+      <aside className="mt-8 bg-[#E8F5E9] border border-[#C8E6C9] rounded-[18px] p-4 flex gap-3 items-start w-full max-w-[340px]">
+        <ShieldCheck size={20} className="text-[#2E7D32] shrink-0 mt-0.5" />
+        <div>
+          <p className="text-[13px] font-bold text-[#0A3D0A] mb-0.5">Verified & Secure</p>
+          <p className="text-[11px] font-medium text-[#4A6B4A] leading-snug">
+            Access 1000+ background-verified experts across Kerala. Your data is always protected.
+          </p>
         </div>
-      </div>
+      </aside>
+
+      <p className="text-[10px] font-bold text-gray-400 tracking-[0.15em] uppercase mt-8">
+        TRUSTED BY 50,000+ HOUSEHOLDS IN KERALA
+      </p>
+
       <Toast toast={toast} />
     </div>
   );
 }
-
-export default Auth;

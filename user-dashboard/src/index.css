@@ -1,69 +1,46 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
 
-:root {
-  --bg-base: #FFF9F5;
-  --bg-surface: #FFFFFF;
-  --bg-surface-hover: #FFF4EC;
-
-  --text-primary: #1C1917;
-  --text-secondary: #78716C;
-  --text-muted: #A8A29E;
-
-  --border-light: #E7E5E4;
-  --border-focus: rgba(249, 115, 22, 0.4);
-
-  --accent-primary: #F97316;
-  --accent-hover: #EA580C;
-  --accent-dark: #EA580C;
-  --accent-light: #FFEDD5;
-  --accent-gradient: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
-  --accent-glow: rgba(249, 115, 22, 0.15);
-
-  --success: #16A34A;
-  --warning: #F59E0B;
-  --error: #DC2626;
-
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
-  --shadow-glow: 0 0 30px var(--accent-glow);
-  --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(249,115,22,0.06);
+@theme {
+  --font-sans: "Inter", system-ui, sans-serif;
+  --color-primary: #2E7D32;
+  --color-primary-dark: #0A3D0A;
+  --color-bg-cream: #FFFBF0;
+  --color-orange-cta: #FF6F00;
 }
 
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+:root {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: var(--color-bg-cream);
+  color: var(--color-primary-dark);
 }
 
 body {
-  font-family: var(--font-sans);
-  background-color: var(--bg-base);
-  color: var(--text-primary);
-  -webkit-font-smoothing: antialiased;
+  margin: 0;
+  min-width: 320px;
+  background-color: #FFFBF0;
+}
+
+.app-layout {
+  width: 100%;
+  max-width: 430px;
   min-height: 100vh;
+  margin: 0 auto;
+  background: #FFFBF0;
+  box-shadow: 0 0 42px rgba(38, 68, 37, 0.09);
+  position: relative;
 }
 
-a { color: inherit; text-decoration: none; }
-ul { list-style: none; }
-button { font-family: inherit; cursor: pointer; }
-
-h1, h2, h3, h4, h5, h6 {
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 1.2;
+.app-content {
+  min-height: 100vh;
+  padding-bottom: 80px; /* space for bottom nav */
 }
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+/* Hide scrollbar for horizontal scrolling elements */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }
-.spin { animation: spin 1s linear infinite; }
-
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0); }
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
-.fade-up { animation: fadeUp 0.4s ease forwards; }

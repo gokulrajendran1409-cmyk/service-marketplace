@@ -1,223 +1,159 @@
-import { useEffect, useState } from 'react';
-import { ArrowRight, Bell, CalendarCheck, CheckCircle2, ChevronRight, ClipboardList, MapPin, RefreshCw, Search, ShieldCheck, Sparkles, UserRoundCheck, Wrench } from 'lucide-react';
-import { serviceGroups, API } from '../constants';
-import workflowImage from '../assets/hero_home.png';
+import React from 'react';
+import { MapPin, Bell, Search, Shield, Zap, Star, SlidersHorizontal } from 'lucide-react';
+import cleaningIcon from '../assets/services/cleaning.png';
+import electricianIcon from '../assets/services/electrician.png';
+import plumbingIcon from '../assets/services/plumbing.png';
+import paintingIcon from '../assets/services/painting.png';
+import gardeningIcon from '../assets/services/gardening.png';
+import appliancesIcon from '../assets/services/appliances.png';
+import rajeshAvatar from '../assets/experts/rajesh.png';
+import arjunAvatar from '../assets/experts/arjun.png';
+import onamBanner from '../assets/banners/onam_banner.png';
 
-function Home({ navigate }) {
-  const [categories, setCategories] = useState([]);
-  const [loadingCats, setLoadingCats] = useState(true);
-  const [locationName, setLocationName] = useState('Detecting location...');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [userName, setUserName] = useState('there');
+const services = [
+  { id: 'cleaning', name: 'Cleaning', icon: cleaningIcon },
+  { id: 'electrician', name: 'Electrician', icon: electricianIcon },
+  { id: 'plumbing', name: 'Plumbing', icon: plumbingIcon },
+  { id: 'painting', name: 'Painting', icon: paintingIcon },
+  { id: 'gardening', name: 'Gardening', icon: gardeningIcon },
+  { id: 'appliances', name: 'Appliances', icon: appliancesIcon },
+];
 
-  useEffect(() => {
-    try {
-      const savedUser = JSON.parse(localStorage.getItem('userData') || '{}');
-      setUserName(savedUser.name?.split(' ')[0] || 'there');
-    } catch {
-      setUserName('there');
-    }
-  }, []);
+const featuredExperts = [
+  { id: 1, name: 'Rajesh Kumar', role: 'Expert Electrician', avatar: rajeshAvatar, rating: '4.9', price: '450' },
+  { id: 2, name: 'Suresh Menon', role: 'Pro Plumber', avatar: arjunAvatar, rating: '4.8', price: '399' }
+];
 
-  useEffect(() => {
-    // Load categories from backend (same as Services.jsx)
-    fetch(`${API}/categories`)
-      .then(r => r.json())
-      .then(data => setCategories(data))
-      .catch(() => {})
-      .finally(() => setLoadingCats(false));
-
-    // Detect location name
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&zoom=10`)
-            .then(r => r.json())
-            .then(data => {
-              const addr = data.address || {};
-              const place = addr.city || addr.town || addr.village || addr.county || 'Your location';
-              const state = addr.state || '';
-              setLocationName(state ? `${place}, ${state}` : place);
-            })
-            .catch(() => setLocationName('Location found'));
-        },
-        () => setLocationName('Location unavailable')
-      );
-    } else {
-      setLocationName('Location unavailable');
-    }
-  }, []);
-
-  const filteredGroups = serviceGroups.filter(group => {
-    const query = searchQuery.toLowerCase();
-    return group.name.toLowerCase().includes(query)
-      || group.categories.some(category => category.toLowerCase().includes(query));
-  });
-
-  const submitSearch = (event) => {
-    event.preventDefault();
-    navigate('services');
-  };
-
+export default function Home({ navigate }) {
   return (
-    <div className="home-app-root">
-      <div className="home-topbar home-order-topbar">
-        <div className="home-location-pill">
-          <MapPin size={15} className="home-location-icon" />
-          <span className="home-location-text">{locationName}</span>
-          <ChevronRight size={14} style={{ color: 'var(--text-muted)', marginLeft: 2 }} />
-        </div>
-        <button className="home-bell-btn" onClick={() => navigate('notifications')} title="Notifications">
-          <Bell size={18} />
-        </button>
-      </div>
-
-      <section className="home-welcome home-order-welcome">
-        <div>
-          <p className="home-eyebrow">SERVICEHUB <span>•</span> YOUR LOCAL HELP</p>
-          <h1>What can we<br /><em>fix</em> for you, {userName}?</h1>
-          <p className="home-welcome-sub">Book trusted professionals for the jobs that keep your day moving.</p>
-        </div>
-        <div className="home-welcome-mark"><Sparkles size={22} /></div>
-      </section>
-
-      <form className="home-search-wrap home-order-search" onSubmit={submitSearch}>
-        <div className="home-search-bar">
-          <Search size={16} className="home-search-icon" />
-          <input
-            className="home-search-input"
-            placeholder="Search for services..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-          />
-          <button type="submit" className="home-search-submit" aria-label="Search services">
-            <ArrowRight size={17} />
+    <div className="pt-8 px-5 bg-[#FFFBF0] min-h-screen pb-32 font-['Inter',sans-serif]">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col">
+          <span className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-1">Location</span>
+          <button className="flex items-center gap-1.5 text-[#2E7D32]">
+            <MapPin size={16} strokeWidth={2.5} />
+            <span className="font-bold text-[15px] text-[#0A3D0A]">Kochi, Kerala</span>
           </button>
         </div>
-      </form>
-
-      <section className="home-quick-actions home-order-actions">
-        <button className="home-quick-action" onClick={() => navigate('services')}>
-          <span className="home-quick-icon quick-orange"><CalendarCheck size={20} /></span>
-          <span><strong>Book a service</strong><small>Find your expert</small></span>
-          <ChevronRight size={16} />
+        <button className="w-11 h-11 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center text-[#2E7D32] relative">
+          <Bell size={20} strokeWidth={2} />
+          <span className="absolute top-3 right-3 w-2 h-2 bg-[#FF6F00] rounded-full border border-white"></span>
         </button>
-        <button className="home-quick-action" onClick={() => navigate('requests')}>
-          <span className="home-quick-icon quick-blue"><ClipboardList size={20} /></span>
-          <span><strong>Track a request</strong><small>See your bookings</small></span>
-          <ChevronRight size={16} />
+      </div>
+
+      {/* Search Bar */}
+      <div className="flex items-center gap-3 bg-white p-4 rounded-2xl shadow-sm mb-7 border border-gray-100">
+        <Search size={20} className="text-gray-400" strokeWidth={2.5} />
+        <input 
+          type="text" 
+          placeholder="Search for 'Electrician' or 'Plumber'..." 
+          className="bg-transparent border-none outline-none text-[14px] font-medium w-full text-gray-800 placeholder-gray-400"
+        />
+        <div className="w-[1px] h-5 bg-gray-200 mx-1"></div>
+        <button className="text-[#2E7D32]">
+          <SlidersHorizontal size={20} strokeWidth={2.5} />
         </button>
-      </section>
+      </div>
 
-      <section className="home-how-it-works home-order-workflow">
-        <div className="home-section-header">
-          <div><p className="home-section-kicker">SIMPLE FROM START TO FINISH</p><h2 className="home-section-title">How ServiceHub works</h2></div>
-          <div className="home-workflow-visual"><img src={workflowImage} alt="Home service workflow" /></div>
+      {/* Onam Banner */}
+      <div 
+        className="w-full h-[180px] rounded-[24px] bg-gradient-to-r from-[#1B5E20] to-[#2E7D32] mb-8 relative overflow-hidden p-6 flex flex-col justify-center shadow-md"
+        style={{ backgroundImage: `url(${onamBanner})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+      >
+        <div className="absolute inset-0 bg-black/30 rounded-[24px]"></div>
+        <div className="relative z-10 text-white">
+          <span className="bg-[#FF6F00] text-[10px] font-bold px-2.5 py-1 rounded-md mb-3 inline-block tracking-wide shadow-sm">
+            ONAM SPECIAL
+          </span>
+          <h2 className="text-[22px] font-bold leading-tight max-w-[220px] tracking-[-0.02em]">Get 20% OFF on All Home Services</h2>
+          <p className="text-[12px] mt-2 font-medium opacity-90 max-w-[200px]">Book now to celebrate with a sparkling home!</p>
         </div>
-        <div className="home-workflow-steps">
-          <div className="home-workflow-step">
-            <span className="home-workflow-number">01</span>
-            <div className="home-workflow-icon workflow-orange"><CalendarCheck size={19} /></div>
-            <strong>Book a service</strong>
-            <p>Choose what you need and send your request in a few taps.</p>
-          </div>
-          <div className="home-workflow-line" />
-          <div className="home-workflow-step">
-            <span className="home-workflow-number">02</span>
-            <div className="home-workflow-icon workflow-teal"><UserRoundCheck size={19} /></div>
-            <strong>Get a provider</strong>
-            <p>A verified professional reviews your request and reaches out.</p>
-          </div>
-          <div className="home-workflow-line" />
-          <div className="home-workflow-step">
-            <span className="home-workflow-number">03</span>
-            <div className="home-workflow-icon workflow-blue"><CheckCircle2 size={19} /></div>
-            <strong>Track the work</strong>
-            <p>Stay updated from assignment to completion, all in one place.</p>
-          </div>
+      </div>
+
+      {/* Services Grid */}
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-5">
+          <h2 className="text-[20px] font-bold text-[#0A3D0A] tracking-[-0.02em]">Our Services</h2>
+          <button className="text-[13px] font-semibold text-[#2E7D32] flex items-center gap-1 active:opacity-70">
+            View All →
+          </button>
         </div>
-      </section>
-
-      <div className="home-section home-services-section home-order-services">
-        <div className="home-section-header">
-          <div><p className="home-section-kicker">EXPLORE</p><h2 className="home-section-title">Services for every job</h2></div>
-          <button className="home-view-all" onClick={() => navigate('services')}>See all <ArrowRight size={14} /></button>
-        </div>
-
-        {loadingCats ? (
-          <div className="home-loading">
-            <RefreshCw size={24} className="spin" style={{ color: 'var(--text-muted)' }} />
-          </div>
-        ) : (
-          <div className="home-categories-grid">
-            {filteredGroups.map(group => (
-              <button
-                key={group.name}
-                className="home-category-card"
-                onClick={() => navigate('services', group.name)}
-                aria-label={`Open ${group.name} services`}
-              >
-                <div className="home-category-icon-wrap">
-                  <group.icon className="home-category-icon" size={28} strokeWidth={2} style={{ color: group.color }} />
-                </div>
-                <div className="home-category-label">{group.name}</div>
-                <span className="home-category-count">{group.categories.length} services</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {!loadingCats && filteredGroups.length > 0 && (
-          <div className="home-service-directory">
-            <div className="home-directory-heading">
-              <div>
-                <p className="home-section-kicker">QUICK BROWSE</p>
-                <h3>What do you need help with?</h3>
+        <div className="grid grid-cols-3 gap-4">
+          {services.map(service => (
+            <button 
+              key={service.id} 
+              onClick={() => navigate('services')}
+              className="flex flex-col items-center bg-white pt-4 pb-3 rounded-[20px] shadow-sm border border-gray-100 transition-all active:scale-95 hover:shadow-md"
+            >
+              <div className="w-[56px] h-[56px] rounded-xl bg-[#FFFBF0] flex items-center justify-center mb-2 overflow-hidden">
+                <img src={service.icon} alt={service.name} className="w-[32px] h-[32px] object-contain" />
               </div>
-              <span>{filteredGroups.reduce((count, group) => count + group.categories.length, 0)} services</span>
-            </div>
-            {filteredGroups.map(group => (
-              <section className="home-directory-group" key={`directory-${group.name}`}>
-                <button className="home-directory-title" onClick={() => navigate('services', group.name)}>
-                  <span className="home-directory-icon" style={{ color: group.color }}><group.icon size={17} /></span>
-                  <strong>{group.name}</strong>
-                  <ChevronRight size={15} />
-                </button>
-                <div className="home-directory-items">
-                  {group.categories.map(category => (
-                    <button key={category} onClick={() => navigate('services', group.name, category)}>
-                      <span>{category}</span><ArrowRight size={13} />
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        )}
-
-      </div>
-
-      <section className="home-provider-card home-order-provider">
-        <div className="home-provider-badge"><ShieldCheck size={24} /></div>
-        <div className="home-provider-copy">
-          <span className="home-section-kicker">BOOK WITH CONFIDENCE</span>
-          <h2>Trusted, verified providers.</h2>
-          <p>Every professional is reviewed and verified so you can choose help with peace of mind.</p>
-          <div className="home-provider-points"><span>✓ Verified profiles</span><span>✓ Real customer reviews</span></div>
+              <span className="text-[12px] font-semibold text-[#0A3D0A]">{service.name}</span>
+            </button>
+          ))}
         </div>
-        <div className="home-provider-pattern" aria-hidden="true"><span /><span /><span /></div>
-      </section>
-
-      <div className="home-all-services">
-        <button onClick={() => navigate('services')}>
-          <span className="home-all-services-icon"><Wrench size={19} /></span>
-          <span><strong>Show all services</strong><small>Browse every service category</small></span>
-          <ArrowRight size={17} />
-        </button>
       </div>
 
+      {/* Featured Experts */}
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-5">
+          <h2 className="text-[20px] font-bold text-[#0A3D0A] tracking-[-0.02em]">Featured Experts</h2>
+          <span className="text-[11px] font-bold text-[#2E7D32] bg-[#E8F5E9] px-2.5 py-1 rounded-full flex items-center gap-1">
+            ↗ High Rated
+          </span>
+        </div>
+        <div className="flex gap-4 overflow-x-auto hide-scrollbar -mx-5 px-5 pb-4">
+          {featuredExperts.map(expert => (
+            <div key={expert.id} className="min-w-[200px] bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden flex-shrink-0">
+              <div className="h-[120px] w-full bg-gray-100 relative">
+                <img src={expert.avatar} alt={expert.name} className="w-full h-full object-cover" />
+                <div className="absolute top-3 right-3 bg-white rounded-full p-1.5 shadow-sm">
+                  <Shield size={16} className="text-[#2E7D32]" />
+                </div>
+              </div>
+              <div className="p-4">
+                <div className="flex justify-between items-start mb-1.5">
+                  <h3 className="text-[15px] font-bold text-[#0A3D0A] tracking-[-0.01em]">{expert.name}</h3>
+                  <div className="flex items-center gap-1 text-[11px] font-bold text-[#FF7A00]">
+                    <Star size={12} fill="#FF7A00" color="#FF7A00" /> {expert.rating}
+                  </div>
+                </div>
+                <p className="text-[12px] font-medium text-gray-500 mb-4">{expert.role}</p>
+                <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                  <div className="text-[14px] font-bold text-[#2E7D32]">
+                    Rs. {expert.price}<span className="text-[11px] font-medium text-gray-500">/hr</span>
+                  </div>
+                  <button className="text-[12px] font-bold text-[#2E7D32] bg-white border-2 border-[#2E7D32] rounded-xl px-4 py-1.5 active:bg-[#2E7D32] active:text-white transition-colors">
+                    Book
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Why choose Seva */}
+      <div>
+        <h2 className="text-[18px] font-bold text-[#0A3D0A] mb-4 tracking-[-0.02em]">Why choose Seva?</h2>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-[#E8F5E9] rounded-[20px] p-4 flex gap-3 items-start border border-[#C8E6C9]">
+            <Shield size={20} className="text-[#2E7D32] shrink-0 mt-0.5" strokeWidth={2.5} />
+            <div className="flex flex-col">
+              <span className="text-[13px] font-bold text-[#1B3A1B] mb-1">Verified Experts</span>
+              <span className="text-[11px] font-medium text-[#4A6B4A] leading-snug">100% background checked professionals.</span>
+            </div>
+          </div>
+          <div className="bg-[#FFF3E0] rounded-[20px] p-4 flex gap-3 items-start border border-[#FFE0B2]">
+            <Zap size={20} className="text-[#FF7A00] shrink-0 mt-0.5" strokeWidth={2.5} />
+            <div className="flex flex-col">
+              <span className="text-[13px] font-bold text-[#E65100] mb-1">Instant Booking</span>
+              <span className="text-[11px] font-medium text-[#B26A00] leading-snug">Book a service in under 60 seconds.</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
-
-export default Home;

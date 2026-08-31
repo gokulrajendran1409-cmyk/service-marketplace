@@ -1,394 +1,246 @@
-import { useEffect, useState } from 'react';
-import { ArrowLeft, BriefcaseBusiness, CheckCircle2, ChevronRight, Link, MapPin, RefreshCw, Star, Tags } from 'lucide-react';
-import { categoryColors, categoryIcons, serviceGroups, API } from '../constants';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, ArrowRight, BadgeCheck, CalendarDays, CheckCircle2, ChevronRight, Clock3, LocateFixed, MapPin, Search, ShieldCheck, Sparkles, Star, UserRound, Wrench, Zap, SlidersHorizontal } from 'lucide-react';
+import { API } from '../constants';
 import { BookingModal } from '../components/BookingModal';
-import { useToast, Toast } from '../components/Toast';
+import rajesh from '../assets/experts/rajesh.png';
 
-function Services({ navigate, initialGroup = null, initialCategory = null }) {
-  const [categories, setCategories] = useState([]);
-  const [selected, setSelected] = useState(null);
-  const [professionals, setProfessionals] = useState([]);
-  const [loadingCats, setLoadingCats] = useState(true);
-  const [loadingPros, setLoadingPros] = useState(false);
-  const [location, setLocation] = useState(null);
-  const [locationStatus, setLocationStatus] = useState('idle');
-  const [locationError, setLocationError] = useState('');
-  const [booking, setBooking] = useState(null); // { professional, category }
-  const [profileProfessional, setProfileProfessional] = useState(null);
-  const { toast, showToast } = useToast();
-  const nearbyLimitKm = 15;
+const FALLBACK_SERVICES = [
+  { id: 'cleaning', name: 'Cleaning', description: 'Deep cleaning for your home' }, { id: 'electrical', name: 'Electrical', description: 'Safe repairs by verified electricians' },
+  { id: 'plumbing', name: 'Plumbing', description: 'Leaks, installations and repairs' }, { id: 'painting', name: 'Painting', description: 'Freshen up every room' },
+  { id: 'gardening', name: 'Gardening & Landscaping', description: 'Care for your outdoor space' }, { id: 'appliances', name: 'AC & Appliance Repair', description: 'Trusted appliance specialists' },
+];
+const iconFor = (name) => /electric/i.test(name) ? Zap : /plumb/i.test(name) ? Wrench : /clean/i.test(name) ? Sparkles : Wrench;
+const rate = (pro) => Number(pro.wage) || 399;
 
-  const calculateDistanceInKm = (firstLatitude, firstLongitude, secondLatitude, secondLongitude) => {
-    if (![firstLatitude, firstLongitude, secondLatitude, secondLongitude].every(Number.isFinite)) return null;
-    const earthRadiusKm = 6371;
-    const latitudeDelta = (secondLatitude - firstLatitude) * Math.PI / 180;
-    const longitudeDelta = (secondLongitude - firstLongitude) * Math.PI / 180;
-    const latitude1 = firstLatitude * Math.PI / 180;
-    const latitude2 = secondLatitude * Math.PI / 180;
-    const haversine = Math.sin(latitudeDelta / 2) ** 2
-      + Math.cos(latitude1) * Math.cos(latitude2) * Math.sin(longitudeDelta / 2) ** 2;
-    return earthRadiusKm * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
-  };
-
-  useEffect(() => {
+export default function Services({ navigate, initialCategory }) {
+  const [categories, setCategories] = useState([]); 
+  const [selected, setSelected] = useState(null); 
+  const [experts, setExperts] = useState([]);
+  const [loading, setLoading] = useState(true); 
+  const [expertLoading, setExpertLoading] = useState(false); 
+  const [booking, setBooking] = useState(null); 
+  const [search, setSearch] = useState('');
+  
+  const visible = useMemo(() => categories.filter(item => item.name.toLowerCase().includes(search.toLowerCase())), [categories, search]);
+  
+  useEffect(() => { 
     fetch(`${API}/categories`)
-      .then(r => r.json())
-      .then(data => setCategories(data))
-      .catch(() => showToast('Failed to load categories', 'error'))
-      .finally(() => setLoadingCats(false));
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setCategories(Array.isArray(data) && data.length ? data : FALLBACK_SERVICES))
+      .catch(() => setCategories(FALLBACK_SERVICES))
+      .finally(() => setLoading(false)); 
   }, []);
-
-  const requestLocation = () => new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Location services are not supported by this browser.'));
-      return;
-    }
-
-    setLocationStatus('requesting');
-    setLocationError('');
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const current = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: Math.round(position.coords.accuracy),
-          placeName: ''
-        };
-        // Resolve immediately with coordinates, don't wait for reverse geocoding
-        setLocation(current);
-        setLocationStatus('ready');
-        resolve(current);
-
-        // Fetch place name in the background
-        fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${current.latitude}&lon=${current.longitude}&zoom=18&addressdetails=1`)
-          .then(response => {
-            if (!response.ok) throw new Error('Reverse geocoding failed');
-            return response.json();
-          })
-          .then(data => {
-            setLocation(prev => prev ? { ...prev, placeName: data.display_name || '' } : prev);
-          })
-          .catch(() => {});
-      },
-      (error) => {
-        const message = error.code === error.PERMISSION_DENIED
-          ? 'Please allow location access in your browser to find professionals near you.'
-          : 'We could not retrieve your current location. Please try again.';
-        setLocationStatus('denied');
-        setLocationError(message);
-        reject(new Error(message));
-      },
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
-    );
-  });
-
-  const selectCategory = async (cat) => {
-    setSelected(cat);
-    setProfessionals([]);
-    setLoadingPros(true);
-    
-    // Request location in the background if not available
-    if (!location && locationStatus !== 'requesting' && locationStatus !== 'denied') {
-      requestLocation().catch(() => {});
-    }
-
-    try {
-      const query = new URLSearchParams({
-        category: cat.name
-      });
-      const res = await fetch(`${API}/professionals?${query}`);
-      const data = await res.json();
-      setProfessionals(data.map(professional => ({
-        ...professional,
-        distance_from_user: location ? calculateDistanceInKm(
-          location.latitude,
-          location.longitude,
-          Number(professional.registered_latitude),
-          Number(professional.registered_longitude)
-        ) : null,
-      })));
-    } catch {
-      showToast('Failed to load professionals', 'error');
-    } finally {
-      setLoadingPros(false);
-    }
+  
+  const choose = async (category) => { 
+    setSelected(category); 
+    setExpertLoading(true); 
+    setExperts([]); 
+    try { 
+      const response = await fetch(`${API}/professionals?${new URLSearchParams({ category: category.name })}`); 
+      const data = await response.json(); 
+      setExperts(Array.isArray(data) ? data : []); 
+    } catch { 
+      setExperts([]); 
+    } finally { 
+      setExpertLoading(false); 
+    } 
   };
-
-  useEffect(() => {
-    if (!initialCategory || categories.length === 0 || selected?.name === initialCategory) return;
-    const category = categories.find(item => item.name === initialCategory);
-    if (category) selectCategory(category);
-  }, [categories, initialCategory]);
-
-  // Update distances when location becomes available
-  useEffect(() => {
-    if (location && professionals.length > 0 && professionals.some(p => p.distance_from_user == null)) {
-      setProfessionals(prev => prev.map(pro => ({
-        ...pro,
-        distance_from_user: calculateDistanceInKm(
-          location.latitude,
-          location.longitude,
-          Number(pro.registered_latitude),
-          Number(pro.registered_longitude)
-        )
-      })));
-    }
-  }, [location]);
-
-  const mapUrl = location ? (() => {
-    const delta = 0.01;
-    const { latitude, longitude } = location;
-    return `https://www.openstreetmap.org/export/embed.html?bbox=${longitude - delta}%2C${latitude - delta}%2C${longitude + delta}%2C${latitude + delta}&layer=mapnik&marker=${latitude}%2C${longitude}`;
-  })() : '';
-
-  const handleRequestSuccess = (req) => {
+  
+  useEffect(() => { 
+    if (!initialCategory || !categories.length || selected) return; 
+    const target = categories.find(item => item.name === initialCategory || item.name.toLowerCase().includes(initialCategory.toLowerCase())); 
+    if (target) choose(target); 
+  }, [initialCategory, categories]);
+  
+  // After a booking is created successfully → go to My Bookings to see the real data
+  const complete = () => {
     setBooking(null);
-    showToast('Your service request was submitted successfully! 🎉');
-    navigate && navigate('requests');
+    navigate('requests');
   };
 
-  const nearbyProfessionals = professionals.filter(professional => professional.distance_from_user != null && professional.distance_from_user <= nearbyLimitKm);
+  if (selected) {
+    const Icon = iconFor(selected.name);
+    return (
+      <div className="min-h-screen bg-[#FFFBF0] px-5 pb-[120px] font-['Inter',sans-serif]">
+        <header className="h-[76px] -mx-5 px-5 flex items-center justify-between border-b border-gray-100 bg-[#FFFBF0]">
+          <button onClick={() => setSelected(null)} className="w-[42px] h-[42px] rounded-[14px] bg-white shadow-sm border border-gray-100 flex items-center justify-center text-[#2E7D32] active:scale-95 transition-transform">
+            <ArrowLeft size={22} strokeWidth={2.5} />
+          </button>
+          <h1 className="m-0 text-[18px] text-[#0A3D0A] font-bold tracking-[-0.02em]">Find Experts</h1>
+          <button className="w-[42px] h-[42px] rounded-[14px] bg-white shadow-sm border border-gray-100 flex items-center justify-center text-[#2E7D32] active:scale-95 transition-transform">
+            <SlidersHorizontal size={20} strokeWidth={2.5} />
+          </button>
+        </header>
 
-  const categoriesByName = new Map(categories.map(category => [category.name, category]));
+        <section className="mt-5 mb-5 flex flex-col">
+          <h2 className="text-[14px] font-medium text-gray-500 mb-4">
+            {experts.length > 0 ? experts.length : 0} Professionals in your area
+          </h2>
 
-  const renderProfessionalCard = (pro, allowDirectBooking = false) => (
-    <div key={pro.id} className="pro-card fade-up">
-      <div className="pro-header">
-        <div className="pro-avatar">{pro.profile_photo ? <img src={pro.profile_photo} alt={pro.full_name} /> : pro.full_name.charAt(0).toUpperCase()}</div>
-        <div>
-          <div className="pro-name">{pro.full_name}</div>
-          <span className="pro-category">{pro.category}</span>
-        </div>
+          <div className="flex items-center gap-3 bg-white p-4 rounded-[20px] shadow-sm mb-5 border border-gray-100">
+            <Search size={20} className="text-gray-400" strokeWidth={2.5} />
+            <input placeholder="Search by name or area..." className="bg-transparent border-none outline-none text-[14px] font-medium w-full text-gray-800 placeholder-gray-400" />
+          </div>
+
+          {/* Auto-assign option */}
+          <button
+            onClick={() => setBooking({ professional: null, category: selected.name })}
+            className="w-full flex items-center gap-3 bg-[#2E7D32] text-white rounded-[20px] p-4 mb-4 active:scale-[0.98] transition-transform shadow-[0_4px_16px_rgba(46,125,50,0.3)]">
+            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center shrink-0">
+              <Sparkles size={20} strokeWidth={2} />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-[14px] font-bold">Auto-Assign an Expert</p>
+              <p className="text-[11px] text-white/80">We find the nearest available {selected.name} expert for you</p>
+            </div>
+            <ArrowRight size={18} strokeWidth={2.5} />
+          </button>
+
+          <div className="flex gap-2 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+            <button className="bg-[#2E7D32] text-white px-4 py-2 rounded-full text-[13px] font-bold shrink-0">Nearby</button>
+            <button className="bg-white border border-gray-200 text-gray-600 px-4 py-2 rounded-full text-[13px] font-bold shrink-0">Top Rated</button>
+            <button className="bg-white border border-gray-200 text-gray-600 px-4 py-2 rounded-full text-[13px] font-bold shrink-0">Price: Low</button>
+          </div>
+        </section>
+
+        {expertLoading ? (
+          <div className="flex flex-col items-center py-12 gap-3">
+            <div className="w-8 h-8 border-[2.5px] border-[#2E7D32] border-t-transparent rounded-full animate-spin" />
+            <p className="text-[13px] font-medium text-gray-500">Finding nearby experts...</p>
+          </div>
+        ) : experts.length === 0 ? (
+          <div className="text-center py-10">
+            <div className="text-4xl mb-3">🔍</div>
+            <p className="text-[15px] font-bold text-[#0A3D0A] mb-1">No experts found nearby</p>
+            <p className="text-[13px] font-medium text-gray-500 mb-5">Try auto-assign and we'll notify available professionals</p>
+            <button
+              onClick={() => setBooking({ professional: null, category: selected.name })}
+              className="bg-[#FF7A00] text-white px-6 py-3 rounded-[14px] text-[13px] font-bold active:scale-95 transition-transform shadow-md">
+              <Sparkles size={15} className="inline mr-1.5" /> Auto-Assign Expert
+            </button>
+          </div>
+        ) : (
+          <section className="flex flex-col gap-4">
+            {experts.map((expert, index) => (
+              <ProviderCard key={expert.id} expert={expert} index={index}
+                onBook={() => setBooking({ professional: expert, category: selected.name })} />
+            ))}
+          </section>
+        )}
+
+        <aside className="bg-[#E8F5E9] border border-[#C8E6C9] p-5 rounded-[24px] flex gap-4 mt-6 items-start shadow-sm">
+          <div className="w-10 h-10 rounded-full bg-[#FFFBF0] flex items-center justify-center shrink-0 border border-[#C8E6C9]">
+            <ShieldCheck size={22} className="text-[#2E7D32]" strokeWidth={2} />
+          </div>
+          <div className="flex flex-col">
+            <b className="text-[14px] text-[#1B3A1B] tracking-[-0.01em]">100% Satisfaction Guarantee</b>
+            <small className="text-[12px] font-medium text-[#4A6B4A] leading-snug mt-1">All Seva partners go through rigorous 3-step background checks.</small>
+          </div>
+        </aside>
+
+        {/* BookingModal — opens here with real data */}
+        {booking && (
+          <BookingModal
+            professional={booking.professional}
+            category={booking.category}
+            currentLocation={null}
+            onClose={() => setBooking(null)}
+            onSuccess={complete}
+          />
+        )}
       </div>
-      <div className="pro-meta">
-        <span>📍 {pro.city || 'N/A'}{pro.state ? `, ${pro.state}` : ''}</span>
-        <span>⭐ {pro.experience_years}y exp</span>
-      </div>
-      {pro.distance_from_user != null && (
-        <div className="pro-distance"><MapPin size={14} /> {pro.distance_from_user < 1 ? `${Math.round(pro.distance_from_user * 1000)} m away` : `${pro.distance_from_user.toFixed(2)} km away`}</div>
-      )}
-      {pro.bio && <div className="pro-bio">{pro.bio}</div>}
-      {allowDirectBooking && (
-        <div className="professional-card-actions">
-          <button className="btn-profile" onClick={() => setProfileProfessional(pro)}>View profile</button>
-          <button className="btn-hire" onClick={() => setBooking({ professional: pro, category: selected.name, location })}>Book this professional</button>
-        </div>
-      )}
-    </div>
-  );
+    );
+  }
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <div className="services-heading-row">
-          <div>
-            <h1 className="page-title">{initialGroup || 'Find a Service'}</h1>
-            <p className="page-subtitle">{initialGroup
-              ? `Choose a ${initialGroup.toLowerCase()} service and connect with a trusted professional.`
-              : 'Choose a category and send one request to nearby professionals.'}</p>
-          </div>
-          {initialGroup && (
-            <button className="show-all-services-btn" onClick={() => navigate('services')}>
-              <Tags size={16} /> Show all services
-            </button>
-          )}
-        </div>
+    <div className="min-h-screen bg-[#FFFBF0] px-5 pb-[120px] font-['Inter',sans-serif]">
+      <header className="h-[76px] -mx-5 px-5 flex items-center justify-between border-b border-gray-100 bg-[#FFFBF0]">
+        <button onClick={() => navigate('home')} className="w-[42px] h-[42px] rounded-[14px] bg-white shadow-sm border border-gray-100 flex items-center justify-center text-[#2E7D32] active:scale-95 transition-transform">
+          <ArrowLeft size={22} strokeWidth={2.5} />
+        </button>
+        <h1 className="m-0 text-[18px] text-[#0A3D0A] font-bold tracking-[-0.02em]">All Services</h1>
+        <span className="w-[42px]"/>
+      </header>
+
+      <div className="flex items-center gap-3 bg-white p-4 rounded-[20px] shadow-sm mt-5 mb-6 border border-gray-100">
+        <Search size={20} className="text-gray-400" strokeWidth={2.5} />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search services" className="bg-transparent border-none outline-none text-[14px] font-medium w-full text-gray-800 placeholder-gray-400" />
       </div>
 
-      <div className="location-panel">
-        <div className="location-panel-copy">
-          <div className="location-icon"><MapPin size={20} /></div>
-          <div>
-            <h2>Your current location</h2>
-            <p>{locationStatus === 'ready'
-              ? `${location.placeName || 'Location found'} (accuracy about ${location.accuracy}m). Professionals can be selected from your area.`
-              : 'Turn on location before selecting a professional so we can show where you are on the map.'}</p>
-          </div>
-        </div>
-        {locationStatus !== 'ready' && (
-          <button className="btn-location" onClick={() => requestLocation().catch(() => {})} disabled={locationStatus === 'requesting'}>
-            {locationStatus === 'requesting' ? <RefreshCw size={16} className="spin" /> : <MapPin size={16} />}
-            {locationStatus === 'requesting' ? 'Finding you...' : 'Enable location'}
-          </button>
-        )}
-        {locationError && <p className="location-error">{locationError}</p>}
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-[18px] font-bold text-[#0A3D0A] tracking-[-0.01em]">Home Services</h2>
+        <span className="text-[13px] font-bold text-[#2E7D32]">{visible.length} services</span>
       </div>
 
-      {location && (
-        <div className="location-map-wrap">
-          <iframe
-            title="Your current location"
-            className="location-map"
-            src={mapUrl}
-            loading="lazy"
-          />
-          <p className="map-caption"><strong>{location.placeName || 'Your current location'}</strong> is shown on the map. It is used to help you choose a nearby professional.</p>
-        </div>
-      )}
-
-      {!selected && loadingCats ? (
-        <div style={{ textAlign: 'center', padding: '60px' }}>
-          <RefreshCw className="spin" size={32} color="var(--text-muted)" />
-        </div>
-      ) : !selected && (
-        <div className="service-groups">
-          {serviceGroups.filter(group => !initialGroup || group.name === initialGroup).map(group => {
-            const GroupIcon = group.icon;
-            const groupCategories = group.categories.map(name => categoriesByName.get(name) || {
-              id: name,
-              name,
-              description: 'Browse available professionals',
-            });
-
+      {loading ? (
+        <div className="py-10 text-center text-[14px] font-medium text-gray-500">Loading services...</div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {visible.map((service, index) => { 
+            const Icon = iconFor(service.name); 
             return (
-              <section key={group.name} className="service-group fade-up expanded">
-                <div className="service-group-toggle">
-                  <span className="service-group-icon" style={{ color: group.color }}><GroupIcon size={22} strokeWidth={2} /></span>
-                  <span className="service-group-copy">
-                    <span className="service-group-name">{group.name}</span>
-                    <span className="service-group-count">{groupCategories.length} services to explore</span>
-                  </span>
-                  <span className="service-group-arrow" aria-hidden="true"><ChevronRight size={20} /></span>
+              <button key={service.id || service.name} className="flex items-center gap-4 w-full bg-white p-4 rounded-[24px] shadow-sm border border-gray-100 text-left active:scale-95 transition-all hover:shadow-md" onClick={() => choose(service)}>
+                <div className="w-14 h-14 rounded-[16px] bg-[#FFFBF0] flex items-center justify-center shrink-0">
+                  <Icon size={24} className="text-[#2E7D32]" />
                 </div>
-
-                <div className="subcategory-list">
-                    {groupCategories.map(cat => (
-                      (() => {
-                        const CategoryIcon = categoryIcons[cat.name] || Tags;
-                        return (
-                      <button
-                        key={cat.id}
-                        className={`subcategory-item ${selected?.id === cat.id ? 'selected' : ''}`}
-                        onClick={() => selectCategory(cat)}
-                      >
-                        <span className="subcategory-icon" style={{ color: categoryColors[cat.name] || 'var(--accent-primary)' }}><CategoryIcon size={22} strokeWidth={2} /></span>
-                        <span>
-                          <strong>{cat.name}</strong>
-                          <small>{cat.description}</small>
-                        </span>
-                        <ChevronRight size={17} />
-                      </button>
-                        );
-                      })()
-                    ))}
+                <div className="flex-1 flex flex-col">
+                  <b className="text-[15px] font-bold text-[#0A3D0A] tracking-[-0.01em] mb-1">{service.name}</b>
+                  <span className="text-[12px] font-medium text-gray-500 leading-snug">{service.description || 'Book a reliable expert today'}</span>
                 </div>
-              </section>
-            );
+                <ChevronRight size={22} className="text-gray-300" strokeWidth={2.5} />
+              </button>
+            ); 
           })}
         </div>
       )}
-
-      {/* Professionals section */}
-      {selected && (
-        <div className="provider-selection-page">
-          <button className="provider-back-btn" onClick={() => setSelected(null)}>
-            <ArrowLeft size={16} /> Back to services
-          </button>
-          <div className="provider-selection-header">
-            <div>
-              <span className="service-group-eyebrow">STEP 2 OF 2</span>
-              <h2>
-              {(() => {
-                const CategoryIcon = categoryIcons[selected.name] || Tags;
-                return <CategoryIcon size={20} style={{ color: categoryColors[selected.name] || 'var(--accent-primary)', verticalAlign: 'middle', marginRight: 6 }} />;
-              })()}
-              {selected.name} Professionals
-              </h2>
-              <p>Choose a provider or send your request to nearby professionals.</p>
-            </div>
-            <button
-              className="broadcast-request-btn"
-              onClick={() => setBooking({ professional: null, category: selected.name, location })}
-            >
-              Auto-assign for me
-            </button>
-          </div>
-
-          {loadingPros ? (
-            <div style={{ textAlign: 'center', padding: '40px' }}>
-              <RefreshCw className="spin" size={28} color="var(--text-muted)" />
-            </div>
-          ) : professionals.length === 0 ? (
-            <div className="empty-state">
-              <div style={{ fontSize: 40 }}>🔍</div>
-              <h3>No professionals found</h3>
-              <p>No verified professionals in this category yet.</p>
-            </div>
-          ) : (
-            <>
-              <section className="professional-section">
-                <div className="professional-section-heading">
-                  <div>
-                    <h3>Nearby Professionals</h3>
-                    <p>Registered within {nearbyLimitKm} km of your current location.</p>
-                  </div>
-                  <span className="section-count">{nearbyProfessionals.length}</span>
-                </div>
-                {nearbyProfessionals.length > 0 ? (
-                  <div className="professionals-grid">{nearbyProfessionals.map(professional => renderProfessionalCard(professional))}</div>
-                ) : (
-                  <div className="nearby-empty">No professionals were found within {nearbyLimitKm} km.</div>
-                )}
-              </section>
-              <section className="professional-section">
-                <div className="professional-section-heading">
-                  <div>
-                    <h3>Available Professionals</h3>
-                    <p>All verified professionals in this category.</p>
-                  </div>
-                  <span className="section-count">{professionals.length}</span>
-                </div>
-                <div className="professionals-grid">{professionals.map(professional => renderProfessionalCard(professional, true))}</div>
-              </section>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Booking modal */}
-      {booking && (
-        <BookingModal
-          professional={booking.professional}
-          category={booking.category}
-          currentLocation={booking.location}
-          onClose={() => setBooking(null)}
-          onSuccess={handleRequestSuccess}
-        />
-      )}
-
-      {profileProfessional && (
-        <div className="modal-overlay" onClick={(event) => event.target === event.currentTarget && setProfileProfessional(null)}>
-          <div className="modal profile-modal fade-up">
-            <div className="profile-modal-header">
-              <div className="profile-modal-avatar">{profileProfessional.profile_photo ? <img src={profileProfessional.profile_photo} alt={profileProfessional.full_name} /> : profileProfessional.full_name.charAt(0).toUpperCase()}</div>
-              <div>
-                <h2 className="modal-title">{profileProfessional.full_name}</h2>
-                <span className="pro-category">{profileProfessional.category}</span>
-              </div>
-              <button className="profile-close-btn" onClick={() => setProfileProfessional(null)} aria-label="Close profile">×</button>
-            </div>
-            <div className="profile-details">
-              <div><BriefcaseBusiness size={16} /><strong>Experience</strong><span>{profileProfessional.experience_years || 0} years</span></div>
-              <div><CheckCircle2 size={16} /><strong>Completed work</strong><span>{profileProfessional.completed_requests || 0} jobs</span></div>
-              <div><MapPin size={16} /><strong>Location</strong><span>{[profileProfessional.city, profileProfessional.state].filter(Boolean).join(', ') || 'Not provided'}</span></div>
-              {profileProfessional.distance_from_user != null && <div><MapPin size={16} /><strong>Distance</strong><span>{profileProfessional.distance_from_user.toFixed(2)} km away</span></div>}
-            </div>
-            <div className="profile-social-row">
-              <span><Star size={16} fill="currentColor" /> Verified professional</span>
-              {profileProfessional.instagram_url && <a href={profileProfessional.instagram_url} target="_blank" rel="noreferrer"><Link size={16} /> Instagram</a>}
-            </div>
-            <div className="profile-bio-block">
-              <strong>About this professional</strong>
-              <p>{profileProfessional.bio || 'No professional bio provided.'}</p>
-            </div>
-            <button className="btn-hire" onClick={() => { setProfileProfessional(null); setBooking({ professional: profileProfessional, category: selected.name, location }); }}>Book this professional</button>
-          </div>
-        </div>
-      )}
-
-      <Toast toast={toast} />
     </div>
   );
 }
 
-export default Services;
+function ProviderCard({ expert, index, onBook }) {
+  const avatar = expert.profile_photo || (index === 0 ? rajesh : null); 
+  return (
+    <article className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 relative">
+      <div className="flex gap-4">
+        <div className="relative">
+          <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 border border-gray-200">
+            {avatar ? <img src={avatar} alt={expert.full_name} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-[24px] font-bold text-gray-400 bg-gray-50">{expert.full_name?.[0] || 'S'}</div>}
+          </div>
+          <div className="absolute bottom-0 right-0 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-sm">
+            <CheckCircle2 size={18} className="text-[#2E7D32]" fill="#FFFBF0" />
+          </div>
+        </div>
+        <div className="flex-1 flex flex-col pt-1">
+          <div className="flex justify-between items-start">
+            <h3 className="text-[16px] font-bold text-[#0A3D0A] tracking-[-0.01em]">{expert.full_name || 'Verified expert'}</h3>
+            <div className="flex items-center gap-1">
+              <Star size={14} fill="#FF7A00" color="#FF7A00" />
+              <span className="text-[13px] font-bold text-[#FF7A00]">4.9</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="bg-[#E8F5E9] text-[#2E7D32] text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">{expert.category || 'Expert'}</span>
+            <span className="text-[11px] font-medium text-gray-400">(128 reviews)</span>
+          </div>
+          <div className="flex items-center gap-3 text-[11px] font-medium text-gray-500">
+            <span className="flex items-center gap-1"><MapPin size={14} /> Kochi, Kerala</span>
+          </div>
+          <div className="flex items-center gap-3 mt-2 text-[11px] font-medium text-gray-500 border-t border-gray-100 pt-3">
+             <span className="flex items-center gap-1"><Clock3 size={14} /> {expert.experience_years || 12}+ Years</span>
+             <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+             <span className="flex items-center gap-1"><ShieldCheck size={14} /> Licensed</span>
+          </div>
+        </div>
+      </div>
+      <div className="flex justify-between items-end mt-4 pt-4 border-t border-gray-100">
+        <div className="flex flex-col">
+           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Starts From</span>
+           <span className="text-[16px] font-bold text-[#0A3D0A]">Rs. {rate(expert)}<span className="text-[12px] font-medium text-gray-500">/visit</span></span>
+        </div>
+        <button className="bg-[#2E7D32] text-white px-6 py-3 rounded-[14px] text-[13px] font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-transform" onClick={onBook}>
+          Book Now <ArrowRight size={16} strokeWidth={2.5} />
+        </button>
+      </div>
+    </article>
+  );
+}
