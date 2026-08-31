@@ -1,419 +1,639 @@
 import { useEffect, useState } from 'react';
-import { Calendar, CheckCircle2, Clock3, MapPin, Navigation, Plus, RefreshCw, Search, ShieldCheck } from 'lucide-react';
+import {
+  Calendar, CheckCircle2, MapPin, Navigation, Plus,
+  RefreshCw, Search, ShieldCheck, Star, X, ChevronRight,
+  Phone, Sparkles, AlertCircle, Clock3
+} from 'lucide-react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { API } from '../constants';
 import { useToast, Toast } from '../components/Toast';
 
-// Demo customer ID — in a real app this comes from auth
-const CUSTOMER_ID = 1;
-
+// ── Journey Steps (matches backend keys exactly) ──────────────────────────────
 const JOURNEY_STEPS = [
-  { key: 'start_navigation', label: 'Start navigation', detail: 'The professional has started travelling to your location.' },
-  { key: 'on_the_way', label: 'On the way', detail: 'The professional is travelling to you now.' },
-  { key: 'arrived', label: 'Arrived', detail: 'The professional has arrived at your service location.' },
-  { key: 'working', label: 'Working', detail: 'The professional is working on your service request.' },
-  { key: 'completed', label: 'Completed', detail: 'The professional has completed the requested work.' },
+  { key: 'start_navigation', label: 'Heading to you', icon: '🚗', detail: 'The professional has started travelling to your location.' },
+  { key: 'on_the_way',       label: 'On the way',     icon: '📍', detail: 'The professional is travelling to you now.' },
+  { key: 'arrived',          label: 'Arrived',        icon: '🏠', detail: 'The professional has arrived at your service location.' },
+  { key: 'working',          label: 'Working',        icon: '🔧', detail: 'The professional is working on your service request.' },
+  { key: 'completed',        label: 'Completed',      icon: '✅', detail: 'The professional has completed the requested work.' },
 ];
 
-function CustomerRouteMap({ request, onRouteDistance }) {
-  const customerPoint = [Number(request.latitude), Number(request.longitude)];
-  const professionalPoint = [Number(request.professional_latitude), Number(request.professional_longitude)];
-  const [route, setRoute] = useState([customerPoint, professionalPoint]);
-  const customerIcon = L.divIcon({ className: 'map-person-marker', html: '👤', iconSize: [32, 32], iconAnchor: [16, 16] });
-  const professionalIcon = L.divIcon({ className: 'map-professional-marker', html: '🛠️', iconSize: [32, 32], iconAnchor: [16, 16] });
+// ── Status styles ─────────────────────────────────────────────────────────────
+const STATUS = {
+  pending:     { label: 'Pending',     bg: '#FEF3C7', color: '#B45309', dot: '#F59E0B' },
+  accepted:    { label: 'Accepted',    bg: '#DBEAFE', color: '#1D4ED8', dot: '#3B82F6' },
+  in_progress: { label: 'In Progress', bg: '#EDE9FE', color: '#7C3AED', dot: '#8B5CF6' },
+  completed:   { label: 'Completed',   bg: '#E8F5E9', color: '#2E7D32', dot: '#2E7D32' },
+  cancelled:   { label: 'Cancelled',   bg: '#FEE2E2', color: '#DC2626', dot: '#EF4444' },
+};
+
+// ── Leaflet: fit bounds helper ────────────────────────────────────────────────
+function FitBounds({ points }) {
+  const map = useMap();
+  useEffect(() => {
+    try { map.fitBounds(points, { padding: [40, 40] }); } catch {}
+  }, []);
+  return null;
+}
+
+// ── Live route map ────────────────────────────────────────────────────────────
+function RouteMap({ request, onDistance }) {
+  const cust = [Number(request.latitude), Number(request.longitude)];
+  const prof = [Number(request.professional_latitude), Number(request.professional_longitude)];
+  const [route, setRoute] = useState([cust, prof]);
+
+  const makeIcon = (emoji, bg, size) =>
+    L.divIcon({
+      className: '',
+      html: `<div style="width:${size}px;height:${size}px;background:${bg};border:3px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${size * 0.45}px;box-shadow:0 4px 14px rgba(0,0,0,0.25)">${emoji}</div>`,
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size / 2],
+    });
 
   useEffect(() => {
-    let active = true;
-    const routeUrl = `https://router.project-osrm.org/route/v1/driving/${professionalPoint[1]},${professionalPoint[0]};${customerPoint[1]},${customerPoint[0]}?overview=full&geometries=geojson`;
-    fetch(routeUrl)
-      .then(response => {
-        if (!response.ok) throw new Error('Route lookup failed');
-        return response.json();
-      })
-      .then(data => {
-        if (!active || data.code !== 'Ok' || !data.routes?.[0]) return;
-        setRoute(data.routes[0].geometry.coordinates.map(([longitude, latitude]) => [latitude, longitude]));
-        onRouteDistance(data.routes[0].distance / 1000);
+    let alive = true;
+    const url = `https://router.project-osrm.org/route/v1/driving/${prof[1]},${prof[0]};${cust[1]},${cust[0]}?overview=full&geometries=geojson`;
+    fetch(url)
+      .then(r => r.json())
+      .then(d => {
+        if (!alive || d.code !== 'Ok' || !d.routes?.[0]) return;
+        setRoute(d.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]));
+        onDistance(d.routes[0].distance / 1000);
       })
       .catch(() => {});
-    return () => { active = false; };
-  }, [customerPoint[0], customerPoint[1], professionalPoint[0], professionalPoint[1]]);
-
-  function FitRouteBounds() {
-    const map = useMap();
-    useEffect(() => {
-      map.fitBounds([customerPoint, professionalPoint], { padding: [32, 32] });
-    }, [map]);
-    return null;
-  }
+    return () => { alive = false; };
+  }, [cust[0], cust[1], prof[0], prof[1]]);
 
   return (
-    <MapContainer className="customer-request-map" center={customerPoint} zoom={13} scrollWheelZoom>
-      <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-      <FitRouteBounds />
-      <Marker position={customerPoint} icon={customerIcon}><Popup>Your location</Popup></Marker>
-      <Marker position={professionalPoint} icon={professionalIcon}><Popup>Professional location</Popup></Marker>
-      <Polyline positions={route} pathOptions={{ color: '#2563eb', weight: 5, opacity: 0.9, dashArray: route.length === 2 ? '10 8' : undefined }} />
+    <MapContainer center={cust} zoom={13} scrollWheelZoom style={{ width: '100%', height: '100%' }}>
+      <TileLayer attribution="© OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      <FitBounds points={[cust, prof]} />
+      <Marker position={cust} icon={makeIcon('🏠', '#FF7A00', 38)}><Popup>Your location</Popup></Marker>
+      <Marker position={prof} icon={makeIcon('⚡', '#2E7D32', 42)}><Popup>Expert location</Popup></Marker>
+      <Polyline positions={route} pathOptions={{ color: '#2E7D32', weight: 5, opacity: 0.9 }} />
     </MapContainer>
   );
 }
 
+// ── Status badge ──────────────────────────────────────────────────────────────
+function StatusBadge({ status }) {
+  const cfg = STATUS[status] || STATUS.pending;
+  return (
+    <span style={{ background: cfg.bg, color: cfg.color }}
+      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold shrink-0">
+      <span style={{ background: cfg.dot }} className="w-1.5 h-1.5 rounded-full" />
+      {cfg.label}
+    </span>
+  );
+}
+
+// ── Horizontal journey timeline ───────────────────────────────────────────────
+function Timeline({ journeyStatus }) {
+  const keys = ['accepted', ...JOURNEY_STEPS.map(s => s.key)];
+  const cur = keys.indexOf(journeyStatus);
+  return (
+    <div className="flex items-start mt-4 gap-0">
+      {JOURNEY_STEPS.map((step, i) => {
+        const done = i < cur - 1;
+        const active = i === cur - 1;
+        return (
+          <div key={step.key} className="flex-1 flex flex-col items-center">
+            <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-[12px] mb-1 transition-all
+              ${done   ? 'bg-[#2E7D32] border-[#2E7D32] text-white'
+              : active ? 'bg-white border-[#2E7D32] shadow-[0_0_0_4px_rgba(46,125,50,0.12)]'
+              :          'bg-white border-gray-200 text-gray-300'}`}>
+              {done ? '✓' : step.icon}
+            </div>
+            <span className={`text-[9px] font-bold text-center leading-tight
+              ${done ? 'text-[#2E7D32]' : active ? 'text-[#0A3D0A]' : 'text-gray-300'}`}>
+              {step.label}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Review panel ──────────────────────────────────────────────────────────────
+function ReviewPanel({ requestId, reviewed, savedRating, onSubmit }) {
+  const [open, setOpen] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  if (reviewed) {
+    return (
+      <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-100">
+        <div className="flex gap-0.5">
+          {[1,2,3,4,5].map(s => (
+            <Star key={s} size={15}
+              fill={s <= savedRating ? '#F59E0B' : 'none'}
+              color={s <= savedRating ? '#F59E0B' : '#E5E7EB'} />
+          ))}
+        </div>
+        <span className="text-[12px] font-medium text-gray-500">Your review</span>
+      </div>
+    );
+  }
+
+  if (!open) {
+    return (
+      <div className="mt-4 pt-4 border-t border-gray-100">
+        <button onClick={() => setOpen(true)}
+          className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-[13px] font-bold px-4 py-2.5 rounded-[12px] active:scale-95 transition-transform">
+          <Star size={14} fill="#D97706" color="#D97706" /> Rate this Professional
+        </button>
+      </div>
+    );
+  }
+
+  const submit = async () => {
+    if (!rating) return;
+    setBusy(true);
+    await onSubmit(requestId, rating, comment);
+    setBusy(false);
+    setOpen(false);
+  };
+
+  return (
+    <div className="mt-4 pt-4 border-t border-gray-100">
+      <p className="text-[13px] font-bold text-[#0A3D0A] mb-3">Rate your experience</p>
+      <div className="flex gap-2 mb-3">
+        {[1,2,3,4,5].map(s => (
+          <button key={s} onClick={() => setRating(s)}
+            className={`w-10 h-10 rounded-full text-xl flex items-center justify-center transition-all active:scale-95
+              ${s <= rating ? 'bg-amber-400 text-white' : 'bg-gray-100 text-gray-300'}`}>
+            ★
+          </button>
+        ))}
+      </div>
+      <textarea rows={2} value={comment} onChange={e => setComment(e.target.value)}
+        placeholder="Share your experience (optional)..."
+        className="w-full p-3 border border-gray-200 rounded-[12px] text-[13px] resize-none outline-none focus:border-[#2E7D32] mb-3" />
+      <div className="flex gap-2">
+        <button onClick={() => setOpen(false)}
+          className="flex-1 py-3 border border-gray-200 rounded-[12px] text-[13px] font-bold text-gray-500">
+          Cancel
+        </button>
+        <button onClick={submit} disabled={!rating || busy}
+          className="flex-1 py-3 bg-[#2E7D32] text-white rounded-[12px] text-[13px] font-bold disabled:opacity-40 active:scale-95 transition-transform">
+          {busy ? 'Submitting…' : 'Submit Review'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Individual booking card ───────────────────────────────────────────────────
+function BookingCard({ req, onPayConfirm, onReview }) {
+  const [showMap, setShowMap] = useState(false);
+  const [routeKm, setRouteKm] = useState(null);
+  const [expanded, setExpanded] = useState(false);
+
+  const isLive = ['accepted', 'in_progress'].includes(req.status);
+  const hasGeo = req.latitude && req.longitude && req.professional_latitude && req.professional_longitude;
+  const journeyKeys = ['accepted', ...JOURNEY_STEPS.map(s => s.key)];
+  const curIdx = journeyKeys.indexOf(req.journey_status);
+  const curStep = JOURNEY_STEPS[curIdx - 1];
+
+  return (
+    <div className={`bg-white rounded-[24px] overflow-hidden shadow-sm border transition-all
+      ${isLive ? 'border-[#2E7D32] shadow-[0_0_0_1.5px_#2E7D32]' : 'border-gray-100'}`}>
+
+      {/* Live indicator strip */}
+      {isLive && (
+        <div className="h-1 bg-gradient-to-r from-[#2E7D32] via-[#4CAF50] to-[#2E7D32]" style={{ backgroundSize: '200% 100%' }} />
+      )}
+
+      {/* Main header */}
+      <div className="p-5 pb-4">
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex-1 pr-3">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{req.category || 'Service'}</span>
+            <h3 className="text-[16px] font-bold text-[#0A3D0A] tracking-[-0.01em] mt-0.5 leading-tight">{req.title}</h3>
+          </div>
+          <StatusBadge status={req.status} />
+        </div>
+
+        <div className="flex items-center gap-1.5 text-[12px] font-medium text-gray-500 mb-1.5">
+          <MapPin size={13} className="text-[#2E7D32] shrink-0" />
+          <span className="truncate">{req.location}</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+          <Calendar size={12} />
+          {new Date(req.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+          {req.requested_at && (
+            <span className="flex items-center gap-1 ml-2">
+              <Clock3 size={12} />
+              {new Date(req.requested_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Professional profile chip */}
+      {req.professional_name && ['accepted', 'in_progress', 'completed'].includes(req.status) && (
+        <div className="mx-5 mb-4 flex items-center gap-3 bg-[#F4FBF4] border border-[#C8E6C9] rounded-[18px] p-3.5">
+          <div className="w-12 h-12 rounded-full bg-[#2E7D32] flex items-center justify-center text-white text-[18px] font-bold shrink-0">
+            {req.professional_name.charAt(0).toUpperCase()}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="text-[14px] font-bold text-[#0A3D0A] truncate">{req.professional_name}</span>
+              <span className="shrink-0 bg-[#2E7D32] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">PRO</span>
+            </div>
+            <div className="flex items-center gap-2 text-[11px] text-[#4A6B4A]">
+              <ShieldCheck size={12} className="text-[#2E7D32] shrink-0" />
+              <span>Verified</span>
+              <Star size={11} fill="#F59E0B" color="#F59E0B" />
+              <span className="font-bold text-amber-600">4.9</span>
+            </div>
+          </div>
+          {isLive && (
+            <button className="w-11 h-11 bg-[#FF7A00] rounded-full flex items-center justify-center shadow-md active:scale-95 transition-transform shrink-0">
+              <Phone size={18} color="white" strokeWidth={2.5} />
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Pending broadcast alert */}
+      {req.status === 'pending' && (
+        <div className="mx-5 mb-4 flex gap-3 items-start bg-amber-50 border border-amber-200 rounded-[16px] p-4">
+          <AlertCircle size={18} className="text-amber-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-[12px] font-bold text-amber-800 mb-0.5">Waiting for acceptance</p>
+            <p className="text-[11px] font-medium text-amber-700 leading-snug">
+              {req.offer_count > 1
+                ? `Request sent to ${req.offer_count} nearby professionals in your area.`
+                : `Request sent to ${req.professional_name || 'your selected professional'}.`}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Live journey tracker */}
+      {isLive && req.journey_status && (
+        <div className="mx-5 mb-4 bg-[#FFFBF0] border border-[#C8E6C9] rounded-[20px] p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Live Status</p>
+              <p className="text-[14px] font-bold text-[#0A3D0A]">{curStep?.label || 'Accepted'}</p>
+            </div>
+            <div className="flex items-center gap-1.5 bg-[#E8F5E9] border border-[#C8E6C9] px-3 py-1.5 rounded-full">
+              <span className="w-2 h-2 rounded-full bg-[#2E7D32] animate-pulse" />
+              <span className="text-[11px] font-bold text-[#2E7D32] uppercase tracking-wide">Live</span>
+            </div>
+          </div>
+          <p className="text-[12px] text-[#4A6B4A] leading-snug mb-1">
+            {curStep?.detail || 'Professional has accepted your request and is preparing.'}
+          </p>
+          <Timeline journeyStatus={req.journey_status} />
+
+          {/* OTP */}
+          {req.otp && ['start_navigation', 'on_the_way'].includes(req.journey_status) && (
+            <div className="mt-4 bg-blue-50 border border-dashed border-blue-300 rounded-[16px] p-4 text-center">
+              <p className="text-[11px] font-bold text-blue-500 tracking-widest uppercase mb-2">
+                Share this OTP with professional on arrival
+              </p>
+              <div className="text-[34px] font-bold tracking-[10px] text-blue-700">{req.otp}</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Map tracking panel */}
+      {isLive && hasGeo && (
+        <div className="mx-5 mb-4">
+          <button
+            onClick={() => setShowMap(v => !v)}
+            className={`w-full flex items-center justify-between px-4 py-3.5 rounded-[16px] font-bold text-[13px] transition-all active:scale-[0.98]
+              ${showMap
+                ? 'bg-[#2E7D32] text-white shadow-[0_4px_12px_rgba(46,125,50,0.3)]'
+                : 'bg-[#E8F5E9] text-[#2E7D32] border border-[#C8E6C9]'}`}>
+            <span className="flex items-center gap-2.5">
+              <Navigation size={17} strokeWidth={2.5} />
+              {showMap ? 'Hide Map' : 'Track Live Location'}
+            </span>
+            {routeKm != null && !showMap && (
+              <span className="bg-white text-[#2E7D32] text-[11px] px-2.5 py-1 rounded-full font-bold border border-[#C8E6C9]">
+                {routeKm < 1 ? `${Math.round(routeKm * 1000)} m` : `${routeKm.toFixed(1)} km`} away
+              </span>
+            )}
+          </button>
+
+          {showMap && (
+            <>
+              {/* ETA bar */}
+              <div className="mt-3 bg-white border border-[#C8E6C9] rounded-[16px] px-4 py-3 flex justify-between items-center shadow-sm">
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Estimated Arrival</p>
+                  <p className="text-[16px] font-bold text-[#0A3D0A]">
+                    {routeKm != null ? `${Math.max(5, Math.round(routeKm * 3))}–${Math.max(8, Math.round(routeKm * 4))} Mins` : '—'}
+                  </p>
+                </div>
+                <span className="bg-[#E8F5E9] text-[#2E7D32] text-[10px] font-bold px-2.5 py-1.5 rounded-full border border-[#C8E6C9]">FASTEST</span>
+              </div>
+              {/* Map */}
+              <div className="mt-3 rounded-[20px] overflow-hidden border border-[#C8E6C9] shadow-sm" style={{ height: 240 }}>
+                <RouteMap request={req} onDistance={km => setRouteKm(km)} />
+              </div>
+              {routeKm != null && (
+                <p className="mt-2 text-center text-[12px] font-bold text-[#2E7D32] flex items-center justify-center gap-1.5">
+                  <Navigation size={13} />
+                  {routeKm < 1
+                    ? `${Math.round(routeKm * 1000)} m travel distance`
+                    : `${routeKm.toFixed(2)} km · ~${Math.round(routeKm * 3)} min ETA`}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Payment due */}
+      {req.payment_status === 'awaiting_payment' && (
+        <div className="px-5 mb-5">
+          <div className="bg-amber-50 border border-amber-200 rounded-[20px] p-5">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-[14px] font-bold text-amber-800">💼 Payment Due</span>
+              <span className="text-[22px] font-bold text-amber-700">₹{Number(req.wage).toLocaleString('en-IN')}</span>
+            </div>
+            {req.wage_description && (
+              <p className="text-[12px] text-amber-700 mb-2 leading-snug">{req.wage_description}</p>
+            )}
+            <p className="text-[12px] text-amber-700 mb-4">
+              Charged by <strong>{req.professional_name}</strong> for completing the service.
+            </p>
+            <button
+              onClick={() => onPayConfirm(req.id)}
+              className="w-full py-3.5 bg-[#2E7D32] text-white rounded-[14px] text-[14px] font-bold active:scale-95 transition-transform shadow-md">
+              ✓ Confirm Payment
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Paid confirmed */}
+      {req.payment_status === 'paid' && (
+        <div className="px-5 mb-4">
+          <div className="flex items-center gap-2 bg-[#E8F5E9] border border-[#C8E6C9] rounded-[14px] px-4 py-3">
+            <CheckCircle2 size={17} className="text-[#2E7D32] shrink-0" />
+            <span className="text-[12px] font-bold text-[#2E7D32]">
+              Payment Confirmed · ₹{Number(req.wage || 0).toLocaleString('en-IN')}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Review */}
+      {req.payment_status === 'paid' && (
+        <div className="px-5 pb-5">
+          <ReviewPanel
+            requestId={req.id}
+            reviewed={!!req.review_id}
+            savedRating={req.review_rating}
+            onSubmit={onReview}
+          />
+        </div>
+      )}
+
+      {/* Description expand */}
+      {req.description && (
+        <button
+          onClick={() => setExpanded(v => !v)}
+          className="w-full flex items-center justify-between px-5 py-3.5 border-t border-gray-100 text-[12px] font-medium text-gray-500 active:bg-gray-50">
+          <span>{expanded ? 'Less details' : 'View job details'}</span>
+          <ChevronRight size={15} className={`transition-transform text-gray-400 ${expanded ? 'rotate-90' : ''}`} />
+        </button>
+      )}
+      {expanded && req.description && (
+        <div className="px-5 pb-5">
+          <p className="text-[13px] font-medium text-gray-600 leading-relaxed">{req.description}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 function MyRequests({ navigate }) {
   const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [viewingLocationId, setViewingLocationId] = useState(null);
-  const [selectedRequestId, setSelectedRequestId] = useState(null);
-  const [requestFilter, setRequestFilter] = useState('all');
-  const [requestSearch, setRequestSearch] = useState('');
-  const [requestSort, setRequestSort] = useState('newest');
-  const [reviewingRequestId, setReviewingRequestId] = useState(null);
-  const [reviewRating, setReviewRating] = useState(0);
-  const [reviewComment, setReviewComment] = useState('');
-  const [reviewSubmitting, setReviewSubmitting] = useState(false);
-  const { toast, showToast } = useToast();
+  const [loading, setLoading]   = useState(true);
+  const [filter, setFilter]     = useState('all');
+  const [search, setSearch]     = useState('');
+  const [sort, setSort]         = useState('newest');
+  const { toast, showToast }    = useToast();
 
+  /* ── fetch (UNCHANGED API) ── */
   const fetchRequests = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('userToken');
       const res = await fetch(`${API}/requests`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error('Failed');
-      const data = await res.json();
-      setRequests(data);
-      setViewingLocationId(current => current || data.find(request => (
-        ['accepted', 'in_progress'].includes(request.status)
-        && request.latitude != null
-        && request.longitude != null
-        && request.professional_latitude != null
-        && request.professional_longitude != null
-      ))?.id || null);
+      setRequests(await res.json());
     } catch {
       showToast('Failed to load your requests', 'error');
     } finally {
       setLoading(false);
     }
   };
-
   useEffect(() => { fetchRequests(); }, []);
 
+  /* ── confirm payment (UNCHANGED API) ── */
   const confirmPayment = async (requestId) => {
     try {
       const token = localStorage.getItem('userToken');
       const res = await fetch(`${API}/requests/${requestId}/confirm-payment`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to confirm payment');
-      setRequests(current => current.map(r => r.id === requestId ? {
-        ...r,
-        status: data.request.status,
-        journey_status: data.request.journey_status,
-        payment_status: data.request.payment_status
-      } : r));
+      if (!res.ok) throw new Error(data.message || 'Failed');
+      setRequests(curr => curr.map(r => r.id === requestId ? { ...r, ...data.request } : r));
       showToast('Payment confirmed! Thank you.', 'success');
     } catch (err) {
       showToast(err.message, 'error');
     }
   };
 
-  const submitReview = async (requestId) => {
-    if (!reviewRating) {
-      showToast('Please select a rating.', 'error');
-      return;
-    }
-    setReviewSubmitting(true);
+  /* ── submit review (UNCHANGED API) ── */
+  const submitReview = async (requestId, rating, comment) => {
     try {
       const res = await fetch(`${API}/requests/${requestId}/review`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('userToken')}` },
-        body: JSON.stringify({ rating: reviewRating, comment: reviewComment })
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('userToken')}`,
+        },
+        body: JSON.stringify({ rating, comment }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to submit review');
-      setRequests(current => current.map(request => request.id === requestId
-        ? { ...request, review_id: data.review.id, review_rating: data.review.rating, review_comment: data.review.comment }
-        : request));
-      setReviewingRequestId(null);
-      setReviewRating(0);
-      setReviewComment('');
+      if (!res.ok) throw new Error(data.message || 'Failed');
+      setRequests(curr => curr.map(r =>
+        r.id === requestId
+          ? { ...r, review_id: data.review.id, review_rating: data.review.rating, review_comment: data.review.comment }
+          : r
+      ));
       showToast('Review submitted. Thank you!', 'success');
     } catch (err) {
       showToast(err.message, 'error');
-    } finally {
-      setReviewSubmitting(false);
     }
   };
 
-  const statusLabel = {
-    pending: 'Pending',
-    accepted: 'Accepted',
-    in_progress: 'In Progress',
-    completed: 'Completed',
-    cancelled: 'Cancelled',
-  };
-
-  const selectedRequest = requests.find(request => request.id === selectedRequestId);
-  const filterOptions = [
-    { key: 'active', label: 'Active', matches: request => ['accepted', 'in_progress'].includes(request.status) },
-    { key: 'pending', label: 'Pending', matches: request => request.status === 'pending' },
-    { key: 'completed', label: 'Completed', matches: request => request.status === 'completed' },
-    { key: 'all', label: 'All requests', matches: () => true },
+  /* ── filter / search / sort ── */
+  const FILTERS = [
+    { key: 'all',       label: 'All',       fn: () => true },
+    { key: 'active',    label: 'Active',    fn: r => ['accepted', 'in_progress'].includes(r.status) },
+    { key: 'pending',   label: 'Pending',   fn: r => r.status === 'pending' },
+    { key: 'completed', label: 'Done',      fn: r => r.status === 'completed' },
   ];
-  const currentFilter = filterOptions.find(option => option.key === requestFilter) || filterOptions[0];
-  const filteredRequests = requests
-    .filter(currentFilter.matches)
-    .filter(request => [request.title, request.description, request.location, request.professional_name, request.category]
-      .filter(Boolean)
-      .some(value => value.toLowerCase().includes(requestSearch.toLowerCase().trim())))
-    .sort((first, second) => {
-      const difference = new Date(second.created_at) - new Date(first.created_at);
-      return requestSort === 'newest' ? difference : -difference;
+  const cur = FILTERS.find(f => f.key === filter);
+  const shown = requests
+    .filter(cur.fn)
+    .filter(r =>
+      [r.title, r.description, r.location, r.professional_name, r.category]
+        .filter(Boolean)
+        .some(v => v.toLowerCase().includes(search.toLowerCase().trim()))
+    )
+    .sort((a, b) => {
+      const d = new Date(b.created_at) - new Date(a.created_at);
+      return sort === 'newest' ? d : -d;
     });
-  const formatDuration = (request) => {
-    if (!request?.journey_updated_at || request.journey_status !== 'completed') return 'In progress';
-    const minutes = Math.max(0, Math.round((new Date(request.journey_updated_at) - new Date(request.created_at)) / 60000));
-    if (minutes < 60) return `${minutes} min`;
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    return `${hours}h ${remainingMinutes}m`;
-  };
 
+  /* ── render ── */
   return (
-    <div className="page-container">
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+    <div className="min-h-screen bg-[#FFFBF0] px-5 pt-8 pb-32 font-['Inter',sans-serif]">
+
+      {/* Header */}
+      <div className="flex justify-between items-start mb-6">
         <div>
-          <h1 className="page-title">My Requests</h1>
-          <p className="page-subtitle">Track the status of all your service requests.</p>
+          <h1 className="text-[24px] font-bold text-[#0A3D0A] tracking-[-0.02em]">My Bookings</h1>
+          <p className="text-[13px] font-medium text-gray-500 mt-0.5">Track and manage all your services</p>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div className="flex items-center gap-2">
           <button
             onClick={fetchRequests}
-            style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid var(--border-light)', background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', gap: 6, fontSize: 14 }}
-          >
-            <RefreshCw size={15} /> Refresh
+            className="w-10 h-10 bg-white rounded-[14px] shadow-sm border border-gray-100 flex items-center justify-center text-[#2E7D32] active:scale-95 transition-transform">
+            <RefreshCw size={18} strokeWidth={2.5} />
           </button>
           <button
-            className="btn-hire"
-            style={{ width: 'auto', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 6 }}
             onClick={() => navigate('services')}
-          >
-            <Plus size={15} /> New Request
+            className="h-10 px-4 bg-[#2E7D32] text-white rounded-[14px] text-[13px] font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-transform">
+            <Plus size={16} strokeWidth={2.5} /> Book
           </button>
         </div>
       </div>
 
+      {/* Search */}
+      <div className="flex items-center gap-3 bg-white p-4 rounded-[20px] shadow-sm mb-5 border border-gray-100">
+        <Search size={19} className="text-gray-400 shrink-0" strokeWidth={2.5} />
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search bookings, professionals, locations…"
+          className="bg-transparent border-none outline-none text-[14px] font-medium w-full text-gray-800 placeholder-gray-400"
+        />
+        {search && (
+          <button onClick={() => setSearch('')} className="text-gray-400 shrink-0">
+            <X size={17} />
+          </button>
+        )}
+      </div>
+
+      {/* Filter pills + sort */}
+      <div className="flex gap-2 mb-6" style={{ overflowX: 'auto', scrollbarWidth: 'none' }}>
+        {FILTERS.map(f => {
+          const count = requests.filter(f.fn).length;
+          return (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-bold shrink-0 transition-all
+                ${filter === f.key
+                  ? 'bg-[#2E7D32] text-white shadow-sm'
+                  : 'bg-white border border-gray-200 text-gray-600'}`}>
+              {f.label}
+              <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-bold
+                ${filter === f.key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+        <div className="ml-auto shrink-0">
+          <select
+            value={sort}
+            onChange={e => setSort(e.target.value)}
+            className="h-9 px-3 bg-white border border-gray-200 rounded-full text-[12px] font-bold text-gray-600 outline-none">
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+          </select>
+        </div>
+      </div>
+
+      {/* ── Content states ── */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '60px' }}>
-          <RefreshCw className="spin" size={32} color="var(--text-muted)" />
+        <div className="flex flex-col items-center py-20 gap-4">
+          <div className="w-12 h-12 border-[3px] border-[#2E7D32] border-t-transparent rounded-full animate-spin" />
+          <p className="text-[14px] font-medium text-gray-500">Loading bookings…</p>
         </div>
       ) : requests.length === 0 ? (
-        <div className="empty-state">
-          <div style={{ fontSize: 48 }}>📋</div>
-          <h3>No requests yet</h3>
-          <p>Browse services and book your first professional!</p>
-          <button className="btn-hire" style={{ width: 'auto', padding: '12px 28px', marginTop: 20 }} onClick={() => navigate('services')}>
-            Browse Services
+
+        /* Empty – no bookings at all */
+        <div className="flex flex-col items-center py-20 text-center">
+          <div className="w-24 h-24 bg-[#E8F5E9] rounded-full flex items-center justify-center mb-5 text-4xl">📋</div>
+          <h3 className="text-[20px] font-bold text-[#0A3D0A] mb-2">No bookings yet</h3>
+          <p className="text-[14px] font-medium text-gray-500 mb-8 max-w-[240px] leading-relaxed">
+            Browse our services and book your first professional today!
+          </p>
+          <button
+            onClick={() => navigate('services')}
+            className="bg-[#FF7A00] text-white px-8 py-4 rounded-[16px] text-[15px] font-bold flex items-center gap-2 shadow-[0_8px_16px_rgba(255,111,0,0.25)] active:scale-95 transition-transform">
+            <Sparkles size={18} strokeWidth={2.5} /> Browse Services
           </button>
         </div>
+      ) : shown.length === 0 ? (
+
+        /* Filtered empty */
+        <div className="flex flex-col items-center py-16 text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-2xl">🔍</div>
+          <h3 className="text-[16px] font-bold text-[#0A3D0A] mb-1">No {cur.label.toLowerCase()} bookings</h3>
+          <p className="text-[13px] text-gray-400">Try adjusting your search or filter</p>
+        </div>
       ) : (
+
+        /* Booking cards list */
         <>
-        <div className="request-tools">
-          <label className="request-search-box">
-            <Search size={16} />
-            <input value={requestSearch} onChange={event => setRequestSearch(event.target.value)} placeholder="Search requests..." aria-label="Search requests" />
-          </label>
-          <label className="request-sort-box">
-            <span>Sort by</span>
-            <select value={requestSort} onChange={event => setRequestSort(event.target.value)} aria-label="Sort requests by date">
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
-            </select>
-          </label>
-        </div>
-        <div className="request-filter-bar" role="tablist" aria-label="Filter requests">
-          {filterOptions.map(option => {
-            const count = requests.filter(option.matches).length;
-            return <button key={option.key} className={requestFilter === option.key ? 'active' : ''} onClick={() => setRequestFilter(option.key)} role="tab" aria-selected={requestFilter === option.key}>{option.label}<span>{count}</span></button>;
-          })}
-        </div>
-        {filteredRequests.length === 0 ? (
-          <div className="request-filter-empty"><h3>No {currentFilter.label.toLowerCase()} requests</h3><p>Your requests will appear here as their status changes.</p></div>
-        ) : (
-        <div className="requests-list">
-          <div className="requests-list-heading"><div><span>REQUESTS</span><h2>{currentFilter.label}</h2></div><strong>{filteredRequests.length} {filteredRequests.length === 1 ? 'request' : 'requests'}</strong></div>
-          {filteredRequests.map(req => (
-            <div key={req.id} className={`request-item fade-up request-card-clickable ${['accepted', 'in_progress'].includes(req.status) ? 'live-request-item' : ''}`} onClick={(event) => {
-              if (!event.target.closest('button')) setSelectedRequestId(req.id);
-            }}>
-              <div style={{ flex: 1 }}>
-                <div className="request-title">{req.title}</div>
-                <div className="request-location">
-                  <MapPin size={13} /> {req.location}
-                </div>
-                {req.description && (
-                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                    {req.description}
-                  </div>
-                )}
-                <div className="request-date">
-                  <Calendar size={12} style={{ display: 'inline', marginRight: 4 }} />
-                  {new Date(req.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </div>
-                {req.status === 'pending' && (
-                  <p className="request-broadcast-note">
-                    {req.offer_count > 1
-                      ? 'Request sent to nearby professionals. Waiting for someone to accept.'
-                      : `Request sent to ${req.professional_name || 'the selected professional'}. Waiting for them to accept.`}
-                  </p>
-                )}
-                {(req.status === 'accepted' || req.status === 'in_progress' || req.status === 'completed') && req.professional_name && (
-                  <div className="request-provider-summary">
-                    <div className="request-provider-avatar">{req.professional_name.charAt(0).toUpperCase()}</div>
-                    <div><strong>{req.professional_name}</strong><span><ShieldCheck size={13} /> Verified provider · {req.category || 'Service professional'}</span></div>
-                    <div className="request-provider-state"><CheckCircle2 size={15} /> {req.status === 'completed' ? 'Completed' : 'On the way'}</div>
-                  </div>
-                )}
-                {(req.status === 'accepted' || req.status === 'in_progress' || req.status === 'completed') && req.journey_status && (
-                  (() => {
-                    const currentStatus = req.journey_status || 'accepted';
-                    const currentIndex = ['accepted', ...JOURNEY_STEPS.map(item => item.key)].indexOf(currentStatus);
-                    const currentStep = JOURNEY_STEPS[currentIndex - 1];
-                    return <>
-                      <div className="journey-progress-detail">
-                        <div className="journey-progress-kicker">Live service progress</div>
-                        <strong>{currentStep ? currentStep.label : 'Accepted'}</strong>
-                        <p>{currentStep?.detail || 'The professional has accepted your request and is preparing to travel.'}</p>
-                        {req.journey_updated_at && <small>Updated {new Date(req.journey_updated_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</small>}
-                        {(currentStatus === 'start_navigation' || currentStatus === 'on_the_way') && req.otp && (
-                          <div style={{ marginTop: '12px', padding: '12px 16px', background: '#eff6ff', borderRadius: '8px', border: '1px dashed #60a5fa', display: 'inline-block' }}>
-                            <span style={{ fontSize: '12px', color: '#3b82f6', display: 'block', marginBottom: '4px', fontWeight: '500' }}>Share this OTP with professional on arrival</span>
-                            <strong style={{ fontSize: '24px', letterSpacing: '8px', color: '#1d4ed8' }}>{req.otp}</strong>
-                          </div>
-                        )}
-                      </div>
-                      <div className="journey-timeline">
-                      {JOURNEY_STEPS.map(step => {
-                      const stepIndex = JOURNEY_STEPS.findIndex(item => item.key === step.key);
-                      return <div key={step.key} className={`journey-timeline-step ${stepIndex < currentIndex ? 'done' : stepIndex === currentIndex ? 'current' : ''}`}><span>{stepIndex < currentIndex ? '✓' : stepIndex + 1}</span>{step.label}</div>;
-                      })}
-                      </div>
-                    </>;
-                  })()
-                )}
-                {(req.status === 'accepted' || req.status === 'in_progress' || req.status === 'completed') && (
-                  req.latitude != null && req.longitude != null && req.professional_latitude != null && req.professional_longitude != null ? (
-                    <div className="customer-location-view">
-                      <button className="view-customer-route-btn" onClick={() => setViewingLocationId(viewingLocationId === req.id ? null : req.id)}>
-                        <MapPin size={14} /> {viewingLocationId === req.id ? 'Hide route' : 'View professional distance'}
-                      </button>
-                      {viewingLocationId === req.id && (
-                        <CustomerRouteMap
-                          request={req}
-                          onRouteDistance={(distance) => setRequests(current => current.map(item => item.id === req.id ? { ...item, route_distance_km: distance } : item))}
-                        />
-                      )}
-                      {viewingLocationId === req.id && req.route_distance_km != null && (
-                        <div className="customer-distance"><Navigation size={14} /> {req.route_distance_km < 1 ? `${Math.round(req.route_distance_km * 1000)} m` : `${req.route_distance_km.toFixed(2)} km`} travel distance</div>
-                      )}
-                    </div>
-                  ) : <p className="customer-location-unavailable">Professional location is not available for this request yet.</p>
-                )}
-              </div>
-              <div>
-                <span className={`status-badge ${req.status}`}>
-                  {req.journey_status && req.journey_status !== 'accepted'
-                    ? JOURNEY_STEPS.find(step => step.key === req.journey_status)?.label || statusLabel[req.status]
-                    : statusLabel[req.status] || req.status}
-                </span>
-                {req.payment_status === 'paid' && (
-                  <span style={{ display: 'inline-block', marginTop: '6px', padding: '4px 10px', background: '#dcfce7', color: '#16a34a', borderRadius: '12px', fontSize: '12px', fontWeight: '600' }}>✓ Paid</span>
-                )}
-              </div>
-              {req.payment_status === 'awaiting_payment' && (
-                <div style={{ marginTop: '16px', padding: '16px', background: '#fffbeb', borderRadius: '10px', border: '1px solid #fbbf24' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <strong style={{ fontSize: '14px', color: '#92400e' }}>💼 Payment Due</strong>
-                    <strong style={{ fontSize: '22px', color: '#b45309' }}>₹{Number(req.wage).toLocaleString('en-IN')}</strong>
-                  </div>
-                  {req.wage_description && (
-                    <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#78350f' }}>{req.wage_description}</p>
-                  )}
-                  <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#92400e' }}>Charged by <strong>{req.professional_name}</strong> for completing the service.</p>
-                  <button
-                    onClick={() => confirmPayment(req.id)}
-                    style={{ width: '100%', padding: '12px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>
-                    ✓ Confirm Payment
-                  </button>
-                </div>
-              )}
-              {req.payment_status === 'paid' && (
-                <div style={{ marginTop: '16px', padding: '16px', background: '#f8fafc', borderRadius: '10px', border: '1px solid var(--border-light)' }}>
-                  {req.review_id ? (
-                    <div style={{ color: '#b45309', fontWeight: 700 }}>Your rating: {'★'.repeat(Number(req.review_rating))}{'☆'.repeat(5 - Number(req.review_rating))}</div>
-                  ) : reviewingRequestId === req.id ? (
-                    <>
-                      <strong style={{ display: 'block', marginBottom: '8px' }}>Rate this professional</strong>
-                      <div style={{ display: 'flex', gap: '4px', marginBottom: '10px' }}>
-                        {[1, 2, 3, 4, 5].map(star => (
-                          <button key={star} type="button" aria-label={`${star} star${star > 1 ? 's' : ''}`} onClick={() => setReviewRating(star)} style={{ border: 'none', background: 'transparent', padding: '2px', cursor: 'pointer', color: star <= reviewRating ? '#f59e0b' : '#cbd5e1', fontSize: '28px' }}>★</button>
-                        ))}
-                      </div>
-                      <textarea value={reviewComment} onChange={event => setReviewComment(event.target.value)} placeholder="Share your experience (optional)" rows={3} style={{ width: '100%', boxSizing: 'border-box', padding: '10px', border: '1px solid var(--border-light)', borderRadius: '8px', resize: 'vertical' }} />
-                      <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                        <button type="button" onClick={() => setReviewingRequestId(null)} style={{ padding: '8px 12px', border: '1px solid var(--border-light)', borderRadius: '6px', background: '#fff', cursor: 'pointer' }}>Cancel</button>
-                        <button type="button" onClick={() => submitReview(req.id)} disabled={reviewSubmitting} style={{ padding: '8px 12px', border: 'none', borderRadius: '6px', background: '#16a34a', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>{reviewSubmitting ? 'Submitting...' : 'Submit Review'}</button>
-                      </div>
-                    </>
-                  ) : (
-                    <button type="button" onClick={() => { setReviewingRequestId(req.id); setReviewRating(0); setReviewComment(''); }} style={{ padding: '9px 14px', border: '1px solid #f59e0b', borderRadius: '7px', background: '#fff7ed', color: '#b45309', cursor: 'pointer', fontWeight: 700 }}>Rate Professional</button>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-        )}
+          <div className="flex justify-between items-center mb-4">
+            <span className="text-[14px] font-bold text-[#0A3D0A]">{cur.label} Bookings</span>
+            <span className="text-[12px] font-medium text-gray-500">{shown.length} {shown.length === 1 ? 'booking' : 'bookings'}</span>
+          </div>
+          <div className="flex flex-col gap-4">
+            {shown.map(req => (
+              <BookingCard
+                key={req.id}
+                req={req}
+                onPayConfirm={confirmPayment}
+                onReview={submitReview}
+              />
+            ))}
+          </div>
         </>
       )}
 
-      {selectedRequest && (
-        <div className="request-detail-overlay">
-          <div className="request-detail-page">
-            <div className="request-detail-topbar">
-              <button onClick={() => setSelectedRequestId(null)}><span>←</span> Back to requests</button>
-              <span className={`status-badge ${selectedRequest.status}`}>{statusLabel[selectedRequest.status] || selectedRequest.status}</span>
-            </div>
-            <div className="request-detail-heading">
-              <div><span className="request-detail-kicker">REQUEST DETAILS</span><h2>{selectedRequest.title}</h2><p>{selectedRequest.location}</p></div>
-              <div className="request-detail-date"><Calendar size={15} />{new Date(selectedRequest.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
-            </div>
-            {selectedRequest.professional_name && (
-              <div className="request-detail-provider">
-                <div className="request-provider-avatar">{selectedRequest.professional_name.charAt(0).toUpperCase()}</div>
-                <div><span className="request-detail-kicker">YOUR PROVIDER</span><h3>{selectedRequest.professional_name}</h3><p><ShieldCheck size={13} /> Verified professional</p></div>
-                <span className="request-provider-state"><CheckCircle2 size={16} /> {selectedRequest.status === 'completed' ? 'Work completed' : 'Assigned to you'}</span>
-              </div>
-            )}
-            <div className="request-detail-grid">
-              <div className="request-detail-main">
-                {selectedRequest.description && <div className="request-detail-section"><span className="request-detail-kicker">JOB DESCRIPTION</span><p>{selectedRequest.description}</p></div>}
-                <div className="request-detail-stats">
-                  <div><Clock3 size={18} /><span>Time taken</span><strong>{formatDuration(selectedRequest)}</strong></div>
-                  <div><Calendar size={18} /><span>Requested on</span><strong>{new Date(selectedRequest.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</strong></div>
-                </div>
-              </div>
-              <aside className="request-detail-side">
-                <div className="request-payment-card"><span className="request-detail-kicker">ESTIMATED BILL</span><strong>{selectedRequest.wage != null ? `₹${Number(selectedRequest.wage).toLocaleString('en-IN')}` : 'Not set yet'}</strong><p>{selectedRequest.wage_description || (selectedRequest.payment_status === 'paid' ? 'Payment confirmed for this service.' : 'The provider will share the final amount after reviewing the work.')}</p>{selectedRequest.payment_status === 'awaiting_payment' && <button className="btn-submit" onClick={() => confirmPayment(selectedRequest.id)}>Confirm payment</button>}{selectedRequest.payment_status === 'paid' && <span className="request-paid-label">Payment confirmed</span>}</div>
-                {selectedRequest.review_id ? <div className="request-detail-review">Your rating: {'★'.repeat(Number(selectedRequest.review_rating))}{'☆'.repeat(5 - Number(selectedRequest.review_rating))}</div> : selectedRequest.payment_status === 'paid' && <button className="request-detail-review-btn" onClick={() => { setSelectedRequestId(null); setReviewingRequestId(selectedRequest.id); }}>Rate this professional</button>}
-              </aside>
-            </div>
-          </div>
-        </div>
+      {/* FAB – new booking */}
+      {requests.length > 0 && (
+        <button
+          onClick={() => navigate('services')}
+          className="fixed bottom-28 right-5 z-20 w-14 h-14 bg-[#FF7A00] text-white rounded-full shadow-[0_8px_20px_rgba(255,111,0,0.45)] flex items-center justify-center active:scale-95 transition-transform">
+          <Plus size={26} strokeWidth={2.5} />
+        </button>
       )}
 
       <Toast toast={toast} />

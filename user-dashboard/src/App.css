@@ -28,9 +28,15 @@
 /* ── Mobile Layout ── */
 .app-layout {
   min-height: 100vh;
+  max-width: 390px;
+  margin: 0 auto;
   background: var(--bg-base);
-  /* Leave space for the fixed bottom nav */
-  padding-bottom: 84px; 
+  padding-bottom: 96px;
+  box-shadow: 0 0 48px rgba(46, 125, 50, 0.08);
+}
+
+body {
+  background: #F4EFE2;
 }
 
 .app-content {
@@ -40,18 +46,18 @@
 /* ── Fixed Bottom Nav ── */
 .bottom-nav {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 72px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: 358px;
+  height: 68px;
+  background: #ffffff;
+  border-radius: 22px;
   display: flex;
   align-items: center;
   justify-content: space-around;
-  border-top: 1px solid rgba(0,0,0,0.05);
-  box-shadow: 0 -4px 24px rgba(0,0,0,0.06);
+  box-shadow: 0 16px 40px rgba(28, 25, 23, 0.16);
   z-index: 1000;
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -73,7 +79,7 @@
 }
 
 .bottom-nav-item.active {
-  color: var(--accent-primary);
+  color: #2E7D32;
 }
 
 .bottom-nav-icon {

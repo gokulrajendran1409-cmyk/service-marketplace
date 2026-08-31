@@ -1,108 +1,103 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import './index.css';
-import './App.css';
-import { Wrench, LayoutGrid, ClipboardList, UserRound } from 'lucide-react';
+import { CalendarDays, House, UserRound } from 'lucide-react';
 import Home from './pages/Home';
 import Services from './pages/Services';
 import MyRequests from './pages/MyRequests';
 import Auth from './pages/Auth';
 import Landing from './pages/Landing';
-
 import Notifications from './pages/Notifications';
 import Profile from './pages/Profile';
+import { ScheduleService, MyAddresses, Payment, BookingConfirmed } from './pages/BookingFlow';
 
 const PAGES = [
-  { id: 'home',     label: 'Home',     icon: LayoutGrid },
-  { id: 'services', label: 'Services', icon: Wrench },
-  { id: 'requests', label: 'Requests', icon: ClipboardList },
-  { id: 'profile',  label: 'Profile',  icon: UserRound },
+  { id: 'home', label: 'Home', icon: House },
+  { id: 'requests', label: 'Bookings', icon: CalendarDays },
+  { id: 'profile', label: 'Profile', icon: UserRound }
 ];
 
-// stage: 'landing' | 'auth' | 'app'
 function App() {
   const [stage, setStage] = useState('landing');
   const [page, setPage] = useState('home');
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
   const [navigationGroup, setNavigationGroup] = useState(null);
   const [navigationCategory, setNavigationCategory] = useState(null);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('userToken');
-    const savedUser = localStorage.getItem('userData');
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
+    const token = localStorage.getItem('userToken');
+    const saved = localStorage.getItem('userData');
+    if (token && saved) {
+      setUser(JSON.parse(saved));
       setStage('app');
     }
   }, []);
 
-  const handleLogin = (userData, userToken) => {
-    setUser(userData);
-    setToken(userToken);
-    localStorage.setItem('userToken', userToken);
-    localStorage.setItem('userData', JSON.stringify(userData));
+  const login = (data, token) => {
+    setUser(data);
+    localStorage.setItem('userToken', token);
+    localStorage.setItem('userData', JSON.stringify(data));
     setStage('app');
   };
 
-  const handleLogout = () => {
+  const logout = () => {
     setUser(null);
-    setToken(null);
     localStorage.removeItem('userToken');
     localStorage.removeItem('userData');
     setPage('home');
     setStage('landing');
   };
 
-  const updateUser = (updatedUser) => {
-    setUser(updatedUser);
-    localStorage.setItem('userData', JSON.stringify(updatedUser));
+  const updateUser = (data) => {
+    setUser(data);
+    localStorage.setItem('userData', JSON.stringify(data));
   };
 
-  if (stage === 'landing') {
-    return (
-      <Landing
-        onGetStarted={() => setStage('auth')}
-      />
-    );
-  }
-
-  if (stage === 'auth') {
-    return <Auth onLogin={handleLogin} />;
-  }
-
   const navigate = (target, group = null, category = null) => {
-    setNavigationGroup(target === 'services' ? group : null);
-    setNavigationCategory(target === 'services' ? category : null);
+    setNavigationGroup(group);
+    setNavigationCategory(category);
     setPage(target);
   };
 
+  if (stage === 'landing') return <Landing onGetStarted={() => setStage('auth')} />;
+  if (stage === 'auth') return <Auth onLogin={login} />;
+
+  const screens = {
+    home: <Home navigate={navigate}/>,
+    services: <Services navigate={navigate} initialGroup={navigationGroup} initialCategory={navigationCategory}/>,
+    requests: <MyRequests navigate={navigate}/>,
+    notifications: <Notifications navigate={navigate}/>,
+    profile: <Profile user={user} onUserUpdate={updateUser} onLogout={logout} navigate={navigate}/>,
+    schedule: <ScheduleService navigate={navigate}/>,
+    addresses: <MyAddresses navigate={navigate}/>,
+    payment: <Payment navigate={navigate}/>,
+    confirmed: <BookingConfirmed navigate={navigate}/>
+  };
+
+  const showNav = ['home', 'requests', 'profile'].includes(page);
+
   return (
     <div className="app-layout">
-      <div className="app-content">
-        {page === 'home'          && <Home navigate={navigate} />}
-        {page === 'services'      && <Services navigate={navigate} initialGroup={navigationGroup} initialCategory={navigationCategory} />}
-        {page === 'requests'      && <MyRequests navigate={navigate} />}
-        {page === 'notifications' && <Notifications navigate={navigate} />}
-        {page === 'profile'  && <Profile user={user} onUserUpdate={updateUser} onLogout={handleLogout} />}
-      </div>
-
-      {/* Bottom Nav Bar */}
-      <nav className="bottom-nav">
-        {PAGES.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            className={`bottom-nav-item ${page === id ? 'active' : ''}`}
-            onClick={() => setPage(id)}
-          >
-            <Icon size={22} className="bottom-nav-icon" />
-            <span className="bottom-nav-label">{label}</span>
-          </button>
-        ))}
-      </nav>
+      <main className="app-content">
+        {screens[page]}
+      </main>
+      {showNav && (
+        <nav className="fixed z-20 left-1/2 bottom-4 flex justify-around w-[calc(100%-38px)] max-w-[392px] h-[66px] p-1 rounded-[22px] bg-white shadow-[0_12px_30px_rgba(38,66,37,0.2)] -translate-x-1/2">
+          {PAGES.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              className={`flex flex-col items-center justify-center gap-1 min-w-[72px] bg-transparent text-[10px] font-semibold transition-colors ${
+                page === id ? 'text-[#2e7d32]' : 'text-[#94a098]'
+              }`}
+              onClick={() => setPage(id)}
+            >
+              <Icon size={21} strokeWidth={page === id ? 2.7 : 2} />
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
+      )}
     </div>
   );
 }
 
 export default App;
-
