@@ -298,6 +298,7 @@ export default function Auth({ onLogin }) {
               : <><span>Create Account</span><ArrowRight size={18} strokeWidth={2.5} /></>
             }
           </button>
+          </div>
         </form>
       )}
 
