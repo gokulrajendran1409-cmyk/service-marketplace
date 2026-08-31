@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Wrench, Loader2 } from 'lucide-react';
+import {
+  Loader2, ShieldCheck, Mail, Lock, Eye, EyeOff, User, Phone, ArrowRight,
+} from 'lucide-react';
 import { useToast, Toast } from '../components/Toast';
-import { API } from '../constants';
 
-const API = `${import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com'}/api/auth`;
+const AUTH_API = `${import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com'}/api/auth`;
 const GOOGLE_CLIENT_ID = '215103121223-i90tgh8pdlcug4ft1ij78i67h5go75es.apps.googleusercontent.com';
 let googleScriptPromise;
 let googleInitialized = false;
@@ -38,16 +39,22 @@ export default function Auth({ onLogin }) {
   const [showPass, setShowPass] = useState(false);
   const { toast, showToast } = useToast();
 
-  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [regForm, setRegForm] = useState({ name: '', email: '', phone: '', password: '' });
+
   const googleButtonRef = useRef(null);
   const onLoginRef = useRef(onLogin);
   const showToastRef = useRef(showToast);
+
+  const isLogin = mode === 'login';
 
   useEffect(() => {
     onLoginRef.current = onLogin;
     showToastRef.current = showToast;
   }, [onLogin, showToast]);
 
+  // Google button is rendered once into a div that's always mounted
+  // (outside the conditional login/register blocks), so it survives mode switches.
   useEffect(() => {
     let cancelled = false;
     const googleButton = googleButtonRef.current;
@@ -60,7 +67,7 @@ export default function Auth({ onLogin }) {
           callback: async (response) => {
             setLoading(true);
             try {
-              const result = await fetch(`${API}/google`, {
+              const result = await fetch(`${AUTH_API}/google`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ idToken: response.credential }),
@@ -171,7 +178,7 @@ export default function Auth({ onLogin }) {
       </div>
 
       {/* ── LOGIN FORM ── */}
-      {mode === 'login' && (
+      {isLogin && (
         <form onSubmit={handleLogin} className="w-full max-w-[340px] flex flex-col gap-4">
           <div>
             <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Email Address</label>
@@ -219,7 +226,7 @@ export default function Auth({ onLogin }) {
       )}
 
       {/* ── REGISTER FORM ── */}
-      {mode === 'register' && (
+      {!isLogin && (
         <form onSubmit={handleRegister} className="w-full max-w-[340px] flex flex-col gap-4">
           <div>
             <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Full Name</label>
@@ -284,11 +291,6 @@ export default function Auth({ onLogin }) {
             </div>
           </div>
 
-        <div className="auth-divider"><span>or</span></div>
-        <div className="google-signin-wrap" ref={googleButtonRef} />
-
-        <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '14px', color: 'var(--text-secondary)' }}>
-          {isLogin ? "Don't have an account? " : "Already have an account? "}
           <button
             type="submit"
             disabled={loading}
@@ -298,9 +300,18 @@ export default function Auth({ onLogin }) {
               : <><span>Create Account</span><ArrowRight size={18} strokeWidth={2.5} /></>
             }
           </button>
-          </div>
         </form>
       )}
+
+      {/* ── GOOGLE SIGN-IN (always mounted so the ref persists across mode switches) ── */}
+      <div className="w-full max-w-[340px] mt-5">
+        <div className="flex items-center gap-3 my-1">
+          <div className="flex-1 h-px bg-gray-200" />
+          <span className="text-[12px] font-medium text-gray-400">or</span>
+          <div className="flex-1 h-px bg-gray-200" />
+        </div>
+        <div ref={googleButtonRef} className="flex justify-center mt-3" />
+      </div>
 
       {/* Trust badge */}
       <aside className="mt-8 bg-[#E8F5E9] border border-[#C8E6C9] rounded-[18px] p-4 flex gap-3 items-start w-full max-w-[340px]">
