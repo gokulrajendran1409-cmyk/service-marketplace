@@ -3126,6 +3126,10 @@ textarea.form-input { min-height: 120px; resize: vertical; line-height: 1.5; }
 
 .request-schedule { color: var(--accent-primary); font-size: 12px; font-weight: 600; margin-top: 8px; }
 
+.request-journey-section {
+  margin-bottom: 20px;
+}
+
 .journey-timeline {
   display: flex;
   flex-wrap: wrap;
@@ -3535,7 +3539,12 @@ textarea.form-input { min-height: 120px; resize: vertical; line-height: 1.5; }
 .journey-timeline-large {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 18px;
+  gap: 14px 16px;
+  padding: 14px 16px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  margin-top: 14px;
 }
 
 .journey-timeline-large .journey-timeline-step {
@@ -3543,12 +3552,15 @@ textarea.form-input { min-height: 120px; resize: vertical; line-height: 1.5; }
   align-items: center;
   gap: 8px;
   flex: 0 1 auto;
+  padding: 6px 0;
 }
 
 .journey-timeline-large .step-label {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-secondary);
+  flex: 1;
+  min-width: 0;
 }
 
 .view-customer-route-btn {
@@ -3798,6 +3810,112 @@ textarea.form-input { min-height: 120px; resize: vertical; line-height: 1.5; }
   letter-spacing: 0.3px;
 }
 
+/* Review Form Styles */
+.review-form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 20px 0;
+}
+
+.review-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.review-form-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.2px;
+}
+
+.review-stars-selector {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.review-star-btn {
+  width: 48px;
+  height: 48px;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  background: #ffffff;
+  font-size: 24px;
+  color: #d1d5db;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.review-star-btn:hover {
+  border-color: #f59e0b;
+  color: #f59e0b;
+  transform: scale(1.08);
+}
+
+.review-star-btn.active {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  color: #f59e0b;
+}
+
+.review-rating-display {
+  padding: 12px 14px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border-left: 3px solid #f59e0b;
+  min-height: 24px;
+}
+
+.review-rating-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #b45309;
+  letter-spacing: -0.2px;
+}
+
+.review-comment-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  color: #0f172a;
+  resize: vertical;
+  transition: all 0.2s;
+}
+
+.review-comment-input:focus {
+  outline: 0;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.review-comment-input::placeholder {
+  color: #d1d5db;
+}
+
+.request-detail-close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: color 0.2s;
+}
+
+.request-detail-close-btn:hover {
+  color: #0f172a;
+}
+
 .status-badge {
   flex-shrink: 0;
   font-size: 12px;
@@ -3950,6 +4068,7 @@ textarea.form-input { min-height: 120px; resize: vertical; line-height: 1.5; }
   
   .journey-progress-card {
     padding: 16px 18px;
+    margin-bottom: 16px;
   }
   
   .journey-status-label {
@@ -3962,11 +4081,32 @@ textarea.form-input { min-height: 120px; resize: vertical; line-height: 1.5; }
   }
   
   .journey-timeline-large {
-    gap: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 0;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+  
+  .journey-timeline-large .journey-timeline-step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+  
+  .journey-timeline-large .journey-timeline-step span:first-child {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
   }
   
   .journey-timeline-large .step-label {
-    font-size: 12px;
+    font-size: 13px;
+    font-weight: 600;
   }
   
   .customer-route-map-container {
@@ -4059,6 +4199,10 @@ textarea.form-input { min-height: 120px; resize: vertical; line-height: 1.5; }
   
   .journey-timeline-step {
     font-size: 10px;
+  }
+  
+  .request-journey-section {
+    margin-bottom: 20px;
   }
   
   .request-payment-card {

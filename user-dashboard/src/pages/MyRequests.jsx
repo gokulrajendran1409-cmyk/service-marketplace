@@ -443,6 +443,64 @@ function MyRequests({ navigate }) {
         </div>
       )}
 
+      {reviewingRequestId && (
+        <div className="request-detail-overlay">
+          <div className="request-detail-page">
+            <div className="request-detail-topbar">
+              <div className="request-detail-heading">
+                <h2>Rate the Professional</h2>
+              </div>
+              <button onClick={() => setReviewingRequestId(null)} className="request-detail-close-btn" aria-label="Close">
+                ✕
+              </button>
+            </div>
+
+            <div className="review-form-container">
+              <div className="review-form-section">
+                <label className="review-form-label">Select your rating</label>
+                <div className="review-stars-selector">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <button
+                      key={star}
+                      type="button"
+                      className={`review-star-btn ${star <= reviewRating ? 'active' : ''}`}
+                      onClick={() => setReviewRating(star)}
+                      aria-label={`Rate ${star} stars`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+                <div className="review-rating-display">
+                  {reviewRating > 0 && (
+                    <span className="review-rating-text">{reviewRating} out of 5 stars</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="review-form-section">
+                <label className="review-form-label">Add a comment (optional)</label>
+                <textarea
+                  className="review-comment-input"
+                  placeholder="Share your experience with this professional..."
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  rows={4}
+                />
+              </div>
+
+              <button
+                className="btn-submit"
+                onClick={() => submitReview(reviewingRequestId)}
+                disabled={reviewSubmitting || !reviewRating}
+              >
+                {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Toast toast={toast} />
     </div>
   );
