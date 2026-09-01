@@ -1,0 +1,25 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Carpentry Service Icon -->
+  <rect width="200" height="200" fill="#fef5e7"/>
+  <g transform="translate(30, 30)">
+    <!-- Wooden Toolbox -->
+    <rect x="10" y="30" width="80" height="50" fill="#8b7355" stroke="#654321" stroke-width="2" rx="5"/>
+    <rect x="10" y="25" width="80" height="8" fill="#a0826d" stroke="#654321" stroke-width="1"/>
+    <!-- Tools -->
+    <g transform="translate(25, 35)">
+      <!-- Hammer -->
+      <circle cx="5" cy="5" r="5" fill="#444"/>
+      <rect x="3" y="10" width="4" height="20" fill="#8b4513"/>
+    </g>
+    <g transform="translate(50, 35)">
+      <!-- Saw -->
+      <path d="M 0 0 L 25 0 M 2 2 L 23 2" stroke="#444" stroke-width="2" stroke-linecap="round"/>
+      <rect x="0" y="3" width="25" height="15" fill="#8b4513"/>
+    </g>
+    <g transform="translate(75, 35)">
+      <!-- Measuring Tape -->
+      <circle cx="0" cy="0" r="8" fill="#ffde00" stroke="#ff6b00" stroke-width="2"/>
+      <path d="M 8 0 L 20 0" stroke="#ff6b00" stroke-width="2" stroke-linecap="round"/>
+    </g>
+  </g>
+</svg>

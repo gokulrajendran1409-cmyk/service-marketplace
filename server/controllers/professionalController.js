@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { broadcast } = require('../utils/sseClients');
 const { notifyPro } = require('../utils/proSseClients');
+const { notifyCustomer } = require('../utils/customerSseClients');
 
 const JOURNEY_STEPS = ['accepted', 'start_navigation', 'on_the_way', 'arrived', 'working'];
 
@@ -348,9 +349,10 @@ exports.updateRequestJourney = async (req, res) => {
     try {
         await client.query('BEGIN');
         const current = await client.query(
-            `SELECT sr.journey_status
+            `SELECT sr.journey_status, sr.customer_id, p.full_name as professional_name
              FROM service_requests sr
              JOIN service_offers so ON so.request_id = sr.id
+             JOIN professionals p ON p.id = so.professional_id
              WHERE sr.id = $1 AND so.professional_id = $2 AND so.status = 'accepted'
              FOR UPDATE`,
             [requestId, professionalId]
@@ -360,6 +362,8 @@ exports.updateRequestJourney = async (req, res) => {
             return res.status(404).json({ message: 'Accepted request not found for this professional' });
         }
 
+        const customerId = current.rows[0].customer_id;
+        const professionalName = current.rows[0].professional_name;
         const currentIndex = JOURNEY_STEPS.indexOf(current.rows[0].journey_status || 'accepted');
         const nextIndex = JOURNEY_STEPS.indexOf(nextStatus);
         if (nextIndex !== currentIndex + 1) {
@@ -388,6 +392,16 @@ exports.updateRequestJourney = async (req, res) => {
         );
         await client.query('COMMIT');
 
+        // Notify customer about the update
+        notifyCustomer(customerId, 'requestUpdate', {
+            requestId: requestId,
+            newStatus: requestStatus,
+            journeyStatus: nextStatus,
+            updateType: 'journey_update',
+            professionalName: professionalName
+        });
+
+        // Also broadcast to admin
         broadcast('service_request_updated', {
             id: requestId,
             professional_id: professionalId,
@@ -418,9 +432,10 @@ exports.verifyOtp = async (req, res) => {
     try {
         await client.query('BEGIN');
         const current = await client.query(
-            `SELECT sr.journey_status, sr.otp
+            `SELECT sr.journey_status, sr.otp, sr.customer_id, p.full_name as professional_name
              FROM service_requests sr
              JOIN service_offers so ON so.request_id = sr.id
+             JOIN professionals p ON p.id = so.professional_id
              WHERE sr.id = $1 AND so.professional_id = $2 AND so.status = 'accepted'
              FOR UPDATE`,
             [requestId, professionalId]
@@ -436,6 +451,9 @@ exports.verifyOtp = async (req, res) => {
             return res.status(400).json({ message: 'Invalid OTP' });
         }
 
+        const customerId = current.rows[0].customer_id;
+        const professionalName = current.rows[0].professional_name;
+
         const result = await client.query(
             `UPDATE service_requests
              SET journey_status = 'arrived', journey_updated_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
@@ -445,6 +463,16 @@ exports.verifyOtp = async (req, res) => {
         );
         await client.query('COMMIT');
 
+        // Notify customer about arrival
+        notifyCustomer(customerId, 'requestUpdate', {
+            requestId: requestId,
+            newStatus: 'in_progress',
+            journeyStatus: 'arrived',
+            updateType: 'journey_update',
+            professionalName: professionalName
+        });
+
+        // Also broadcast to admin
         broadcast('service_request_updated', {
             id: requestId,
             professional_id: professionalId,
@@ -537,9 +565,10 @@ exports.submitWage = async (req, res) => {
 
         // Verify this professional owns the accepted request and it's in 'working' journey state
         const current = await client.query(
-            `SELECT sr.journey_status, sr.status, sr.customer_id
+            `SELECT sr.journey_status, sr.status, sr.customer_id, p.full_name as professional_name
              FROM service_requests sr
              JOIN service_offers so ON so.request_id = sr.id
+             JOIN professionals p ON p.id = so.professional_id
              WHERE sr.id = $1 AND so.professional_id = $2 AND so.status = 'accepted'
              FOR UPDATE`,
             [requestId, professionalId]
@@ -551,6 +580,9 @@ exports.submitWage = async (req, res) => {
         }
 
         const { journey_status } = current.rows[0];
+        const customerId = current.rows[0].customer_id;
+        const professionalName = current.rows[0].professional_name;
+        
         if (journey_status !== 'working') {
             await client.query('ROLLBACK');
             return res.status(400).json({ message: 'Wage can only be submitted after the work is in progress (working status)' });
@@ -571,6 +603,15 @@ exports.submitWage = async (req, res) => {
         );
 
         await client.query('COMMIT');
+
+        // Notify customer that payment is ready
+        notifyCustomer(customerId, 'requestUpdate', {
+            requestId: requestId,
+            newStatus: 'in_progress',
+            journeyStatus: 'awaiting_payment',
+            updateType: 'payment_ready',
+            professionalName: professionalName
+        });
 
         broadcast('service_request_updated', {
             id: requestId,

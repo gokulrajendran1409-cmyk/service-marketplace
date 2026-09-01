@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { ArrowRight, Award, BadgePercent, Bell, CheckCircle2, ChefHat, ChevronRight, MapPin, Navigation, Palette, Scissors, Search, ShieldCheck, Sparkles, Star, UserRoundCheck, Wrench, Zap } from 'lucide-react';
 import { API } from '../constants';
 
@@ -8,6 +8,14 @@ function Home({ navigate }) {
   const [userName, setUserName] = useState('there');
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
   const [dbCategories, setDbCategories] = useState([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0);
+
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const currentDrag = useRef(0);
+  const isHorizontalSwipe = useRef(null);
+  const isPointerDown = useRef(false);
 
   const serviceCategoryItems = [
     {
@@ -201,11 +209,56 @@ function Home({ navigate }) {
   }, []);
 
   useEffect(() => {
+    if (isDragging) return;
     const timer = setInterval(() => {
       setCurrentPromoIndex((prev) => (prev + 1) % promoSlides.length);
     }, 5000);
     return () => clearInterval(timer);
-  }, [promoSlides.length]);
+  }, [isDragging, promoSlides.length]);
+
+  const handlePointerDown = (e) => {
+    isPointerDown.current = true;
+    touchStartX.current = e.clientX;
+    touchStartY.current = e.clientY;
+    currentDrag.current = 0;
+    isHorizontalSwipe.current = null;
+  };
+
+  const handlePointerMove = (e) => {
+    if (!isPointerDown.current) return;
+    const diffX = e.clientX - touchStartX.current;
+    const diffY = e.clientY - touchStartY.current;
+
+    if (isHorizontalSwipe.current === null) {
+      if (Math.abs(diffX) > 6 || Math.abs(diffY) > 6) {
+        isHorizontalSwipe.current = Math.abs(diffX) > Math.abs(diffY);
+      }
+    }
+
+    if (isHorizontalSwipe.current) {
+      setIsDragging(true);
+      currentDrag.current = diffX;
+      setDragOffset(diffX);
+    }
+  };
+
+  const handlePointerUp = () => {
+    if (!isPointerDown.current) return;
+    isPointerDown.current = false;
+
+    if (isHorizontalSwipe.current) {
+      if (currentDrag.current < -40) {
+        setCurrentPromoIndex((prev) => (prev + 1) % promoSlides.length);
+      } else if (currentDrag.current > 40) {
+        setCurrentPromoIndex((prev) => (prev - 1 + promoSlides.length) % promoSlides.length);
+      }
+    }
+
+    setIsDragging(false);
+    setDragOffset(0);
+    currentDrag.current = 0;
+    isHorizontalSwipe.current = null;
+  };
 
   useEffect(() => {
     // Detect location name
@@ -262,14 +315,36 @@ function Home({ navigate }) {
         </div>
       </form>
 
-      <section className="home-promo-carousel home-order-promo">
-        <div className="home-promo-slides" style={{ transform: `translateX(-${currentPromoIndex * 100}%)` }}>
+      <section 
+        className="home-promo-carousel home-order-promo"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+        style={{ touchAction: 'pan-y', userSelect: 'none', cursor: isDragging ? 'grabbing' : 'grab' }}
+      >
+        <div 
+          className="home-promo-slides" 
+          style={{ 
+            transform: isDragging 
+              ? `translateX(calc(-${currentPromoIndex * 100}% + ${dragOffset}px))` 
+              : `translateX(-${currentPromoIndex * 100}%)`,
+            transition: isDragging ? 'none' : 'transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)'
+          }}
+        >
           {promoSlides.map((slide, index) => (
             <div key={index} className="home-promo-card" style={{ background: slide.color }}>
               <div className="home-promo-content">
                 <h2 className="home-promo-title">{slide.title}</h2>
                 <p className="home-promo-description">{slide.description}</p>
-                <button className="home-promo-btn" onClick={() => navigate('services')}>
+                <button 
+                  className="home-promo-btn" 
+                  onClick={(e) => {
+                    if (Math.abs(currentDrag.current) > 10) return;
+                    navigate('services');
+                  }}
+                >
                   {slide.buttonText}
                 </button>
               </div>

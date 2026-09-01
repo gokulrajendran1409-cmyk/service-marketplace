@@ -4,6 +4,35 @@ import { categoryColors, categoryIcons, serviceGroups, API } from '../constants'
 import { BookingModal } from '../components/BookingModal';
 import { useToast, Toast } from '../components/Toast';
 
+import gardeningImg from '../assets/service-icons/gardening.jpg';
+import acRepairImg from '../assets/service-icons/ac-appliance-repair.jpg';
+import cctvSecurityImg from '../assets/service-icons/cctv-security.jpg';
+import appliancesImg from '../assets/service-icons/appliances.jpg';
+import computerRepairImg from '../assets/service-icons/computer-repair.jpg';
+import carpentryImg from '../assets/service-icons/carpentry.jpg';
+import cleaningImg from '../assets/service-icons/cleaning.jpg';
+import electricalImg from '../assets/service-icons/electrical.jpg';
+import paintingImg from '../assets/service-icons/painting.jpg';
+import plumbingImg from '../assets/service-icons/plumbing.jpg';
+
+const categoryImages = {
+  'Gardening & Landscaping': gardeningImg,
+  'Gardening': gardeningImg,
+  'AC & Appliance Repair': acRepairImg,
+  'AC Repair': acRepairImg,
+  'CCTV & Security': cctvSecurityImg,
+  'Security': cctvSecurityImg,
+  'Appliances': appliancesImg,
+  'Computer & Mobile Repair': computerRepairImg,
+  'Computer Repair': computerRepairImg,
+  'Computer Repairing': computerRepairImg,
+  'Carpentry': carpentryImg,
+  'Cleaning': cleaningImg,
+  'Electrical': electricalImg,
+  'Painting': paintingImg,
+  'Plumbing': plumbingImg,
+};
+
 function Services({ navigate, initialGroup = null, initialCategory = null }) {
   const [categories, setCategories] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -15,6 +44,7 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
   const [locationError, setLocationError] = useState('');
   const [booking, setBooking] = useState(null); // { professional, category }
   const [profileProfessional, setProfileProfessional] = useState(null);
+  const [showLocationModal, setShowLocationModal] = useState(false);
   const { toast, showToast } = useToast();
   const nearbyLimitKm = 15;
 
@@ -33,7 +63,7 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
   useEffect(() => {
     fetch(`${API}/categories`)
       .then(r => r.json())
-      .then(data => setCategories(data))
+      .then(data => setCategories(Array.isArray(data) ? data : []))
       .catch(() => showToast('Failed to load categories', 'error'))
       .finally(() => setLoadingCats(false));
   }, []);
@@ -149,7 +179,7 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
 
   const nearbyProfessionals = professionals.filter(professional => professional.distance_from_user != null && professional.distance_from_user <= nearbyLimitKm);
 
-  const categoriesByName = new Map(categories.map(category => [category.name, category]));
+  const categoriesByName = new Map((Array.isArray(categories) ? categories : []).map(category => [category.name, category]));
 
   const renderProfessionalCard = (pro, allowDirectBooking = false) => (
     <div key={pro.id} className="pro-card fade-up">
@@ -195,34 +225,77 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
         </div>
       </div>
 
-      <div className="location-panel">
-        <div className="location-panel-copy">
-          <div className="location-icon"><MapPin size={20} /></div>
-          <div>
-            <h2>Your current location</h2>
-            <p>{locationStatus === 'ready'
-              ? `${location.placeName || 'Location found'} (accuracy about ${location.accuracy}m). Professionals can be selected from your area.`
-              : 'Turn on location before selecting a professional so we can show where you are on the map.'}</p>
-          </div>
-        </div>
-        {locationStatus !== 'ready' && (
-          <button className="btn-location" onClick={() => requestLocation().catch(() => {})} disabled={locationStatus === 'requesting'}>
-            {locationStatus === 'requesting' ? <RefreshCw size={16} className="spin" /> : <MapPin size={16} />}
-            {locationStatus === 'requesting' ? 'Finding you...' : 'Enable location'}
-          </button>
-        )}
-        {locationError && <p className="location-error">{locationError}</p>}
+      {/* Location Status Badge */}
+      <div className="location-badge-container">
+        <button 
+          className={`location-badge ${locationStatus === 'ready' ? 'ready' : 'pending'}`}
+          onClick={() => setShowLocationModal(true)}
+        >
+          <MapPin size={16} />
+          <span>
+            {locationStatus === 'ready' 
+              ? location?.placeName || 'Location found' 
+              : 'Enable location'}
+          </span>
+          <ChevronRight size={14} />
+        </button>
       </div>
 
-      {location && (
-        <div className="location-map-wrap">
-          <iframe
-            title="Your current location"
-            className="location-map"
-            src={mapUrl}
-            loading="lazy"
-          />
-          <p className="map-caption"><strong>{location.placeName || 'Your current location'}</strong> is shown on the map. It is used to help you choose a nearby professional.</p>
+      {/* Location Modal */}
+      {showLocationModal && (
+        <div className="modal-overlay" onClick={() => setShowLocationModal(false)}>
+          <div className="location-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Your Location</h2>
+              <button 
+                className="modal-close" 
+                onClick={() => setShowLocationModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div className="location-info-card">
+                <div className="location-info-icon">
+                  <MapPin size={24} />
+                </div>
+                <div className="location-info-text">
+                  <h3>Current Location</h3>
+                  <p>{locationStatus === 'ready'
+                    ? `${location.placeName || 'Location found'} (accuracy about ${location.accuracy}m)`
+                    : 'Enable location to see nearby professionals'}</p>
+                </div>
+              </div>
+
+              {locationStatus !== 'ready' && (
+                <button 
+                  className="btn-enable-location" 
+                  onClick={() => {
+                    requestLocation().catch(() => {});
+                  }} 
+                  disabled={locationStatus === 'requesting'}
+                >
+                  {locationStatus === 'requesting' ? <RefreshCw size={16} className="spin" /> : <MapPin size={16} />}
+                  {locationStatus === 'requesting' ? 'Finding your location...' : 'Enable Location Access'}
+                </button>
+              )}
+
+              {locationError && <p className="location-modal-error">{locationError}</p>}
+
+              {location && (
+                <div className="location-map-container">
+                  <iframe
+                    title="Your current location"
+                    className="location-map-modal"
+                    src={mapUrl}
+                    loading="lazy"
+                  />
+                  <p className="map-info"><strong>{location.placeName || 'Your current location'}</strong> is shown on the map. It's used to help you choose nearby professionals.</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -243,6 +316,7 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
               const CategoryIcon = categoryIcons[cat.name] || Tags;
               const iconColor = categoryColors[cat.name] || 'var(--accent-primary)';
               const dummyPrice = (14.25 + (index * 4.5)).toFixed(2);
+              const serviceImg = categoryImages[cat.name] || categoryImages[cat.id];
               
               return (
                 <button
@@ -251,7 +325,16 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
                   onClick={() => selectCategory(cat)}
                 >
                   <div className="subcategory-item-image">
-                    <CategoryIcon size={52} strokeWidth={1.5} color={iconColor} />
+                    {serviceImg ? (
+                      <img 
+                        src={serviceImg} 
+                        alt={cat.name} 
+                        className="subcategory-img-preview" 
+                        loading="lazy" 
+                      />
+                    ) : (
+                      <CategoryIcon size={52} strokeWidth={1.5} color={iconColor} />
+                    )}
                   </div>
                   <div className="subcategory-item-content">
                     <h3 className="subcategory-item-title">{cat.name}</h3>

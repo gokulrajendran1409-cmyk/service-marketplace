@@ -1,0 +1,16 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Plumbing Service Icon -->
+  <rect width="200" height="200" fill="#f0f9ff"/>
+  <g transform="translate(50, 40)">
+    <!-- Pipe Elbow -->
+    <path d="M 20 10 L 20 40 Q 20 50 30 50 L 50 50" stroke="#666" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <!-- Wrench -->
+    <g transform="translate(60, 30) rotate(45)">
+      <rect x="0" y="-3" width="30" height="6" rx="3" fill="#007bff" transform="skewX(-20)"/>
+      <circle cx="30" cy="0" r="6" fill="#007bff"/>
+    </g>
+    <!-- Valve -->
+    <circle cx="15" cy="65" r="8" stroke="#c41e3a" stroke-width="2" fill="none"/>
+    <rect x="13" y="73" width="4" height="8" fill="#c41e3a"/>
+  </g>
+</svg>

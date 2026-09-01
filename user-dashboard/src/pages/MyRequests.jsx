@@ -100,6 +100,50 @@ function MyRequests({ navigate }) {
 
   useEffect(() => { fetchRequests(); }, []);
 
+  // Real-time updates via SSE
+  useEffect(() => {
+    const token = localStorage.getItem('userToken');
+    if (!token) return;
+
+    const eventSource = new EventSource(`${API}/notifications/stream`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    eventSource.addEventListener('requestUpdate', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        const { requestId, newStatus, journeyStatus, updateType, professionalName } = data;
+
+        setRequests(current => current.map(r => 
+          r.id === requestId 
+            ? {
+                ...r,
+                status: newStatus,
+                journey_status: journeyStatus,
+                has_update: true,
+                update_received_at: new Date()
+              }
+            : r
+        ));
+
+        // Show user-friendly notification
+        const updateMessages = {
+          'status_change': `${professionalName} updated your request status`,
+          'journey_update': `${professionalName} ${journeyStatus === 'on_the_way' ? 'is on the way' : journeyStatus === 'arrived' ? 'has arrived' : journeyStatus === 'working' ? 'is working on your request' : 'completed your request'}`,
+          'payment_ready': `${professionalName} marked payment as ready`,
+          'journey_started': `${professionalName} started navigation to your location`
+        };
+
+        const message = updateMessages[updateType] || `New update from ${professionalName}`;
+        showToast(message, 'info');
+      } catch (e) {
+        console.error('Error parsing update:', e);
+      }
+    });
+
+    return () => eventSource.close();
+  }, []);
+
   const confirmPayment = async (requestId) => {
     try {
       const token = localStorage.getItem('userToken');
@@ -115,7 +159,7 @@ function MyRequests({ navigate }) {
         journey_status: data.request.journey_status,
         payment_status: data.request.payment_status
       } : r));
-      showToast('Payment confirmed! Thank you.', 'success');
+      showToast('Payment successful! Thank you.', 'success');
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -183,26 +227,76 @@ function MyRequests({ navigate }) {
     return `${hours}h ${remainingMinutes}m`;
   };
 
+  const activeCount = requests.filter(r => ['accepted', 'in_progress'].includes(r.status)).length;
+  const pendingCount = requests.filter(r => r.status === 'pending').length;
+  const completedCount = requests.filter(r => r.status === 'completed').length;
+
   return (
-    <div className="page-container">
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <div>
-          <h1 className="page-title">My Bookings</h1>
-          <p className="page-subtitle">Track the status of all your service bookings.</p>
+    <div className="page-container bookings-page-container">
+      {/* ====== MOBILE-OPTIMIZED HERO HEADER ====== */}
+      <div className="bookings-hero-banner">
+        <div className="bookings-hero-top">
+          <div className="bookings-hero-text">
+            <span className="bookings-hero-kicker">ACTIVITY & STATUS</span>
+            <h1 className="bookings-hero-title">My Bookings</h1>
+            <p className="bookings-hero-subtitle">Track and manage all your service requests</p>
+          </div>
+          <div className="bookings-hero-actions">
+            <button
+              onClick={fetchRequests}
+              className="bookings-hero-icon-btn"
+              title="Refresh bookings"
+              aria-label="Refresh bookings"
+            >
+              <RefreshCw size={16} />
+            </button>
+            <button
+              className="bookings-hero-new-btn"
+              onClick={() => navigate('services')}
+            >
+              <Plus size={16} />
+              <span>New</span>
+            </button>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button
-            onClick={fetchRequests}
-            style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid var(--border-light)', background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', gap: 6, fontSize: 14 }}
+
+        {/* ====== QUICK STATS ROW ====== */}
+        <div className="bookings-stats-strip">
+          <button 
+            className={`bookings-stat-card ${requestFilter === 'active' ? 'active' : ''}`}
+            onClick={() => setRequestFilter('active')}
           >
-            <RefreshCw size={15} /> Refresh
+            <div className="bookings-stat-header">
+              <span className="bookings-stat-dot active-dot"></span>
+              <span className="bookings-stat-label">Active</span>
+            </div>
+            <strong className="bookings-stat-num">{activeCount}</strong>
           </button>
-          <button
-            className="btn-hire"
-            style={{ width: 'auto', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 6 }}
-            onClick={() => navigate('services')}
+
+          <div className="bookings-stat-sep" />
+
+          <button 
+            className={`bookings-stat-card ${requestFilter === 'pending' ? 'active' : ''}`}
+            onClick={() => setRequestFilter('pending')}
           >
-            <Plus size={15} /> New Request
+            <div className="bookings-stat-header">
+              <span className="bookings-stat-dot pending-dot"></span>
+              <span className="bookings-stat-label">Pending</span>
+            </div>
+            <strong className="bookings-stat-num">{pendingCount}</strong>
+          </button>
+
+          <div className="bookings-stat-sep" />
+
+          <button 
+            className={`bookings-stat-card ${requestFilter === 'completed' ? 'active' : ''}`}
+            onClick={() => setRequestFilter('completed')}
+          >
+            <div className="bookings-stat-header">
+              <span className="bookings-stat-dot completed-dot"></span>
+              <span className="bookings-stat-label">Completed</span>
+            </div>
+            <strong className="bookings-stat-num">{completedCount}</strong>
           </button>
         </div>
       </div>
@@ -238,7 +332,18 @@ function MyRequests({ navigate }) {
         <div className="request-filter-bar" role="tablist" aria-label="Filter bookings">
           {filterOptions.map(option => {
             const count = requests.filter(option.matches).length;
-            return <button key={option.key} className={requestFilter === option.key ? 'active' : ''} onClick={() => setRequestFilter(option.key)} role="tab" aria-selected={requestFilter === option.key}>{option.label}<span>{count}</span></button>;
+            return (
+              <button 
+                key={option.key} 
+                className={`filter-btn-${option.key} ${requestFilter === option.key ? 'active' : ''}`} 
+                onClick={() => setRequestFilter(option.key)} 
+                role="tab" 
+                aria-selected={requestFilter === option.key}
+              >
+                {option.label}
+                <span>{count}</span>
+              </button>
+            );
           })}
         </div>
         {filteredRequests.length === 0 ? (
@@ -247,133 +352,51 @@ function MyRequests({ navigate }) {
         <div className="requests-list">
           <div className="requests-list-heading"><div><span>BOOKINGS</span><h2>{currentFilter.label}</h2></div><strong>{filteredRequests.length} {filteredRequests.length === 1 ? 'booking' : 'bookings'}</strong></div>
           {filteredRequests.map(req => (
-            <div key={req.id} className={`request-item fade-up request-card-clickable ${['accepted', 'in_progress'].includes(req.status) ? 'live-request-item' : ''}`} onClick={(event) => {
-              if (!event.target.closest('button')) setSelectedRequestId(req.id);
+            <div key={req.id} className={`request-card-compact request-card-clickable ${['accepted', 'in_progress'].includes(req.status) ? 'live-request-item' : ''}`} onClick={(event) => {
+              if (!event.target.closest('button')) {
+                setSelectedRequestId(req.id);
+                // Clear the update badge when user views the request
+                if (req.has_update) {
+                  setRequests(current => current.map(r => r.id === req.id ? { ...r, has_update: false } : r));
+                }
+              }
             }}>
-              <div style={{ flex: 1 }}>
-                <div className="request-title">{req.title}</div>
-                <div className="request-location">
-                  <MapPin size={13} /> {req.location}
+              {/* New Update Badge */}
+              {req.has_update && (
+                <div className="request-update-badge">
+                  <span className="update-dot"></span>
+                  New update
                 </div>
-                {req.description && (
-                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                    {req.description}
-                  </div>
-                )}
-                <div className="request-date">
-                  <Calendar size={12} style={{ display: 'inline', marginRight: 4 }} />
-                  {new Date(req.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+              )}
+              {/* Left Section - Title & Details */}
+              <div className="compact-card-left">
+                <div className="compact-card-id">Request #{req.id.toString().padStart(3, '0')}</div>
+                <div className="compact-card-title">{req.title}</div>
+                <div className="compact-card-date">
+                  <Calendar size={12} />
+                  {new Date(req.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}
                 </div>
-                {req.status === 'pending' && (
-                  <p className="request-broadcast-note">
-                    {req.offer_count > 1
-                      ? 'Request sent to nearby professionals. Waiting for someone to accept.'
-                      : `Request sent to ${req.professional_name || 'the selected professional'}. Waiting for them to accept.`}
-                  </p>
-                )}
-                {(req.status === 'accepted' || req.status === 'in_progress' || req.status === 'completed') && req.professional_name && (
-                  <div className="request-provider-summary">
-                    <div className="request-provider-avatar">{req.professional_name.charAt(0).toUpperCase()}</div>
-                    <div><strong>{req.professional_name}</strong><span><ShieldCheck size={13} /> Verified provider · {req.category || 'Service professional'}</span></div>
-                    <div className="request-provider-state"><CheckCircle2 size={15} /> {req.status === 'completed' ? 'Completed' : 'On the way'}</div>
+                {req.location && (
+                  <div className="compact-card-location">
+                    <MapPin size={11} />
+                    {req.location}
                   </div>
-                )}
-                {(req.status === 'accepted' || req.status === 'in_progress' || req.status === 'completed') && req.journey_status && (
-                  (() => {
-                    const currentStatus = req.journey_status || 'accepted';
-                    const currentIndex = ['accepted', ...JOURNEY_STEPS.map(item => item.key)].indexOf(currentStatus);
-                    const currentStep = JOURNEY_STEPS[currentIndex - 1];
-                    return <>
-                      <div className="journey-progress-detail">
-                        <div className="journey-progress-kicker">Live service progress</div>
-                        <strong>{currentStep ? currentStep.label : 'Accepted'}</strong>
-                        <p>{currentStep?.detail || 'The professional has accepted your request and is preparing to travel.'}</p>
-                        {req.journey_updated_at && <small>Updated {new Date(req.journey_updated_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</small>}
-                        {(currentStatus === 'start_navigation' || currentStatus === 'on_the_way') && req.otp && (
-                          <div style={{ marginTop: '12px', padding: '12px 16px', background: '#eff6ff', borderRadius: '8px', border: '1px dashed #60a5fa', display: 'inline-block' }}>
-                            <span style={{ fontSize: '12px', color: '#3b82f6', display: 'block', marginBottom: '4px', fontWeight: '500' }}>Share this OTP with professional on arrival</span>
-                            <strong style={{ fontSize: '24px', letterSpacing: '8px', color: '#1d4ed8' }}>{req.otp}</strong>
-                          </div>
-                        )}
-                      </div>
-                      <div className="journey-timeline">
-                      {JOURNEY_STEPS.map(step => {
-                      const stepIndex = JOURNEY_STEPS.findIndex(item => item.key === step.key);
-                      return <div key={step.key} className={`journey-timeline-step ${stepIndex < currentIndex ? 'done' : stepIndex === currentIndex ? 'current' : ''}`}><span>{stepIndex < currentIndex ? '✓' : stepIndex + 1}</span>{step.label}</div>;
-                      })}
-                      </div>
-                    </>;
-                  })()
-                )}
-                {(req.status === 'accepted' || req.status === 'in_progress' || req.status === 'completed') && (
-                  req.latitude != null && req.longitude != null && req.professional_latitude != null && req.professional_longitude != null ? (
-                    <div className="customer-location-view">
-                      <button className="view-customer-route-btn" onClick={() => setViewingLocationId(viewingLocationId === req.id ? null : req.id)}>
-                        <MapPin size={14} /> {viewingLocationId === req.id ? 'Hide route' : 'View professional distance'}
-                      </button>
-                      {viewingLocationId === req.id && (
-                        <CustomerRouteMap
-                          request={req}
-                          onRouteDistance={(distance) => setRequests(current => current.map(item => item.id === req.id ? { ...item, route_distance_km: distance } : item))}
-                        />
-                      )}
-                      {viewingLocationId === req.id && req.route_distance_km != null && (
-                        <div className="customer-distance"><Navigation size={14} /> {req.route_distance_km < 1 ? `${Math.round(req.route_distance_km * 1000)} m` : `${req.route_distance_km.toFixed(2)} km`} travel distance</div>
-                      )}
-                    </div>
-                  ) : <p className="customer-location-unavailable">Professional location is not available for this request yet.</p>
                 )}
               </div>
-              <div>
-                <span className={`status-badge ${req.status}`}>
+
+              {/* Right Section - Price & Status */}
+              <div className="compact-card-right">
+                {req.wage && (
+                  <div className="compact-card-price">
+                    ₹{Number(req.wage).toLocaleString('en-IN')}
+                  </div>
+                )}
+                <span className={`status-badge-compact ${req.status}`}>
                   {req.journey_status && req.journey_status !== 'accepted'
                     ? JOURNEY_STEPS.find(step => step.key === req.journey_status)?.label || statusLabel[req.status]
                     : statusLabel[req.status] || req.status}
                 </span>
-                {req.payment_status === 'paid' && (
-                  <span style={{ display: 'inline-block', marginTop: '6px', padding: '4px 10px', background: '#dcfce7', color: '#16a34a', borderRadius: '12px', fontSize: '12px', fontWeight: '600' }}>✓ Paid</span>
-                )}
               </div>
-              {req.payment_status === 'awaiting_payment' && (
-                <div style={{ marginTop: '16px', padding: '16px', background: '#fffbeb', borderRadius: '10px', border: '1px solid #fbbf24' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <strong style={{ fontSize: '14px', color: '#92400e' }}>💼 Payment Due</strong>
-                    <strong style={{ fontSize: '22px', color: '#b45309' }}>₹{Number(req.wage).toLocaleString('en-IN')}</strong>
-                  </div>
-                  {req.wage_description && (
-                    <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#78350f' }}>{req.wage_description}</p>
-                  )}
-                  <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#92400e' }}>Charged by <strong>{req.professional_name}</strong> for completing the service.</p>
-                  <button
-                    onClick={() => confirmPayment(req.id)}
-                    style={{ width: '100%', padding: '12px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>
-                    ✓ Confirm Payment
-                  </button>
-                </div>
-              )}
-              {req.payment_status === 'paid' && (
-                <div style={{ marginTop: '16px', padding: '16px', background: '#f8fafc', borderRadius: '10px', border: '1px solid var(--border-light)' }}>
-                  {req.review_id ? (
-                    <div style={{ color: '#b45309', fontWeight: 700 }}>Your rating: {'★'.repeat(Number(req.review_rating))}{'☆'.repeat(5 - Number(req.review_rating))}</div>
-                  ) : reviewingRequestId === req.id ? (
-                    <>
-                      <strong style={{ display: 'block', marginBottom: '8px' }}>Rate this professional</strong>
-                      <div style={{ display: 'flex', gap: '4px', marginBottom: '10px' }}>
-                        {[1, 2, 3, 4, 5].map(star => (
-                          <button key={star} type="button" aria-label={`${star} star${star > 1 ? 's' : ''}`} onClick={() => setReviewRating(star)} style={{ border: 'none', background: 'transparent', padding: '2px', cursor: 'pointer', color: star <= reviewRating ? '#f59e0b' : '#cbd5e1', fontSize: '28px' }}>★</button>
-                        ))}
-                      </div>
-                      <textarea value={reviewComment} onChange={event => setReviewComment(event.target.value)} placeholder="Share your experience (optional)" rows={3} style={{ width: '100%', boxSizing: 'border-box', padding: '10px', border: '1px solid var(--border-light)', borderRadius: '8px', resize: 'vertical' }} />
-                      <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                        <button type="button" onClick={() => setReviewingRequestId(null)} style={{ padding: '8px 12px', border: '1px solid var(--border-light)', borderRadius: '6px', background: '#fff', cursor: 'pointer' }}>Cancel</button>
-                        <button type="button" onClick={() => submitReview(req.id)} disabled={reviewSubmitting} style={{ padding: '8px 12px', border: 'none', borderRadius: '6px', background: '#16a34a', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>{reviewSubmitting ? 'Submitting...' : 'Submit Review'}</button>
-                      </div>
-                    </>
-                  ) : (
-                    <button type="button" onClick={() => { setReviewingRequestId(req.id); setReviewRating(0); setReviewComment(''); }} style={{ padding: '9px 14px', border: '1px solid #f59e0b', borderRadius: '7px', background: '#fff7ed', color: '#b45309', cursor: 'pointer', fontWeight: 700 }}>Rate Professional</button>
-                  )}
-                </div>
-              )}
             </div>
           ))}
         </div>
@@ -399,18 +422,137 @@ function MyRequests({ navigate }) {
                 <span className="request-provider-state"><CheckCircle2 size={16} /> {selectedRequest.status === 'completed' ? 'Work completed' : 'Assigned to you'}</span>
               </div>
             )}
+            
+            {/* Journey Status Section */}
+            {(selectedRequest.status === 'accepted' || selectedRequest.status === 'in_progress' || selectedRequest.status === 'completed') && selectedRequest.journey_status && (
+              (() => {
+                const currentStatus = selectedRequest.journey_status || 'accepted';
+                const currentIndex = ['accepted', ...JOURNEY_STEPS.map(item => item.key)].indexOf(currentStatus);
+                const currentStep = JOURNEY_STEPS[currentIndex - 1];
+                return (
+                  <div className="request-journey-section">
+                    <span className="request-detail-kicker">Live Service Progress</span>
+                    <div className="journey-progress-card">
+                      <div className="journey-status-label">{currentStep ? currentStep.label : 'Accepted'}</div>
+                      <p>{currentStep?.detail || 'The professional has accepted your request and is preparing to travel.'}</p>
+                      {selectedRequest.journey_updated_at && <small className="journey-updated-time">Updated {new Date(selectedRequest.journey_updated_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</small>}
+                      {(currentStatus === 'start_navigation' || currentStatus === 'on_the_way') && selectedRequest.otp && (
+                        <div className="otp-box">
+                          <span className="otp-label">Share this OTP with professional on arrival</span>
+                          <strong className="otp-code">{selectedRequest.otp}</strong>
+                        </div>
+                      )}
+                    </div>
+                    <div className="journey-timeline-large">
+                      {JOURNEY_STEPS.map(step => {
+                        const stepIndex = JOURNEY_STEPS.findIndex(item => item.key === step.key);
+                        return <div key={step.key} className={`journey-timeline-step ${stepIndex < currentIndex ? 'done' : stepIndex === currentIndex ? 'current' : ''}`}><span>{stepIndex < currentIndex ? '✓' : stepIndex + 1}</span><span className="step-label">{step.label}</span></div>;
+                      })}
+                    </div>
+                  </div>
+                );
+              })()
+            )}
+            
             <div className="request-detail-grid">
               <div className="request-detail-main">
                 {selectedRequest.description && <div className="request-detail-section"><span className="request-detail-kicker">JOB DESCRIPTION</span><p>{selectedRequest.description}</p></div>}
+                
+                {/* Distance/Route Section */}
+                {(selectedRequest.status === 'accepted' || selectedRequest.status === 'in_progress' || selectedRequest.status === 'completed') && 
+                  selectedRequest.latitude != null && selectedRequest.longitude != null && selectedRequest.professional_latitude != null && selectedRequest.professional_longitude != null && (
+                  <div className="request-detail-section">
+                    <span className="request-detail-kicker">Professional Location</span>
+                    <button className="view-customer-route-btn" onClick={() => setViewingLocationId(viewingLocationId === selectedRequest.id ? null : selectedRequest.id)}>
+                      <MapPin size={14} /> {viewingLocationId === selectedRequest.id ? 'Hide route' : 'View professional distance'}
+                    </button>
+                    {viewingLocationId === selectedRequest.id && (
+                      <CustomerRouteMap
+                        request={selectedRequest}
+                        onRouteDistance={(distance) => setRequests(current => current.map(item => item.id === selectedRequest.id ? { ...item, route_distance_km: distance } : item))}
+                      />
+                    )}
+                    {viewingLocationId === selectedRequest.id && selectedRequest.route_distance_km != null && (
+                      <div className="customer-distance"><Navigation size={14} /> {selectedRequest.route_distance_km < 1 ? `${Math.round(selectedRequest.route_distance_km * 1000)} m` : `${selectedRequest.route_distance_km.toFixed(2)} km`} travel distance</div>
+                    )}
+                  </div>
+                )}
+                
                 <div className="request-detail-stats">
                   <div><Clock3 size={18} /><span>Time taken</span><strong>{formatDuration(selectedRequest)}</strong></div>
                   <div><Calendar size={18} /><span>Requested on</span><strong>{new Date(selectedRequest.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</strong></div>
                 </div>
               </div>
               <aside className="request-detail-side">
-                <div className="request-payment-card"><span className="request-detail-kicker">ESTIMATED BILL</span><strong>{selectedRequest.wage != null ? `₹${Number(selectedRequest.wage).toLocaleString('en-IN')}` : 'Not set yet'}</strong><p>{selectedRequest.wage_description || (selectedRequest.payment_status === 'paid' ? 'Payment confirmed for this service.' : 'The provider will share the final amount after reviewing the work.')}</p>{selectedRequest.payment_status === 'awaiting_payment' && <button className="btn-submit" onClick={() => confirmPayment(selectedRequest.id)}>Confirm payment</button>}{selectedRequest.payment_status === 'paid' && <span className="request-paid-label">Payment confirmed</span>}</div>
-                {selectedRequest.review_id ? <div className="request-detail-review">Your rating: {'★'.repeat(Number(selectedRequest.review_rating))}{'☆'.repeat(5 - Number(selectedRequest.review_rating))}</div> : selectedRequest.payment_status === 'paid' && <button className="request-detail-review-btn" onClick={() => { setSelectedRequestId(null); setReviewingRequestId(selectedRequest.id); }}>Rate this professional</button>}
+                <div className="request-payment-card"><span className="request-detail-kicker">ESTIMATED BILL</span><strong>{selectedRequest.wage != null ? `₹${Number(selectedRequest.wage).toLocaleString('en-IN')}` : 'Not set yet'}</strong><p>{selectedRequest.wage_description || (selectedRequest.payment_status === 'paid' ? 'Payment successful for this service.' : 'The provider will share the final amount after reviewing the work.')}</p>{selectedRequest.payment_status === 'awaiting_payment' && <button className="btn-submit" onClick={() => confirmPayment(selectedRequest.id)}>Confirm payment</button>}{selectedRequest.payment_status === 'paid' && <span className="request-paid-label">Payment successful</span>}</div>
+                {selectedRequest.review_id ? (
+                  <div className="request-detail-review">
+                    <span className="review-label">Your rating</span>
+                    <span className="review-stars">
+                      {'★'.repeat(Number(selectedRequest.review_rating))}
+                      {'☆'.repeat(5 - Number(selectedRequest.review_rating))}
+                    </span>
+                  </div>
+                ) : selectedRequest.payment_status === 'paid' && <button className="request-detail-review-btn" onClick={() => { setSelectedRequestId(null); setReviewingRequestId(selectedRequest.id); }}>Rate this professional</button>}
               </aside>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {reviewingRequestId && (
+        <div className="request-detail-overlay">
+          <div className="request-detail-page">
+            <div className="request-detail-topbar">
+              <div className="request-detail-heading">
+                <h2>Rate the Professional</h2>
+              </div>
+              <button onClick={() => setReviewingRequestId(null)} className="request-detail-close-btn" aria-label="Close">
+                ✕
+              </button>
+            </div>
+
+            <div className="review-form-container">
+              <div className="review-form-section">
+                <label className="review-form-label">Select your rating</label>
+                <div className="review-stars-selector">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <button
+                      key={star}
+                      type="button"
+                      className={`review-star-btn ${star <= reviewRating ? 'active' : ''}`}
+                      onClick={() => setReviewRating(star)}
+                      aria-label={`Rate ${star} stars`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+                <div className="review-rating-display">
+                  {reviewRating > 0 && (
+                    <span className="review-rating-text">{reviewRating} out of 5 stars</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="review-form-section">
+                <label className="review-form-label">Add a comment (optional)</label>
+                <textarea
+                  className="review-comment-input"
+                  placeholder="Share your experience with this professional..."
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  rows={4}
+                />
+              </div>
+
+              <button
+                className="btn-submit"
+                onClick={() => submitReview(reviewingRequestId)}
+                disabled={reviewSubmitting || !reviewRating}
+              >
+                {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
+              </button>
             </div>
           </div>
         </div>
