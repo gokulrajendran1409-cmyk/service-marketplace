@@ -308,133 +308,38 @@ function MyRequests({ navigate }) {
         <div className="requests-list">
           <div className="requests-list-heading"><div><span>BOOKINGS</span><h2>{currentFilter.label}</h2></div><strong>{filteredRequests.length} {filteredRequests.length === 1 ? 'booking' : 'bookings'}</strong></div>
           {filteredRequests.map(req => (
-            <div key={req.id} className={`request-item fade-up request-card-clickable ${['accepted', 'in_progress'].includes(req.status) ? 'live-request-item' : ''}`} onClick={(event) => {
+            <div key={req.id} className={`request-card-compact request-card-clickable ${['accepted', 'in_progress'].includes(req.status) ? 'live-request-item' : ''}`} onClick={(event) => {
               if (!event.target.closest('button')) setSelectedRequestId(req.id);
             }}>
-              <div style={{ flex: 1 }}>
-                <div className="request-title">{req.title}</div>
-                <div className="request-location">
-                  <MapPin size={13} /> {req.location}
+              {/* Left Section - Title & Details */}
+              <div className="compact-card-left">
+                <div className="compact-card-id">Request #{req.id.toString().padStart(3, '0')}</div>
+                <div className="compact-card-title">{req.title}</div>
+                <div className="compact-card-date">
+                  <Calendar size={12} />
+                  {new Date(req.created_at).toLocaleDateString('en-IN', { day: 'short', month: 'short', year: '2-digit' })}
                 </div>
-                {req.description && (
-                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                    {req.description}
+                {req.location && (
+                  <div className="compact-card-location">
+                    <MapPin size={11} />
+                    {req.location}
                   </div>
-                )}
-                <div className="request-date">
-                  <Calendar size={12} style={{ display: 'inline', marginRight: 4 }} />
-                  {new Date(req.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </div>
-                {req.status === 'pending' && (
-                  <p className="request-broadcast-note">
-                    {req.offer_count > 1
-                      ? 'Request sent to nearby professionals. Waiting for someone to accept.'
-                      : `Request sent to ${req.professional_name || 'the selected professional'}. Waiting for them to accept.`}
-                  </p>
-                )}
-                {(req.status === 'accepted' || req.status === 'in_progress' || req.status === 'completed') && req.professional_name && (
-                  <div className="request-provider-summary">
-                    <div className="request-provider-avatar">{req.professional_name.charAt(0).toUpperCase()}</div>
-                    <div><strong>{req.professional_name}</strong><span><ShieldCheck size={13} /> Verified provider · {req.category || 'Service professional'}</span></div>
-                    <div className="request-provider-state"><CheckCircle2 size={15} /> {req.status === 'completed' ? 'Completed' : 'On the way'}</div>
-                  </div>
-                )}
-                {(req.status === 'accepted' || req.status === 'in_progress' || req.status === 'completed') && req.journey_status && (
-                  (() => {
-                    const currentStatus = req.journey_status || 'accepted';
-                    const currentIndex = ['accepted', ...JOURNEY_STEPS.map(item => item.key)].indexOf(currentStatus);
-                    const currentStep = JOURNEY_STEPS[currentIndex - 1];
-                    return <>
-                      <div className="journey-progress-detail">
-                        <div className="journey-progress-kicker">Live service progress</div>
-                        <strong>{currentStep ? currentStep.label : 'Accepted'}</strong>
-                        <p>{currentStep?.detail || 'The professional has accepted your request and is preparing to travel.'}</p>
-                        {req.journey_updated_at && <small>Updated {new Date(req.journey_updated_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</small>}
-                        {(currentStatus === 'start_navigation' || currentStatus === 'on_the_way') && req.otp && (
-                          <div style={{ marginTop: '12px', padding: '12px 16px', background: '#eff6ff', borderRadius: '8px', border: '1px dashed #60a5fa', display: 'inline-block' }}>
-                            <span style={{ fontSize: '12px', color: '#3b82f6', display: 'block', marginBottom: '4px', fontWeight: '500' }}>Share this OTP with professional on arrival</span>
-                            <strong style={{ fontSize: '24px', letterSpacing: '8px', color: '#1d4ed8' }}>{req.otp}</strong>
-                          </div>
-                        )}
-                      </div>
-                      <div className="journey-timeline">
-                      {JOURNEY_STEPS.map(step => {
-                      const stepIndex = JOURNEY_STEPS.findIndex(item => item.key === step.key);
-                      return <div key={step.key} className={`journey-timeline-step ${stepIndex < currentIndex ? 'done' : stepIndex === currentIndex ? 'current' : ''}`}><span>{stepIndex < currentIndex ? '✓' : stepIndex + 1}</span>{step.label}</div>;
-                      })}
-                      </div>
-                    </>;
-                  })()
-                )}
-                {(req.status === 'accepted' || req.status === 'in_progress' || req.status === 'completed') && (
-                  req.latitude != null && req.longitude != null && req.professional_latitude != null && req.professional_longitude != null ? (
-                    <div className="customer-location-view">
-                      <button className="view-customer-route-btn" onClick={() => setViewingLocationId(viewingLocationId === req.id ? null : req.id)}>
-                        <MapPin size={14} /> {viewingLocationId === req.id ? 'Hide route' : 'View professional distance'}
-                      </button>
-                      {viewingLocationId === req.id && (
-                        <CustomerRouteMap
-                          request={req}
-                          onRouteDistance={(distance) => setRequests(current => current.map(item => item.id === req.id ? { ...item, route_distance_km: distance } : item))}
-                        />
-                      )}
-                      {viewingLocationId === req.id && req.route_distance_km != null && (
-                        <div className="customer-distance"><Navigation size={14} /> {req.route_distance_km < 1 ? `${Math.round(req.route_distance_km * 1000)} m` : `${req.route_distance_km.toFixed(2)} km`} travel distance</div>
-                      )}
-                    </div>
-                  ) : <p className="customer-location-unavailable">Professional location is not available for this request yet.</p>
                 )}
               </div>
-              <div>
-                <span className={`status-badge ${req.status}`}>
+
+              {/* Right Section - Price & Status */}
+              <div className="compact-card-right">
+                {req.wage && (
+                  <div className="compact-card-price">
+                    ₹{Number(req.wage).toLocaleString('en-IN')}
+                  </div>
+                )}
+                <span className={`status-badge-compact ${req.status}`}>
                   {req.journey_status && req.journey_status !== 'accepted'
                     ? JOURNEY_STEPS.find(step => step.key === req.journey_status)?.label || statusLabel[req.status]
                     : statusLabel[req.status] || req.status}
                 </span>
-                {req.payment_status === 'paid' && (
-                  <span style={{ display: 'inline-block', marginTop: '6px', padding: '4px 10px', background: '#dcfce7', color: '#16a34a', borderRadius: '12px', fontSize: '12px', fontWeight: '600' }}>✓ Paid</span>
-                )}
               </div>
-              {req.payment_status === 'awaiting_payment' && (
-                <div style={{ marginTop: '12px', padding: '14px 16px', background: '#fffbeb', borderRadius: '10px', border: '1px solid #fbbf24', width: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
-                    <strong style={{ fontSize: '14px', color: '#92400e' }}>💼 Payment Due</strong>
-                    <strong style={{ fontSize: '20px', color: '#b45309' }}>₹{Number(req.wage).toLocaleString('en-IN')}</strong>
-                  </div>
-                  {req.wage_description && (
-                    <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#78350f' }}>{req.wage_description}</p>
-                  )}
-                  <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#92400e' }}>Charged by <strong>{req.professional_name}</strong> for completing the service.</p>
-                  <button
-                    onClick={() => confirmPayment(req.id)}
-                    style={{ width: '100%', padding: '12px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>
-                    ✓ Confirm Payment
-                  </button>
-                </div>
-              )}
-              {req.payment_status === 'paid' && (
-                <div style={{ marginTop: '12px', padding: '14px 16px', background: '#f8fafc', borderRadius: '10px', border: '1px solid var(--border-light)', width: '100%' }}>
-                  {req.review_id ? (
-                    <div style={{ color: '#b45309', fontWeight: 700, fontSize: '13px' }}>Your rating: {'★'.repeat(Number(req.review_rating))}{'☆'.repeat(5 - Number(req.review_rating))}</div>
-                  ) : reviewingRequestId === req.id ? (
-                    <>
-                      <strong style={{ display: 'block', marginBottom: '8px', fontSize: '13px' }}>Rate this professional</strong>
-                      <div style={{ display: 'flex', gap: '4px', marginBottom: '10px', flexWrap: 'wrap' }}>
-                        {[1, 2, 3, 4, 5].map(star => (
-                          <button key={star} type="button" aria-label={`${star} star${star > 1 ? 's' : ''}`} onClick={() => setReviewRating(star)} style={{ border: 'none', background: 'transparent', padding: '2px', cursor: 'pointer', color: star <= reviewRating ? '#f59e0b' : '#cbd5e1', fontSize: '24px' }}>★</button>
-                        ))}
-                      </div>
-                      <textarea value={reviewComment} onChange={event => setReviewComment(event.target.value)} placeholder="Share your experience (optional)" rows={3} style={{ width: '100%', boxSizing: 'border-box', padding: '10px', border: '1px solid var(--border-light)', borderRadius: '8px', resize: 'vertical', fontSize: '13px' }} />
-                      <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                        <button type="button" onClick={() => setReviewingRequestId(null)} style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--border-light)', borderRadius: '6px', background: '#fff', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>Cancel</button>
-                        <button type="button" onClick={() => submitReview(req.id)} disabled={reviewSubmitting} style={{ flex: 1, padding: '8px 12px', border: 'none', borderRadius: '6px', background: '#16a34a', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: '12px' }}>{reviewSubmitting ? 'Submitting...' : 'Submit Review'}</button>
-                      </div>
-                    </>
-                  ) : (
-                    <button type="button" onClick={() => { setReviewingRequestId(req.id); setReviewRating(0); setReviewComment(''); }} style={{ padding: '8px 12px', border: '1px solid #f59e0b', borderRadius: '7px', background: '#fff7ed', color: '#b45309', cursor: 'pointer', fontWeight: 700, fontSize: '12px', width: '100%' }}>Rate Professional</button>
-                  )}
-                </div>
-              )}
             </div>
           ))}
         </div>

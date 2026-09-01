@@ -2602,10 +2602,141 @@ textarea.form-input { min-height: 120px; resize: vertical; line-height: 1.5; }
 .requests-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
-.request-tools {
+/* ── Compact Request Card ── */
+.request-card-compact {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(99, 102, 241, 0.03) 100%);
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.request-card-compact:hover {
+  border-color: rgba(99, 102, 241, 0.3);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.12);
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(99, 102, 241, 0.06) 100%);
+}
+
+.request-card-compact.live-request-item {
+  border-color: #bfdbfe;
+  background: linear-gradient(135deg, #f0f9ff 0%, rgba(99, 102, 241, 0.06) 100%);
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.1), 0 2px 8px rgba(37, 99, 235, 0.1);
+}
+
+.compact-card-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.compact-card-id {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.compact-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  letter-spacing: -0.2px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.compact-card-date,
+.compact-card-location {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.compact-card-location {
+  margin-bottom: 0;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compact-card-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.compact-card-price {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+
+/* Compact Status Badge */
+.status-badge-compact {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: capitalize;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  border: 1px solid;
+  transition: all 0.2s;
+}
+
+.status-badge-compact.pending {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.08));
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.status-badge-compact.accepted {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.08));
+  color: #1e40af;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.status-badge-compact.in_progress {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.08));
+  color: #3730a3;
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.status-badge-compact.completed {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.08));
+  color: #065f46;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.status-badge-compact.cancelled {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.08));
+  color: #7f1d1d;
+  border-color: rgba(239, 68, 68, 0.3);
+}
   display: flex;
   align-items: center;
   gap: 12px;
@@ -3537,45 +3668,22 @@ textarea.form-input { min-height: 120px; resize: vertical; line-height: 1.5; }
   .booking-context-bar { align-items: flex-start; }
   .booking-context-category { margin-left: auto; }
   
-  /* Mobile Request Item Styling */
-  .request-item {
-    flex-direction: column;
+  /* Mobile Compact Card */
+  .request-card-compact {
+    padding: 14px;
     gap: 12px;
-    padding: 16px;
   }
   
-  .request-item > div:last-child {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    gap: 10px;
+  .compact-card-title {
+    font-size: 14px;
   }
   
-  .status-badge {
-    padding: 6px 12px;
-    font-size: 11px;
-    white-space: nowrap;
-    flex-shrink: 0;
+  .compact-card-right {
+    gap: 6px;
   }
   
-  .request-item > div:last-child > span:nth-child(2) {
-    padding: 5px 10px;
-    font-size: 11px;
-    flex-shrink: 0;
-  }
-  
-  /* Mobile Payment Card */
-  .request-item > div[style*="padding: 16px"] {
-    margin-top: 12px;
-    width: 100%;
-  }
-  
-  .request-detail-review,
-  .request-detail-review-btn {
-    margin-top: 12px;
-    padding: 12px 14px;
-    font-size: 12px;
+  .compact-card-price {
+    font-size: 15px;
   }
   
   .request-tools {
@@ -3617,7 +3725,30 @@ textarea.form-input { min-height: 120px; resize: vertical; line-height: 1.5; }
   .services-heading-row { display: block; }
   .show-all-services-btn { margin-top: 14px; }
   
-  /* Extra mobile optimizations */
+  /* Extra mobile optimizations - Compact Cards */
+  .request-card-compact {
+    padding: 12px;
+    gap: 10px;
+  }
+  
+  .compact-card-title {
+    font-size: 13px;
+  }
+  
+  .compact-card-date,
+  .compact-card-location {
+    font-size: 11px;
+  }
+  
+  .compact-card-price {
+    font-size: 14px;
+  }
+  
+  .status-badge-compact {
+    font-size: 10px;
+    padding: 5px 10px;
+  }
+  
   .request-item {
     padding: 14px;
     gap: 10px;
