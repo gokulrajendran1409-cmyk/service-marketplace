@@ -428,7 +428,15 @@ function MyRequests({ navigate }) {
               </div>
               <aside className="request-detail-side">
                 <div className="request-payment-card"><span className="request-detail-kicker">ESTIMATED BILL</span><strong>{selectedRequest.wage != null ? `₹${Number(selectedRequest.wage).toLocaleString('en-IN')}` : 'Not set yet'}</strong><p>{selectedRequest.wage_description || (selectedRequest.payment_status === 'paid' ? 'Payment confirmed for this service.' : 'The provider will share the final amount after reviewing the work.')}</p>{selectedRequest.payment_status === 'awaiting_payment' && <button className="btn-submit" onClick={() => confirmPayment(selectedRequest.id)}>Confirm payment</button>}{selectedRequest.payment_status === 'paid' && <span className="request-paid-label">Payment confirmed</span>}</div>
-                {selectedRequest.review_id ? <div className="request-detail-review">Your rating: {'★'.repeat(Number(selectedRequest.review_rating))}{'☆'.repeat(5 - Number(selectedRequest.review_rating))}</div> : selectedRequest.payment_status === 'paid' && <button className="request-detail-review-btn" onClick={() => { setSelectedRequestId(null); setReviewingRequestId(selectedRequest.id); }}>Rate this professional</button>}
+                {selectedRequest.review_id ? (
+                  <div className="request-detail-review">
+                    <span className="review-label">Your rating</span>
+                    <span className="review-stars">
+                      {'★'.repeat(Number(selectedRequest.review_rating))}
+                      {'☆'.repeat(5 - Number(selectedRequest.review_rating))}
+                    </span>
+                  </div>
+                ) : selectedRequest.payment_status === 'paid' && <button className="request-detail-review-btn" onClick={() => { setSelectedRequestId(null); setReviewingRequestId(selectedRequest.id); }}>Rate this professional</button>}
               </aside>
             </div>
           </div>
