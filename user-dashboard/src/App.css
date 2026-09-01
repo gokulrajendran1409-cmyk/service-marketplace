@@ -2681,6 +2681,7 @@ textarea.form-input { min-height: 120px; resize: vertical; line-height: 1.5; }
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  position: relative;
 }
 
 .request-card-compact:hover {
@@ -2694,6 +2695,51 @@ textarea.form-input { min-height: 120px; resize: vertical; line-height: 1.5; }
   border-color: #bfdbfe;
   background: linear-gradient(135deg, #f0f9ff 0%, rgba(99, 102, 241, 0.06) 100%);
   box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.1), 0 2px 8px rgba(37, 99, 235, 0.1);
+}
+
+/* Update Badge - Shows when professional updates request */
+.request-update-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  animation: updatePulse 2s infinite;
+}
+
+.update-dot {
+  width: 6px;
+  height: 6px;
+  background: white;
+  border-radius: 50%;
+  animation: updateBlink 1s infinite;
+}
+
+@keyframes updatePulse {
+  0%, 100% {
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    box-shadow: 0 2px 12px rgba(16, 185, 129, 0.6);
+  }
+}
+
+@keyframes updateBlink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
 
 .compact-card-left {

@@ -100,6 +100,50 @@ function MyRequests({ navigate }) {
 
   useEffect(() => { fetchRequests(); }, []);
 
+  // Real-time updates via SSE
+  useEffect(() => {
+    const token = localStorage.getItem('userToken');
+    if (!token) return;
+
+    const eventSource = new EventSource(`${API}/notifications/stream`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    eventSource.addEventListener('requestUpdate', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        const { requestId, newStatus, journeyStatus, updateType, professionalName } = data;
+
+        setRequests(current => current.map(r => 
+          r.id === requestId 
+            ? {
+                ...r,
+                status: newStatus,
+                journey_status: journeyStatus,
+                has_update: true,
+                update_received_at: new Date()
+              }
+            : r
+        ));
+
+        // Show user-friendly notification
+        const updateMessages = {
+          'status_change': `${professionalName} updated your request status`,
+          'journey_update': `${professionalName} ${journeyStatus === 'on_the_way' ? 'is on the way' : journeyStatus === 'arrived' ? 'has arrived' : journeyStatus === 'working' ? 'is working on your request' : 'completed your request'}`,
+          'payment_ready': `${professionalName} marked payment as ready`,
+          'journey_started': `${professionalName} started navigation to your location`
+        };
+
+        const message = updateMessages[updateType] || `New update from ${professionalName}`;
+        showToast(message, 'info');
+      } catch (e) {
+        console.error('Error parsing update:', e);
+      }
+    });
+
+    return () => eventSource.close();
+  }, []);
+
   const confirmPayment = async (requestId) => {
     try {
       const token = localStorage.getItem('userToken');
@@ -309,8 +353,21 @@ function MyRequests({ navigate }) {
           <div className="requests-list-heading"><div><span>BOOKINGS</span><h2>{currentFilter.label}</h2></div><strong>{filteredRequests.length} {filteredRequests.length === 1 ? 'booking' : 'bookings'}</strong></div>
           {filteredRequests.map(req => (
             <div key={req.id} className={`request-card-compact request-card-clickable ${['accepted', 'in_progress'].includes(req.status) ? 'live-request-item' : ''}`} onClick={(event) => {
-              if (!event.target.closest('button')) setSelectedRequestId(req.id);
+              if (!event.target.closest('button')) {
+                setSelectedRequestId(req.id);
+                // Clear the update badge when user views the request
+                if (req.has_update) {
+                  setRequests(current => current.map(r => r.id === req.id ? { ...r, has_update: false } : r));
+                }
+              }
             }}>
+              {/* New Update Badge */}
+              {req.has_update && (
+                <div className="request-update-badge">
+                  <span className="update-dot"></span>
+                  New update
+                </div>
+              )}
               {/* Left Section - Title & Details */}
               <div className="compact-card-left">
                 <div className="compact-card-id">Request #{req.id.toString().padStart(3, '0')}</div>
