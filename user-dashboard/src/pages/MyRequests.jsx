@@ -100,48 +100,95 @@ function MyRequests({ navigate }) {
 
   useEffect(() => { fetchRequests(); }, []);
 
-  // Real-time updates via SSE
+  // Real-time updates via SSE with fallback polling
   useEffect(() => {
     const token = localStorage.getItem('userToken');
     if (!token) return;
 
-    const eventSource = new EventSource(`${API}/notifications/stream`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
+    let eventSource = null;
+    let sseConnected = false;
+    let pollInterval = null;
 
-    eventSource.addEventListener('requestUpdate', (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        const { requestId, newStatus, journeyStatus, updateType, professionalName } = data;
+    // Try to establish SSE connection
+    try {
+      // JWT tokens are already URL-safe, don't need encodeURIComponent
+      eventSource = new EventSource(`${API}/notifications/stream?token=${token}`);
 
-        setRequests(current => current.map(r => 
-          r.id === requestId 
-            ? {
-                ...r,
-                status: newStatus,
-                journey_status: journeyStatus,
-                has_update: true,
-                update_received_at: new Date()
-              }
-            : r
-        ));
+      eventSource.addEventListener('requestUpdate', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          const { requestId, newStatus, journeyStatus, updateType, professionalName } = data;
 
-        // Show user-friendly notification
-        const updateMessages = {
-          'status_change': `${professionalName} updated your request status`,
-          'journey_update': `${professionalName} ${journeyStatus === 'on_the_way' ? 'is on the way' : journeyStatus === 'arrived' ? 'has arrived' : journeyStatus === 'working' ? 'is working on your request' : 'completed your request'}`,
-          'payment_ready': `${professionalName} marked payment as ready`,
-          'journey_started': `${professionalName} started navigation to your location`
-        };
+          setRequests(current => current.map(r => 
+            r.id === requestId 
+              ? {
+                  ...r,
+                  status: newStatus,
+                  journey_status: journeyStatus,
+                  has_update: true,
+                  update_received_at: new Date()
+                }
+              : r
+          ));
 
-        const message = updateMessages[updateType] || `New update from ${professionalName}`;
-        showToast(message, 'info');
-      } catch (e) {
-        console.error('Error parsing update:', e);
+          // Show user-friendly notification
+          const updateMessages = {
+            'status_change': `${professionalName} updated your request status`,
+            'journey_update': `${professionalName} ${journeyStatus === 'on_the_way' ? 'is on the way' : journeyStatus === 'arrived' ? 'has arrived' : journeyStatus === 'working' ? 'is working on your request' : 'completed your request'}`,
+            'payment_ready': `${professionalName} marked payment as ready`,
+            'journey_started': `${professionalName} started navigation to your location`
+          };
+
+          const message = updateMessages[updateType] || `New update from ${professionalName}`;
+          showToast(message, 'info');
+        } catch (e) {
+          console.error('Error parsing update:', e);
+        }
+      });
+
+      eventSource.addEventListener('open', () => {
+        console.log('✅ SSE connection established');
+        sseConnected = true;
+        // Clear polling if SSE is working
+        if (pollInterval) {
+          clearInterval(pollInterval);
+          pollInterval = null;
+        }
+      });
+
+      eventSource.addEventListener('error', (error) => {
+        console.error('❌ SSE connection error:', error);
+        sseConnected = false;
+        if (eventSource.readyState === EventSource.CLOSED) {
+          console.log('SSE connection closed, enabling fallback polling...');
+          eventSource.close();
+          eventSource = null;
+          // Start polling as fallback
+          startPolling();
+        }
+      });
+    } catch (e) {
+      console.error('Failed to create EventSource:', e);
+      startPolling();
+    }
+
+    // Fallback: Poll for updates every 10 seconds if SSE fails
+    function startPolling() {
+      if (pollInterval) return; // Already polling
+      console.log('Starting fallback polling for updates...');
+      pollInterval = setInterval(() => {
+        fetchRequests();
+      }, 10000);
+    }
+
+    return () => {
+      if (eventSource) {
+        eventSource.close();
       }
-    });
-
-    return () => eventSource.close();
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
   }, []);
 
   const confirmPayment = async (requestId) => {
@@ -391,11 +438,16 @@ function MyRequests({ navigate }) {
                     ₹{Number(req.wage).toLocaleString('en-IN')}
                   </div>
                 )}
-                <span className={`status-badge-compact ${req.status}`}>
-                  {req.journey_status && req.journey_status !== 'accepted'
-                    ? JOURNEY_STEPS.find(step => step.key === req.journey_status)?.label || statusLabel[req.status]
-                    : statusLabel[req.status] || req.status}
-                </span>
+                <div className="status-badge-wrapper">
+                  <span className={`status-badge-compact ${req.status}`}>
+                    {req.journey_status && req.journey_status !== 'accepted'
+                      ? JOURNEY_STEPS.find(step => step.key === req.journey_status)?.label || statusLabel[req.status]
+                      : statusLabel[req.status] || req.status}
+                  </span>
+                  {req.has_update && (
+                    <span className="live-status-dot" title="Live update just received"></span>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -426,7 +478,7 @@ function MyRequests({ navigate }) {
             {/* Journey Status Section */}
             {(selectedRequest.status === 'accepted' || selectedRequest.status === 'in_progress' || selectedRequest.status === 'completed') && selectedRequest.journey_status && (
               (() => {
-                const currentStatus = selectedRequest.journey_status || 'accepted';
+                const currentStatus = selectedRequest.status === 'completed' ? 'completed' : (selectedRequest.journey_status || 'accepted');
                 const currentIndex = ['accepted', ...JOURNEY_STEPS.map(item => item.key)].indexOf(currentStatus);
                 const currentStep = JOURNEY_STEPS[currentIndex - 1];
                 return (
