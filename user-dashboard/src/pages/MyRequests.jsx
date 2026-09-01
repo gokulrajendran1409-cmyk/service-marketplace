@@ -183,26 +183,76 @@ function MyRequests({ navigate }) {
     return `${hours}h ${remainingMinutes}m`;
   };
 
+  const activeCount = requests.filter(r => ['accepted', 'in_progress'].includes(r.status)).length;
+  const pendingCount = requests.filter(r => r.status === 'pending').length;
+  const completedCount = requests.filter(r => r.status === 'completed').length;
+
   return (
-    <div className="page-container">
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <div>
-          <h1 className="page-title">My Bookings</h1>
-          <p className="page-subtitle">Track the status of all your service bookings.</p>
+    <div className="page-container bookings-page-container">
+      {/* ====== MOBILE-OPTIMIZED HERO HEADER ====== */}
+      <div className="bookings-hero-banner">
+        <div className="bookings-hero-top">
+          <div className="bookings-hero-text">
+            <span className="bookings-hero-kicker">ACTIVITY & STATUS</span>
+            <h1 className="bookings-hero-title">My Bookings</h1>
+            <p className="bookings-hero-subtitle">Track and manage all your service requests</p>
+          </div>
+          <div className="bookings-hero-actions">
+            <button
+              onClick={fetchRequests}
+              className="bookings-hero-icon-btn"
+              title="Refresh bookings"
+              aria-label="Refresh bookings"
+            >
+              <RefreshCw size={16} />
+            </button>
+            <button
+              className="bookings-hero-new-btn"
+              onClick={() => navigate('services')}
+            >
+              <Plus size={16} />
+              <span>New</span>
+            </button>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button
-            onClick={fetchRequests}
-            style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid var(--border-light)', background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', gap: 6, fontSize: 14 }}
+
+        {/* ====== QUICK STATS ROW ====== */}
+        <div className="bookings-stats-strip">
+          <button 
+            className={`bookings-stat-card ${requestFilter === 'active' ? 'active' : ''}`}
+            onClick={() => setRequestFilter('active')}
           >
-            <RefreshCw size={15} /> Refresh
+            <div className="bookings-stat-header">
+              <span className="bookings-stat-dot active-dot"></span>
+              <span className="bookings-stat-label">Active</span>
+            </div>
+            <strong className="bookings-stat-num">{activeCount}</strong>
           </button>
-          <button
-            className="btn-hire"
-            style={{ width: 'auto', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 6 }}
-            onClick={() => navigate('services')}
+
+          <div className="bookings-stat-sep" />
+
+          <button 
+            className={`bookings-stat-card ${requestFilter === 'pending' ? 'active' : ''}`}
+            onClick={() => setRequestFilter('pending')}
           >
-            <Plus size={15} /> New Request
+            <div className="bookings-stat-header">
+              <span className="bookings-stat-dot pending-dot"></span>
+              <span className="bookings-stat-label">Pending</span>
+            </div>
+            <strong className="bookings-stat-num">{pendingCount}</strong>
+          </button>
+
+          <div className="bookings-stat-sep" />
+
+          <button 
+            className={`bookings-stat-card ${requestFilter === 'completed' ? 'active' : ''}`}
+            onClick={() => setRequestFilter('completed')}
+          >
+            <div className="bookings-stat-header">
+              <span className="bookings-stat-dot completed-dot"></span>
+              <span className="bookings-stat-label">Completed</span>
+            </div>
+            <strong className="bookings-stat-num">{completedCount}</strong>
           </button>
         </div>
       </div>
@@ -238,7 +288,18 @@ function MyRequests({ navigate }) {
         <div className="request-filter-bar" role="tablist" aria-label="Filter bookings">
           {filterOptions.map(option => {
             const count = requests.filter(option.matches).length;
-            return <button key={option.key} className={requestFilter === option.key ? 'active' : ''} onClick={() => setRequestFilter(option.key)} role="tab" aria-selected={requestFilter === option.key}>{option.label}<span>{count}</span></button>;
+            return (
+              <button 
+                key={option.key} 
+                className={`filter-btn-${option.key} ${requestFilter === option.key ? 'active' : ''}`} 
+                onClick={() => setRequestFilter(option.key)} 
+                role="tab" 
+                aria-selected={requestFilter === option.key}
+              >
+                {option.label}
+                <span>{count}</span>
+              </button>
+            );
           })}
         </div>
         {filteredRequests.length === 0 ? (
@@ -335,10 +396,10 @@ function MyRequests({ navigate }) {
                 )}
               </div>
               {req.payment_status === 'awaiting_payment' && (
-                <div style={{ marginTop: '16px', padding: '16px', background: '#fffbeb', borderRadius: '10px', border: '1px solid #fbbf24' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <div style={{ marginTop: '12px', padding: '14px 16px', background: '#fffbeb', borderRadius: '10px', border: '1px solid #fbbf24', width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
                     <strong style={{ fontSize: '14px', color: '#92400e' }}>💼 Payment Due</strong>
-                    <strong style={{ fontSize: '22px', color: '#b45309' }}>₹{Number(req.wage).toLocaleString('en-IN')}</strong>
+                    <strong style={{ fontSize: '20px', color: '#b45309' }}>₹{Number(req.wage).toLocaleString('en-IN')}</strong>
                   </div>
                   {req.wage_description && (
                     <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#78350f' }}>{req.wage_description}</p>
@@ -352,25 +413,25 @@ function MyRequests({ navigate }) {
                 </div>
               )}
               {req.payment_status === 'paid' && (
-                <div style={{ marginTop: '16px', padding: '16px', background: '#f8fafc', borderRadius: '10px', border: '1px solid var(--border-light)' }}>
+                <div style={{ marginTop: '12px', padding: '14px 16px', background: '#f8fafc', borderRadius: '10px', border: '1px solid var(--border-light)', width: '100%' }}>
                   {req.review_id ? (
-                    <div style={{ color: '#b45309', fontWeight: 700 }}>Your rating: {'★'.repeat(Number(req.review_rating))}{'☆'.repeat(5 - Number(req.review_rating))}</div>
+                    <div style={{ color: '#b45309', fontWeight: 700, fontSize: '13px' }}>Your rating: {'★'.repeat(Number(req.review_rating))}{'☆'.repeat(5 - Number(req.review_rating))}</div>
                   ) : reviewingRequestId === req.id ? (
                     <>
-                      <strong style={{ display: 'block', marginBottom: '8px' }}>Rate this professional</strong>
-                      <div style={{ display: 'flex', gap: '4px', marginBottom: '10px' }}>
+                      <strong style={{ display: 'block', marginBottom: '8px', fontSize: '13px' }}>Rate this professional</strong>
+                      <div style={{ display: 'flex', gap: '4px', marginBottom: '10px', flexWrap: 'wrap' }}>
                         {[1, 2, 3, 4, 5].map(star => (
-                          <button key={star} type="button" aria-label={`${star} star${star > 1 ? 's' : ''}`} onClick={() => setReviewRating(star)} style={{ border: 'none', background: 'transparent', padding: '2px', cursor: 'pointer', color: star <= reviewRating ? '#f59e0b' : '#cbd5e1', fontSize: '28px' }}>★</button>
+                          <button key={star} type="button" aria-label={`${star} star${star > 1 ? 's' : ''}`} onClick={() => setReviewRating(star)} style={{ border: 'none', background: 'transparent', padding: '2px', cursor: 'pointer', color: star <= reviewRating ? '#f59e0b' : '#cbd5e1', fontSize: '24px' }}>★</button>
                         ))}
                       </div>
-                      <textarea value={reviewComment} onChange={event => setReviewComment(event.target.value)} placeholder="Share your experience (optional)" rows={3} style={{ width: '100%', boxSizing: 'border-box', padding: '10px', border: '1px solid var(--border-light)', borderRadius: '8px', resize: 'vertical' }} />
+                      <textarea value={reviewComment} onChange={event => setReviewComment(event.target.value)} placeholder="Share your experience (optional)" rows={3} style={{ width: '100%', boxSizing: 'border-box', padding: '10px', border: '1px solid var(--border-light)', borderRadius: '8px', resize: 'vertical', fontSize: '13px' }} />
                       <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                        <button type="button" onClick={() => setReviewingRequestId(null)} style={{ padding: '8px 12px', border: '1px solid var(--border-light)', borderRadius: '6px', background: '#fff', cursor: 'pointer' }}>Cancel</button>
-                        <button type="button" onClick={() => submitReview(req.id)} disabled={reviewSubmitting} style={{ padding: '8px 12px', border: 'none', borderRadius: '6px', background: '#16a34a', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>{reviewSubmitting ? 'Submitting...' : 'Submit Review'}</button>
+                        <button type="button" onClick={() => setReviewingRequestId(null)} style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--border-light)', borderRadius: '6px', background: '#fff', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>Cancel</button>
+                        <button type="button" onClick={() => submitReview(req.id)} disabled={reviewSubmitting} style={{ flex: 1, padding: '8px 12px', border: 'none', borderRadius: '6px', background: '#16a34a', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: '12px' }}>{reviewSubmitting ? 'Submitting...' : 'Submit Review'}</button>
                       </div>
                     </>
                   ) : (
-                    <button type="button" onClick={() => { setReviewingRequestId(req.id); setReviewRating(0); setReviewComment(''); }} style={{ padding: '9px 14px', border: '1px solid #f59e0b', borderRadius: '7px', background: '#fff7ed', color: '#b45309', cursor: 'pointer', fontWeight: 700 }}>Rate Professional</button>
+                    <button type="button" onClick={() => { setReviewingRequestId(req.id); setReviewRating(0); setReviewComment(''); }} style={{ padding: '8px 12px', border: '1px solid #f59e0b', borderRadius: '7px', background: '#fff7ed', color: '#b45309', cursor: 'pointer', fontWeight: 700, fontSize: '12px', width: '100%' }}>Rate Professional</button>
                   )}
                 </div>
               )}

@@ -1,0 +1,24 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- House Cleaning Service Icon -->
+  <rect width="200" height="200" fill="#e3f2fd"/>
+  <g transform="translate(30, 30)">
+    <!-- Cleaning bucket -->
+    <path d="M 15 20 L 10 50 L 40 50 L 35 20 Z" fill="#007bff" stroke="#0056b3" stroke-width="2"/>
+    <ellipse cx="25" cy="20" rx="10" ry="5" fill="#0056b3" stroke="#0056b3" stroke-width="1"/>
+    <!-- Handle -->
+    <path d="M 15 20 Q 25 10 35 20" stroke="#0056b3" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <!-- Sponges -->
+    <rect x="45" y="35" width="8" height="8" fill="#ffeb3b" stroke="#fbc02d" stroke-width="1" rx="2"/>
+    <rect x="55" y="40" width="8" height="8" fill="#2196f3" stroke="#1565c0" stroke-width="1" rx="2"/>
+    <!-- Gloves -->
+    <g transform="translate(20, 55)">
+      <ellipse cx="5" cy="0" rx="4" ry="8" fill="#ffeb3b"/>
+      <ellipse cx="15" cy="0" rx="4" ry="8" fill="#ffeb3b"/>
+    </g>
+    <!-- Brush -->
+    <g transform="translate(60, 50)">
+      <rect x="0" y="0" width="3" height="15" fill="#8b4513"/>
+      <rect x="-3" y="15" width="9" height="4" fill="#333"/>
+    </g>
+  </g>
+</svg>
