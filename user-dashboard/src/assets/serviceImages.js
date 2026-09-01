@@ -3,17 +3,22 @@ const enc = (p) => encodeURIComponent(p);
 const img = (prompt, size = 'square_hd') =>
   `https://coresg-normal.trae.ai/api/ide/v1/text_to_image?image_size=${size}&prompt=${enc(prompt)}`;
 
+const localImg = (filename) => `/public/${filename}.svg`;
+
 const serviceImages = {
-  plumbing: img('product photo of chrome brass plumbing pipes, elbow joint, faucet valve and monkey wrench arranged on soft pastel blue background, soft studio lighting, rounded square composition, no text, realistic clean minimalist editorial style, 3d icon vibe, drop shadow, top view angle'),
-  plumber: img('product photo of chrome brass plumbing pipes, elbow joint, faucet valve and monkey wrench arranged on soft pastel blue background, soft studio lighting, rounded square composition, no text, realistic clean minimalist editorial style, 3d icon vibe, drop shadow, top view angle'),
-  plumbing: img('product photo of chrome brass plumbing pipes, elbow joint, faucet valve and monkey wrench arranged on soft pastel blue background, soft studio lighting, rounded square composition, no text, realistic clean minimalist editorial style, 3d icon vibe, drop shadow, top view angle'),
-  electrician: img('product photo of yellow black multimeter, insulated screwdriver set, wire stripper and electrical wall socket on soft warm beige pastel background, soft studio lighting, rounded square composition, no text, realistic clean editorial style, drop shadow, top down view'),
-  electrical: img('product photo of yellow black multimeter, insulated screwdriver set, wire stripper and electrical wall socket on soft warm beige pastel background, soft studio lighting, rounded square composition, no text, realistic clean editorial style, drop shadow, top down view'),
-  electricity: img('product photo of yellow black multimeter, insulated screwdriver set, wire stripper and electrical wall socket on soft warm beige pastel background, soft studio lighting, rounded square composition, no text, realistic clean editorial style, drop shadow, top down view'),
-  cleaning: img('product photo of spray bottle, microfiber cloths, rubber gloves and scrub brush arranged on soft lavender pastel background, soft studio lighting, rounded square composition, no text, realistic clean editorial style, drop shadow, top down angle, house cleaning tools'),
-  'house cleaning': img('product photo of spray bottle, microfiber cloths, rubber gloves and scrub brush arranged on soft lavender pastel background, soft studio lighting, rounded square composition, no text, realistic clean editorial style, drop shadow, top down angle, house cleaning tools'),
-  painting: img('product photo of open paint can with sage green paint, wooden paintbrush, roller and paint swatch samples arranged on soft warm cream pastel background, soft studio lighting, rounded square composition, no text, realistic clean editorial style, drop shadow, top down view, house painting tools'),
-  painter: img('product photo of open paint can with sage green paint, wooden paintbrush, roller and paint swatch samples arranged on soft warm cream pastel background, soft studio lighting, rounded square composition, no text, realistic clean editorial style, drop shadow, top down view, house painting tools'),
+  plumbing: localImg('plumbing'),
+  plumber: localImg('plumbing'),
+  electrician: localImg('electrical-services'),
+  electrical: localImg('electrical-services'),
+  electricity: localImg('electrical-services'),
+  cleaning: localImg('house-cleaning'),
+  'house cleaning': localImg('house-cleaning'),
+  painting: localImg('painting-services'),
+  painter: localImg('painting-services'),
+  carpentry: localImg('carpentry'),
+  carpenter: localImg('carpentry'),
+  furniture: localImg('carpentry'),
+  woodwork: localImg('carpentry'),
   gardening: img('realistic product photo of lush green potted plant in white ceramic pot with small garden trowel, soil scattered on soft blush pink pastel background, soft natural lighting, rounded square composition, no text, premium editorial style, drop shadow, top down view angle, realistic leaves and soil texture, plant label says gardening'),
   'gardening landscaping': img('realistic product photo of lush green potted plant in white ceramic pot with small garden trowel, soil scattered on soft blush pink pastel background, soft natural lighting, rounded square composition, no text, premium editorial style, drop shadow, top down view angle, realistic leaves and soil texture, plant label says gardening'),
   landscape: img('realistic product photo of lush green potted plant in white ceramic pot with small garden trowel, soil scattered on soft blush pink pastel background, soft natural lighting, rounded square composition, no text, premium editorial style, drop shadow, top down view angle, realistic leaves and soil texture'),
@@ -24,10 +29,6 @@ const serviceImages = {
   'ac repair': img('realistic product photo of white split AC indoor unit mounted on wall, crossed green screwdriver and silver wrench, black yellow hard toolbox, all arranged on soft warm beige pastel background, soft studio lighting, rounded square composition, no text, premium editorial style, drop shadow, ac and tools composition'),
   'appliance repair': img('realistic product photo of white split AC indoor unit mounted on wall, crossed green screwdriver and silver wrench, black yellow hard toolbox, all arranged on soft warm beige pastel background, soft studio lighting, rounded square composition, no text, premium editorial style, drop shadow, ac and tools composition'),
   'air conditioner': img('realistic product photo of white split AC indoor unit mounted on wall, crossed green screwdriver and silver wrench, black yellow hard toolbox, all arranged on soft warm beige pastel background, soft studio lighting, rounded square composition, no text, premium editorial style, drop shadow, ac and tools composition'),
-  carpentry: img('realistic product photo of light brown wooden cabinet, wooden toolbox with hammer hand saw chisel, yellow retractable measuring tape arranged on soft warm beige pastel background, soft studio lighting, rounded square composition, no text, premium editorial style, drop shadow, realistic wood grain texture, label carpentry dark green under'),
-  carpenter: img('realistic product photo of light brown wooden cabinet, wooden toolbox with hammer hand saw chisel, yellow retractable measuring tape arranged on soft warm beige pastel background, soft studio lighting, rounded square composition, no text, premium editorial style, drop shadow, realistic wood grain texture'),
-  furniture: img('realistic product photo of light brown wooden cabinet, wooden toolbox with hammer hand saw chisel, yellow retractable measuring tape arranged on soft warm beige pastel background, soft studio lighting, rounded square composition, no text, premium editorial style, drop shadow, realistic wood grain texture'),
-  woodwork: img('realistic product photo of light brown wooden cabinet, wooden toolbox with hammer hand saw chisel, yellow retractable measuring tape arranged on soft warm beige pastel background, soft studio lighting, rounded square composition, no text, premium editorial style, drop shadow, realistic wood grain texture'),
   cctv: img('product photo of white dome CCTV security camera, ethernet cable and black DVR box arranged on soft slate gray pastel background, soft studio lighting, rounded square composition, no text, realistic clean editorial style, drop shadow, top down view, security camera installation tools'),
   'cctv security': img('product photo of white dome CCTV security camera, ethernet cable and black DVR box arranged on soft slate gray pastel background, soft studio lighting, rounded square composition, no text, realistic clean editorial style, drop shadow, top down view, security camera installation tools'),
   security: img('product photo of white dome CCTV security camera, ethernet cable and black DVR box arranged on soft slate gray pastel background, soft studio lighting, rounded square composition, no text, realistic clean editorial style, drop shadow, top down view, security camera installation tools'),
