@@ -236,10 +236,10 @@ export default function Home({ navigate }) {
               >
                 {chip.label}
               </button>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </section>
+      </div>
 
       {/* How Our App Works Section */}
       <section className="home-how-it-works-section home-order-workflow">
@@ -276,7 +276,7 @@ export default function Home({ navigate }) {
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       <div className="px-5 pt-2">
         {/* ====== FEATURED CATEGORIES CAROUSEL ====== */}
