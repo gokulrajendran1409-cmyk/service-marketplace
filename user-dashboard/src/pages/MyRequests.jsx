@@ -317,7 +317,7 @@ function MyRequests({ navigate }) {
                 <div className="compact-card-title">{req.title}</div>
                 <div className="compact-card-date">
                   <Calendar size={12} />
-                  {new Date(req.created_at).toLocaleDateString('en-IN', { day: 'short', month: 'short', year: '2-digit' })}
+                  {new Date(req.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}
                 </div>
                 {req.location && (
                   <div className="compact-card-location">
