@@ -115,7 +115,7 @@ function MyRequests({ navigate }) {
         journey_status: data.request.journey_status,
         payment_status: data.request.payment_status
       } : r));
-      showToast('Payment confirmed! Thank you.', 'success');
+      showToast('Payment successful! Thank you.', 'success');
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -427,7 +427,7 @@ function MyRequests({ navigate }) {
                 </div>
               </div>
               <aside className="request-detail-side">
-                <div className="request-payment-card"><span className="request-detail-kicker">ESTIMATED BILL</span><strong>{selectedRequest.wage != null ? `₹${Number(selectedRequest.wage).toLocaleString('en-IN')}` : 'Not set yet'}</strong><p>{selectedRequest.wage_description || (selectedRequest.payment_status === 'paid' ? 'Payment confirmed for this service.' : 'The provider will share the final amount after reviewing the work.')}</p>{selectedRequest.payment_status === 'awaiting_payment' && <button className="btn-submit" onClick={() => confirmPayment(selectedRequest.id)}>Confirm payment</button>}{selectedRequest.payment_status === 'paid' && <span className="request-paid-label">Payment confirmed</span>}</div>
+                <div className="request-payment-card"><span className="request-detail-kicker">ESTIMATED BILL</span><strong>{selectedRequest.wage != null ? `₹${Number(selectedRequest.wage).toLocaleString('en-IN')}` : 'Not set yet'}</strong><p>{selectedRequest.wage_description || (selectedRequest.payment_status === 'paid' ? 'Payment successful for this service.' : 'The provider will share the final amount after reviewing the work.')}</p>{selectedRequest.payment_status === 'awaiting_payment' && <button className="btn-submit" onClick={() => confirmPayment(selectedRequest.id)}>Confirm payment</button>}{selectedRequest.payment_status === 'paid' && <span className="request-paid-label">Payment successful</span>}</div>
                 {selectedRequest.review_id ? (
                   <div className="request-detail-review">
                     <span className="review-label">Your rating</span>
