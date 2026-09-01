@@ -5,9 +5,8 @@ function Landing({ onGetStarted }) {
     <div className="landing-root">
       <div className="landing-hero-text">
         <h1 className="landing-headline">
-          Trusted Experts<br />
-          For Your Home<br />
-          Needs
+          Trusted Experts,<br />
+          Nearby.
         </h1>
       </div>
 
