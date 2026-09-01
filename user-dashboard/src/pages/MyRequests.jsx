@@ -365,9 +365,62 @@ function MyRequests({ navigate }) {
                 <span className="request-provider-state"><CheckCircle2 size={16} /> {selectedRequest.status === 'completed' ? 'Work completed' : 'Assigned to you'}</span>
               </div>
             )}
+            
+            {/* Journey Status Section */}
+            {(selectedRequest.status === 'accepted' || selectedRequest.status === 'in_progress' || selectedRequest.status === 'completed') && selectedRequest.journey_status && (
+              (() => {
+                const currentStatus = selectedRequest.journey_status || 'accepted';
+                const currentIndex = ['accepted', ...JOURNEY_STEPS.map(item => item.key)].indexOf(currentStatus);
+                const currentStep = JOURNEY_STEPS[currentIndex - 1];
+                return (
+                  <div className="request-journey-section">
+                    <span className="request-detail-kicker">Live Service Progress</span>
+                    <div className="journey-progress-card">
+                      <div className="journey-status-label">{currentStep ? currentStep.label : 'Accepted'}</div>
+                      <p>{currentStep?.detail || 'The professional has accepted your request and is preparing to travel.'}</p>
+                      {selectedRequest.journey_updated_at && <small className="journey-updated-time">Updated {new Date(selectedRequest.journey_updated_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</small>}
+                      {(currentStatus === 'start_navigation' || currentStatus === 'on_the_way') && selectedRequest.otp && (
+                        <div className="otp-box">
+                          <span className="otp-label">Share this OTP with professional on arrival</span>
+                          <strong className="otp-code">{selectedRequest.otp}</strong>
+                        </div>
+                      )}
+                    </div>
+                    <div className="journey-timeline-large">
+                      {JOURNEY_STEPS.map(step => {
+                        const stepIndex = JOURNEY_STEPS.findIndex(item => item.key === step.key);
+                        return <div key={step.key} className={`journey-timeline-step ${stepIndex < currentIndex ? 'done' : stepIndex === currentIndex ? 'current' : ''}`}><span>{stepIndex < currentIndex ? '✓' : stepIndex + 1}</span><span className="step-label">{step.label}</span></div>;
+                      })}
+                    </div>
+                  </div>
+                );
+              })()
+            )}
+            
             <div className="request-detail-grid">
               <div className="request-detail-main">
                 {selectedRequest.description && <div className="request-detail-section"><span className="request-detail-kicker">JOB DESCRIPTION</span><p>{selectedRequest.description}</p></div>}
+                
+                {/* Distance/Route Section */}
+                {(selectedRequest.status === 'accepted' || selectedRequest.status === 'in_progress' || selectedRequest.status === 'completed') && 
+                  selectedRequest.latitude != null && selectedRequest.longitude != null && selectedRequest.professional_latitude != null && selectedRequest.professional_longitude != null && (
+                  <div className="request-detail-section">
+                    <span className="request-detail-kicker">Professional Location</span>
+                    <button className="view-customer-route-btn" onClick={() => setViewingLocationId(viewingLocationId === selectedRequest.id ? null : selectedRequest.id)}>
+                      <MapPin size={14} /> {viewingLocationId === selectedRequest.id ? 'Hide route' : 'View professional distance'}
+                    </button>
+                    {viewingLocationId === selectedRequest.id && (
+                      <CustomerRouteMap
+                        request={selectedRequest}
+                        onRouteDistance={(distance) => setRequests(current => current.map(item => item.id === selectedRequest.id ? { ...item, route_distance_km: distance } : item))}
+                      />
+                    )}
+                    {viewingLocationId === selectedRequest.id && selectedRequest.route_distance_km != null && (
+                      <div className="customer-distance"><Navigation size={14} /> {selectedRequest.route_distance_km < 1 ? `${Math.round(selectedRequest.route_distance_km * 1000)} m` : `${selectedRequest.route_distance_km.toFixed(2)} km`} travel distance</div>
+                    )}
+                  </div>
+                )}
+                
                 <div className="request-detail-stats">
                   <div><Clock3 size={18} /><span>Time taken</span><strong>{formatDuration(selectedRequest)}</strong></div>
                   <div><Calendar size={18} /><span>Requested on</span><strong>{new Date(selectedRequest.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</strong></div>
