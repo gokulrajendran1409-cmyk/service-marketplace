@@ -236,7 +236,17 @@ export default function Home({ navigate }) {
               >
                 {chip.label}
               </button>
-            ))}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* How Our App Works Section */}
+      <section className="home-how-it-works-section home-order-workflow">
+        <div className="home-section-head" style={{ padding: 0 }}>
+          <div>
+            <span className="home-section-kicker">SIMPLE & FAST</span>
+            <h2>How Our App Works</h2>
           </div>
         </div>
 
