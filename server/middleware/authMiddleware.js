@@ -8,25 +8,17 @@ exports.protect = (req, res, next) => {
 
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
         token = req.headers.authorization.split(' ')[1];
-    } else if (req.query.token) {
-        // Support token in query parameter for EventSource (SSE doesn't support custom headers)
-        token = req.query.token;
-        console.log('📨 Token from query params:', token.substring(0, 20) + '...');
     }
 
     if (!token) {
-        console.error('❌ No token provided');
         return res.status(401).json({ message: 'Not authorized, no token' });
     }
 
     try {
-        console.log('🔐 Verifying token with secret...');
         const decoded = jwt.verify(token, JWT_SECRET);
-        console.log('✅ Token verified:', decoded);
         req.user = decoded; // { id, role, ... }
         next();
     } catch (error) {
-        console.error('❌ Token verification failed:', error.message);
         res.status(401).json({ message: 'Not authorized, token failed' });
     }
 };
