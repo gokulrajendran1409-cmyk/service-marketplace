@@ -2,6 +2,11 @@ import { useEffect, useRef, useState, useCallback } from "react";
 
 const MAX_STORED = 50; // keep at most 50 notifications in memory
 
+// Match the base URL used by every other fetch in the professional dashboard.
+const API_BASE = import.meta.env.DEV
+    ? "http://localhost:5000"
+    : "https://service-marketplace-af7p.onrender.com";
+
 /**
  * Connects to the server's SSE stream and returns:
  *   notifications  – array of received notification objects (newest first)
@@ -20,7 +25,15 @@ export function useProfessionalNotifications(professionalId) {
         if (esRef.current) esRef.current.close();
         if (!professionalId) return;
 
-        const SSE_URL = `https://service-marketplace-af7p.onrender.com/api/professionals/notifications/stream/${professionalId}`;
+        // Native browser EventSource does NOT support custom Authorization headers.
+        // To keep SSE authenticated, we pass the JWT via the ?token= query param.
+        // The backend `protect` middleware extracts and JWT-verifies it exactly like
+        // a Bearer header; the param is then stripped from req.query so it never
+        // leaks into generic request logs / error renders.
+        const token = localStorage.getItem("professionalToken");
+        if (!token) return;
+
+        const SSE_URL = `${API_BASE}/api/professionals/notifications/stream/${professionalId}?token=${token}`;
         const es = new EventSource(SSE_URL);
         esRef.current = es;
 

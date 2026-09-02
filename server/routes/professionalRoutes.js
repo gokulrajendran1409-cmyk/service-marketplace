@@ -35,9 +35,41 @@ router.patch('/requests/:id/location', protectProfessional, professionalControll
 
 const { addProClient, removeProClient } = require('../utils/proSseClients');
 
-// SSE stream for specific professional
-router.get("/notifications/stream/:id", (req, res) => {
-    const proId = req.params.id;
+// SSE stream for real-time professional notifications.
+// Authenticated via protectProfessional — supports both the standard Bearer header
+// (for fetch-like clients) and the ?token= query param used by native EventSource
+// (which cannot set custom headers). Uses req.professionalId from the middleware
+// so the client cannot spoof another professional's stream via the URL path.
+router.get("/notifications/stream/:id", protectProfessional, (req, res) => {
+    // Always use the authenticated professionalId from the JWT token — NEVER
+    // trust the path param as the source of truth for access control.
+    const proId = req.professionalId;
+
+    res.set({
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
+    });
+    res.flushHeaders();
+
+    const heartbeat = setInterval(() => {
+        try { res.write(": heartbeat\n\n"); } catch { clearInterval(heartbeat); }
+    }, 20_000);
+
+    addProClient(proId, res);
+
+    req.on("close", () => {
+        clearInterval(heartbeat);
+        removeProClient(proId, res);
+    });
+});
+
+// Also expose the stream at /notifications/stream (without /:id) for clients that
+// authenticate purely via the token. Identical behavior to the route above.
+router.get("/notifications/stream", protectProfessional, (req, res) => {
+    const proId = req.professionalId;
+
     res.set({
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",

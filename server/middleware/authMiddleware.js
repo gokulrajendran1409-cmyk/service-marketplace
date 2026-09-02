@@ -1,4 +1,6 @@
-const jwt = require('jsonwebtoken');
+❌ SSE connection error: Event
+SSE connection closed, enabling fallback polling...
+Starting fallback polling for updates...const jwt = require('jsonwebtoken');
 const db = require('../config/database');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_for_demo';
@@ -6,8 +8,20 @@ const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_for_demo';
 exports.protect = (req, res, next) => {
     let token;
 
+    // 1) Standard Bearer auth for fetch() / XMLHttpRequest calls
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
         token = req.headers.authorization.split(' ')[1];
+    }
+    // 2) Query-param fallback for native browser EventSource.
+    //    Native EventSource does NOT support custom Authorization headers, so the
+    //    client attaches the JWT to the query string on the SSE URL. The JWT is
+    //    still cryptographically verified below — the transport is different only.
+    //    NOTE: avoid logging tokens; only presence is checked for debugging.
+    if (!token && req.query && typeof req.query.token === 'string' && req.query.token.length > 0) {
+        token = req.query.token;
+        // Remove token from query AFTER extraction so it never gets echoed in
+        // generic error renderers / request loggers.
+        delete req.query.token;
     }
 
     if (!token) {
@@ -16,7 +30,7 @@ exports.protect = (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        req.user = decoded; // { id, role, ... }
+        req.user = decoded; // { id, role, professionalId? }
         next();
     } catch (error) {
         res.status(401).json({ message: 'Not authorized, token failed' });
