@@ -2463,12 +2463,12 @@ textarea.form-input { min-height: 120px; resize: vertical; line-height: 1.5; }
 }
 
 .bookings-hero-banner {
-  background: linear-gradient(135deg, #1E1B4B 0%, #312E81 45%, #4338CA 100%);
+  background: linear-gradient(135deg, #6366F1 0%, #818CF8 50%, #A5B4FC 100%);
   border-radius: 22px;
-  padding: 22px 20px 18px;
+  padding: 28px 24px 22px;
   color: white;
-  margin-bottom: 22px;
-  box-shadow: 0 12px 30px rgba(49, 46, 129, 0.18);
+  margin-bottom: 24px;
+  box-shadow: 0 12px 30px rgba(99, 102, 241, 0.25);
   position: relative;
   overflow: hidden;
 }
@@ -2500,7 +2500,7 @@ textarea.form-input { min-height: 120px; resize: vertical; line-height: 1.5; }
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 1.5px;
-  color: #A5B4FC;
+  color: rgba(255, 255, 255, 0.95);
   text-transform: uppercase;
 }
 
@@ -2559,13 +2559,13 @@ textarea.form-input { min-height: 120px; resize: vertical; line-height: 1.5; }
   padding: 0 14px;
   border-radius: 12px;
   background: #ffffff;
-  color: #312E81;
+  color: #6366F1;
   border: none;
   font-family: inherit;
   font-size: 13px;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
   transition: all 0.2s ease;
 }
 
@@ -2847,6 +2847,37 @@ textarea.form-input { min-height: 120px; resize: vertical; line-height: 1.5; }
   border-color: rgba(239, 68, 68, 0.3);
 }
 
+/* Status Badge Wrapper with Live Indicator */
+.status-badge-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+
+.live-status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10B981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+  animation: liveStatusPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  flex-shrink: 0;
+}
+
+@keyframes liveStatusPulse {
+  0% {
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3), 0 0 0 6px rgba(16, 185, 129, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.5), 0 0 0 10px rgba(16, 185, 129, 0.05);
+  }
+  100% {
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3), 0 0 0 6px rgba(16, 185, 129, 0.1);
+  }
+}
+
 .request-tools {
   display: flex;
   align-items: center;
@@ -2956,8 +2987,6 @@ textarea.form-input { min-height: 120px; resize: vertical; line-height: 1.5; }
   flex-wrap: wrap;
 }
 
-.request-filter-bar::-webkit-scrollbar { display: none; }
-
 .request-filter-bar button {
   display: inline-flex;
   align-items: center;
@@ -2978,7 +3007,6 @@ textarea.form-input { min-height: 120px; resize: vertical; line-height: 1.5; }
 .request-filter-bar button:hover {
   background: #f8fafc;
   border-color: #d1d5db;
-  color: #4b5563;
 }
 
 .request-filter-bar button span {
