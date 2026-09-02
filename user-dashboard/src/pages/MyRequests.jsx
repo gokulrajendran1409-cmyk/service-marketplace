@@ -136,7 +136,8 @@ function MyRequests({ navigate }) {
             'status_change': `${professionalName} updated your request status`,
             'journey_update': `${professionalName} ${journeyStatus === 'on_the_way' ? 'is on the way' : journeyStatus === 'arrived' ? 'has arrived' : journeyStatus === 'working' ? 'is working on your request' : 'completed your request'}`,
             'payment_ready': `${professionalName} marked payment as ready`,
-            'journey_started': `${professionalName} started navigation to your location`
+            'journey_started': `${professionalName} started navigation to your location`,
+            'provider_accepted': `🎉 ${professionalName} has accepted your service request!`
           };
 
           const message = updateMessages[updateType] || `New update from ${professionalName}`;

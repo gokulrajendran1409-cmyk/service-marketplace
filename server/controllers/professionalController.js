@@ -259,9 +259,10 @@ exports.respondToRequest = async (req, res) => {
     try {
         await client.query('BEGIN');
         const offer = await client.query(
-            `SELECT so.id, sr.id AS request_id, sr.status AS request_status
+            `SELECT so.id, sr.id AS request_id, sr.status AS request_status, sr.customer_id, p.full_name AS professional_name
              FROM service_offers so
              JOIN service_requests sr ON sr.id = so.request_id
+             JOIN professionals p ON p.id = $2
              WHERE so.request_id = $1 AND so.professional_id = $2 AND so.status = 'pending'
              FOR UPDATE OF so, sr`,
             [requestId, professionalId]
@@ -319,6 +320,20 @@ exports.respondToRequest = async (req, res) => {
             }));
         }
         await client.query('COMMIT');
+
+        // Notify the customer if the request was accepted
+        if (decision === 'accepted') {
+            const customerId = offer.rows[0].customer_id;
+            const professionalName = offer.rows[0].professional_name;
+            notifyCustomer(customerId, 'requestUpdate', {
+                requestId: requestId,
+                newStatus: 'accepted',
+                journeyStatus: 'accepted',
+                updateType: 'provider_accepted',
+                professionalName: professionalName,
+                timestamp: new Date().toISOString()
+            });
+        }
 
         broadcast('service_request_updated', {
             id: requestId,
