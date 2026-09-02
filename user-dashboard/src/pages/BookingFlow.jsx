@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, CalendarDays, Check, CheckCircle2, Clock3, CreditCard, Download, Home, Info, MapPin, Phone, ShieldCheck, Share2, WalletCards } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CalendarDays, Check, CheckCircle2, Clock3, CreditCard, Download, Home, Info, MapPin, Phone, Search, ShieldCheck, Share2, WalletCards } from 'lucide-react';
 import rajeshAvatar from '../assets/experts/rajesh.png';
 import confirmedBg from '../assets/illustrations/confirmed_bg.png';
 import mapBg from '../assets/illustrations/map_bg.png';

@@ -3,6 +3,7 @@ import "./App.css";
 import ProfessionalLayout from "./layouts/ProfessionalLayout";
 import Dashboard from "./pages/Dashboard";
 import MyRequests from "./pages/MyRequests";
+import Profile from "./pages/Profile";
 import Registration from "./pages/Registration";
 import Login from "./pages/Login";
 
@@ -28,7 +29,7 @@ function App() {
         <Route path="/" element={<ProtectedRoute><ProfessionalLayout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
           <Route path="requests" element={<MyRequests />} />
-          <Route path="profile" element={<div className="section-container"><h2>Profile</h2><p style={{ color: "var(--text-muted)" }}>This page is under construction.</p></div>} />
+          <Route path="profile" element={<Profile />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
