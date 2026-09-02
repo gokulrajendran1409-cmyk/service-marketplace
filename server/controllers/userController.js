@@ -2,6 +2,15 @@ const pool = require('../config/database');
 const { notifyPro } = require('../utils/proSseClients');
 const { broadcast } = require('../utils/sseClients');
 const { addCustomerClient, removeCustomerClient } = require('../utils/customerSseClients');
+const {
+    getNotificationsByUserId,
+    getUnreadCount,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    createNotification,
+    NOTIFICATION_TYPES
+} = require('../utils/notifications');
 
 exports.getProfile = async (req, res) => {
     try {
@@ -327,5 +336,94 @@ exports.confirmPayment = async (req, res) => {
     } catch (err) {
         console.error('confirmPayment error:', err);
         res.status(500).json({ message: 'Failed to confirm payment' });
+    }
+};
+
+// GET /api/user/notifications - get all notifications for the logged in user
+exports.getNotifications = async (req, res) => {
+    try {
+        const customerId = req.user.id;
+        const { limit, offset, unreadOnly } = req.query;
+
+        const notifications = await getNotificationsByUserId(customerId, {
+            limit: limit ? parseInt(limit) : 50,
+            offset: offset ? parseInt(offset) : 0,
+            unreadOnly: unreadOnly === 'true'
+        });
+
+        const unreadCount = await getUnreadCount(customerId);
+
+        res.json({ notifications, unreadCount });
+    } catch (err) {
+        console.error('getNotifications error:', err);
+        res.status(500).json({ message: 'Failed to fetch notifications' });
+    }
+};
+
+// GET /api/user/notifications/unread-count - get unread notification count
+exports.getUnreadNotificationCount = async (req, res) => {
+    try {
+        const customerId = req.user.id;
+        const unreadCount = await getUnreadCount(customerId);
+        res.json({ unreadCount });
+    } catch (err) {
+        console.error('getUnreadNotificationCount error:', err);
+        res.status(500).json({ message: 'Failed to fetch unread count' });
+    }
+};
+
+// PATCH /api/user/notifications/:id/read - mark a notification as read
+exports.markNotificationAsRead = async (req, res) => {
+    try {
+        const customerId = req.user.id;
+        const notificationId = Number(req.params.id);
+
+        if (!Number.isInteger(notificationId)) {
+            return res.status(400).json({ message: 'Invalid notification ID' });
+        }
+
+        const notification = await markAsRead(notificationId, customerId);
+        if (!notification) {
+            return res.status(404).json({ message: 'Notification not found' });
+        }
+
+        res.json({ message: 'Notification marked as read', notification });
+    } catch (err) {
+        console.error('markNotificationAsRead error:', err);
+        res.status(500).json({ message: 'Failed to mark notification as read' });
+    }
+};
+
+// PATCH /api/user/notifications/read-all - mark all notifications as read
+exports.markAllNotificationsAsRead = async (req, res) => {
+    try {
+        const customerId = req.user.id;
+        await markAllAsRead(customerId);
+        res.json({ message: 'All notifications marked as read' });
+    } catch (err) {
+        console.error('markAllNotificationsAsRead error:', err);
+        res.status(500).json({ message: 'Failed to mark all notifications as read' });
+    }
+};
+
+// DELETE /api/user/notifications/:id - delete a notification
+exports.deleteNotification = async (req, res) => {
+    try {
+        const customerId = req.user.id;
+        const notificationId = Number(req.params.id);
+
+        if (!Number.isInteger(notificationId)) {
+            return res.status(400).json({ message: 'Invalid notification ID' });
+        }
+
+        const deleted = await deleteNotification(notificationId, customerId);
+        if (!deleted) {
+            return res.status(404).json({ message: 'Notification not found' });
+        }
+
+        res.json({ message: 'Notification deleted' });
+    } catch (err) {
+        console.error('deleteNotification error:', err);
+        res.status(500).json({ message: 'Failed to delete notification' });
     }
 };
