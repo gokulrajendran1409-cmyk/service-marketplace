@@ -14,9 +14,13 @@ const {
 
 exports.getProfile = async (req, res) => {
     try {
+        const userId = Number(req.user.id);
+        if (!Number.isInteger(userId)) {
+            return res.status(400).json({ message: 'Invalid user ID' });
+        }
         const result = await pool.query(
             'SELECT id, name, email, phone, address FROM users WHERE id = $1',
-            [req.user.id]
+            [userId]
         );
         if (!result.rows[0]) return res.status(404).json({ message: 'Profile not found' });
         res.json(result.rows[0]);
@@ -29,12 +33,16 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
     try {
         const { phone, address } = req.body;
+        const userId = Number(req.user.id);
+        if (!Number.isInteger(userId)) {
+            return res.status(400).json({ message: 'Invalid user ID' });
+        }
         if (!phone?.trim()) return res.status(400).json({ message: 'Phone number is required' });
 
         const result = await pool.query(
             `UPDATE users SET phone = $1, address = $2
              WHERE id = $3 RETURNING id, name, email, phone, address`,
-            [phone.trim(), address?.trim() || null, req.user.id]
+            [phone.trim(), address?.trim() || null, userId]
         );
         if (!result.rows[0]) return res.status(404).json({ message: 'Profile not found' });
         res.json(result.rows[0]);
