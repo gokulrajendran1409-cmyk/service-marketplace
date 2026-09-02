@@ -14,9 +14,13 @@ const {
 
 exports.getProfile = async (req, res) => {
     try {
+        const userId = Number(req.user.id);
+        if (!Number.isInteger(userId)) {
+            return res.status(400).json({ message: 'Invalid user ID' });
+        }
         const result = await pool.query(
             'SELECT id, name, email, phone, address FROM users WHERE id = $1',
-            [req.user.id]
+            [userId]
         );
         if (!result.rows[0]) return res.status(404).json({ message: 'Profile not found' });
         res.json(result.rows[0]);
@@ -29,12 +33,16 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
     try {
         const { phone, address } = req.body;
+        const userId = Number(req.user.id);
+        if (!Number.isInteger(userId)) {
+            return res.status(400).json({ message: 'Invalid user ID' });
+        }
         if (!phone?.trim()) return res.status(400).json({ message: 'Phone number is required' });
 
         const result = await pool.query(
             `UPDATE users SET phone = $1, address = $2
              WHERE id = $3 RETURNING id, name, email, phone, address`,
-            [phone.trim(), address?.trim() || null, req.user.id]
+            [phone.trim(), address?.trim() || null, userId]
         );
         if (!result.rows[0]) return res.status(404).json({ message: 'Profile not found' });
         res.json(result.rows[0]);
@@ -276,38 +284,13 @@ exports.createReview = async (req, res) => {
 };
 
 // GET /api/user/notifications/stream - SSE connection for real-time customer updates
-exports.streamNotifications = async (req, res) => {
-    const jwt = require('jsonwebtoken');
-    const { pool } = require('../config/database');
-    const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_for_demo';
-
-    let token = null;
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-        token = req.headers.authorization.split(' ')[1];
-    } else if (req.query.token) {
-        token = req.query.token;
-    }
-
-    if (!token) {
-        return res.status(401).json({ message: 'Not authorized, no token' });
-    }
-
-    let customerId;
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        if (decoded.role !== 'customer') {
-            return res.status(403).json({ message: 'Customer access required' });
-        }
-        customerId = decoded.id;
-    } catch (error) {
-        return res.status(401).json({ message: 'Not authorized, token failed' });
-    }
-
+exports.streamNotifications = (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
+    const customerId = req.user.id;
     addCustomerClient(customerId, res);
 
     const keepAlive = setInterval(() => {
