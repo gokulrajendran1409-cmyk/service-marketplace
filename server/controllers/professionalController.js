@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const { broadcast } = require('../utils/sseClients');
 const { notifyPro } = require('../utils/proSseClients');
 const { notifyCustomer } = require('../utils/customerSseClients');
+const { createJourneyNotification, createNotification, NOTIFICATION_TYPES } = require('../utils/notifications');
 
 const JOURNEY_STEPS = ['accepted', 'start_navigation', 'on_the_way', 'arrived', 'working'];
 
@@ -259,10 +260,9 @@ exports.respondToRequest = async (req, res) => {
     try {
         await client.query('BEGIN');
         const offer = await client.query(
-            `SELECT so.id, sr.id AS request_id, sr.status AS request_status, sr.customer_id, p.full_name AS professional_name
+            `SELECT so.id, sr.id AS request_id, sr.status AS request_status
              FROM service_offers so
              JOIN service_requests sr ON sr.id = so.request_id
-             JOIN professionals p ON p.id = $2
              WHERE so.request_id = $1 AND so.professional_id = $2 AND so.status = 'pending'
              FOR UPDATE OF so, sr`,
             [requestId, professionalId]
@@ -321,18 +321,41 @@ exports.respondToRequest = async (req, res) => {
         }
         await client.query('COMMIT');
 
-        // Notify the customer if the request was accepted
+        // Create persistent notification when professional accepts the request
         if (decision === 'accepted') {
-            const customerId = offer.rows[0].customer_id;
-            const professionalName = offer.rows[0].professional_name;
-            notifyCustomer(customerId, 'requestUpdate', {
-                requestId: requestId,
-                newStatus: 'accepted',
-                journeyStatus: 'accepted',
-                updateType: 'provider_accepted',
-                professionalName: professionalName,
-                timestamp: new Date().toISOString()
-            });
+            console.log(`[NOTIFICATION] Professional ${professionalId} accepted request ${requestId}, creating notification...`);
+            const requestInfo = await db.query(
+                `SELECT sr.customer_id, p.full_name as professional_name
+                 FROM service_requests sr
+                 JOIN professionals p ON p.id = $2
+                 WHERE sr.id = $1`,
+                [requestId, professionalId]
+            );
+            if (requestInfo.rows.length) {
+                const { customer_id, professional_name } = requestInfo.rows[0];
+                console.log(`[NOTIFICATION] Creating notification for customer ${customer_id}`);
+                const notification = await createNotification({
+                    userId: customer_id,
+                    type: NOTIFICATION_TYPES.REQUEST_ACCEPTED,
+                    title: 'Request Accepted',
+                    message: `${professional_name} has accepted your service request.`,
+                    requestId: requestId,
+                    professionalId: professionalId,
+                    metadata: { status: 'accepted' }
+                });
+                console.log(`[NOTIFICATION] Notification created:`, notification);
+
+                // Notify customer in real-time
+                notifyCustomer(customer_id, 'requestUpdate', {
+                    requestId: requestId,
+                    newStatus: 'accepted',
+                    journeyStatus: 'accepted',
+                    updateType: 'status_change',
+                    professionalName: professional_name
+                });
+            } else {
+                console.log(`[NOTIFICATION] No request info found for request ${requestId}`);
+            }
         }
 
         broadcast('service_request_updated', {
@@ -407,6 +430,17 @@ exports.updateRequestJourney = async (req, res) => {
         );
         await client.query('COMMIT');
 
+        // Create persistent notification for customer
+        console.log(`[NOTIFICATION] Journey update to ${nextStatus} for request ${requestId}, creating notification for customer ${customerId}...`);
+        const journeyNotification = await createJourneyNotification({
+            userId: customerId,
+            professionalName: professionalName,
+            journeyStatus: nextStatus,
+            requestId: requestId,
+            professionalId: professionalId
+        });
+        console.log(`[NOTIFICATION] Journey notification created:`, journeyNotification);
+
         // Notify customer about the update
         notifyCustomer(customerId, 'requestUpdate', {
             requestId: requestId,
@@ -477,6 +511,17 @@ exports.verifyOtp = async (req, res) => {
             [requestId]
         );
         await client.query('COMMIT');
+
+        // Create persistent notification for customer about arrival
+        await createNotification({
+            userId: customerId,
+            type: NOTIFICATION_TYPES.ARRIVAL,
+            title: 'Professional Has Arrived',
+            message: `${professionalName} has arrived at your location.`,
+            requestId: requestId,
+            professionalId: professionalId,
+            metadata: { journey_status: 'arrived' }
+        });
 
         // Notify customer about arrival
         notifyCustomer(customerId, 'requestUpdate', {
@@ -618,6 +663,17 @@ exports.submitWage = async (req, res) => {
         );
 
         await client.query('COMMIT');
+
+        // Create persistent notification for customer about payment ready
+        await createNotification({
+            userId: customerId,
+            type: NOTIFICATION_TYPES.PAYMENT_READY,
+            title: 'Payment Ready',
+            message: `${professionalName} has submitted the wage of ₹${wageAmount}. Please confirm the payment.`,
+            requestId: requestId,
+            professionalId: professionalId,
+            metadata: { journey_status: 'awaiting_payment', wage: wageAmount }
+        });
 
         // Notify customer that payment is ready
         notifyCustomer(customerId, 'requestUpdate', {
