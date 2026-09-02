@@ -41,7 +41,7 @@ router.post('/requests', protectCustomer, upload.fields([
 router.get('/requests', protectCustomer, getMyRequests);
 router.post('/requests/:id/confirm-payment', protectCustomer, confirmPayment);
 router.post('/requests/:id/review', protectCustomer, createReview);
-router.get('/notifications/stream', protectCustomer, streamNotifications);
+router.get('/notifications/stream', streamNotifications);
 router.get('/notifications', protectCustomer, getNotifications);
 router.get('/notifications/unread-count', protectCustomer, getUnreadNotificationCount);
 router.patch('/notifications/:id/read', protectCustomer, markNotificationAsRead);

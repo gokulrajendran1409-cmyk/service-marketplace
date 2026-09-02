@@ -276,13 +276,38 @@ exports.createReview = async (req, res) => {
 };
 
 // GET /api/user/notifications/stream - SSE connection for real-time customer updates
-exports.streamNotifications = (req, res) => {
+exports.streamNotifications = async (req, res) => {
+    const jwt = require('jsonwebtoken');
+    const { pool } = require('../config/database');
+    const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_for_demo';
+
+    let token = null;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+        token = req.headers.authorization.split(' ')[1];
+    } else if (req.query.token) {
+        token = req.query.token;
+    }
+
+    if (!token) {
+        return res.status(401).json({ message: 'Not authorized, no token' });
+    }
+
+    let customerId;
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        if (decoded.role !== 'customer') {
+            return res.status(403).json({ message: 'Customer access required' });
+        }
+        customerId = decoded.id;
+    } catch (error) {
+        return res.status(401).json({ message: 'Not authorized, token failed' });
+    }
+
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
-    const customerId = req.user.id;
     addCustomerClient(customerId, res);
 
     const keepAlive = setInterval(() => {
