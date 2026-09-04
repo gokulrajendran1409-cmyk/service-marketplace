@@ -7139,5 +7139,514 @@ textarea.form-input { min-height: 120px; resize: vertical; line-height: 1.5; }
   }
 }
 
+/* ==========================================================================
+   Service Accepted Celebration Modal & Bell Badge
+   ========================================================================== */
 
+.accepted-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  animation: acceptedFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
 
+@keyframes acceptedFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.accepted-card {
+  position: relative;
+  max-width: 480px;
+  width: 100%;
+  border-radius: 28px;
+  background: linear-gradient(165deg, #ffffff 0%, #f8fafc 100%);
+  border: 1.5px solid rgba(16, 185, 129, 0.35);
+  box-shadow: 
+    0 25px 60px -15px rgba(16, 185, 129, 0.25),
+    0 15px 40px -10px rgba(15, 23, 42, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  padding: 30px 24px 24px;
+  text-align: center;
+  overflow: hidden;
+  animation: acceptedFadeScaleUp 0.38s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes acceptedFadeScaleUp {
+  0% {
+    opacity: 0;
+    transform: scale(0.88) translateY(24px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Confetti particles */
+.accepted-confetti-wrap {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.accepted-confetti-wrap .confetti {
+  position: absolute;
+  font-size: 18px;
+  opacity: 0.8;
+  animation: confettiFloat 4s ease-in-out infinite alternate;
+}
+
+.accepted-confetti-wrap .c1 { top: 12%; left: 10%; color: #10b981; animation-delay: 0s; font-size: 22px; }
+.accepted-confetti-wrap .c2 { top: 22%; right: 12%; color: #f59e0b; animation-delay: 0.7s; font-size: 16px; }
+.accepted-confetti-wrap .c3 { top: 60%; left: 8%; color: #6366f1; animation-delay: 1.2s; font-size: 14px; }
+.accepted-confetti-wrap .c4 { top: 70%; right: 10%; color: #10b981; animation-delay: 0.4s; font-size: 20px; }
+.accepted-confetti-wrap .c5 { top: 38%; left: 14%; color: #ec4899; animation-delay: 1.8s; font-size: 13px; }
+.accepted-confetti-wrap .c6 { top: 48%; right: 15%; color: #06b6d4; animation-delay: 0.9s; font-size: 15px; }
+
+@keyframes confettiFloat {
+  0% { transform: translateY(0px) rotate(0deg) scale(0.9); }
+  50% { transform: translateY(-10px) rotate(180deg) scale(1.1); }
+  100% { transform: translateY(6px) rotate(360deg) scale(0.95); }
+}
+
+/* Dismiss Close Button */
+.accepted-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(100, 116, 139, 0.1);
+  border: none;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.accepted-close-btn:hover {
+  background: rgba(100, 116, 139, 0.2);
+  color: #0f172a;
+  transform: rotate(90deg);
+}
+
+/* Header Badge with Pulsing Halo */
+.accepted-header-badge-wrap {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.accepted-pulse-halo {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.25);
+  animation: pulseHalo 2s infinite ease-out;
+  pointer-events: none;
+}
+
+@keyframes pulseHalo {
+  0% { transform: scale(0.85); opacity: 0.8; }
+  50% { transform: scale(1.35); opacity: 0; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+.accepted-icon-badge {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 25px -4px rgba(16, 185, 129, 0.5);
+}
+
+.accepted-check-icon {
+  stroke-width: 2.3;
+}
+
+.accepted-sparkle-icon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  color: #fef08a;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+  animation: sparkleRotate 3s linear infinite;
+}
+
+@keyframes sparkleRotate {
+  0% { transform: scale(0.85) rotate(0deg); }
+  50% { transform: scale(1.2) rotate(180deg); }
+  100% { transform: scale(0.85) rotate(360deg); }
+}
+
+/* Title & Subtitle */
+.accepted-title-group {
+  margin-bottom: 18px;
+  position: relative;
+  z-index: 1;
+}
+
+.accepted-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  margin-bottom: 10px;
+}
+
+.pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: dotPulse 1.6s infinite;
+}
+
+@keyframes dotPulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.accepted-main-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 6px;
+  letter-spacing: -0.5px;
+}
+
+.accepted-subtitle {
+  font-size: 13.5px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* Professional Showcase Card */
+.accepted-pro-showcase {
+  background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+  border: 1.5px solid rgba(16, 185, 129, 0.25);
+  border-radius: 20px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  box-shadow: 0 4px 15px -3px rgba(16, 185, 129, 0.08);
+  margin-bottom: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.accepted-pro-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.accepted-pro-avatar {
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 800;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+
+.accepted-pro-verified-badge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #f59e0b;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid white;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+}
+
+.accepted-pro-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.accepted-pro-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.accepted-pro-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.accepted-category-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #059669;
+  background: rgba(16, 185, 129, 0.12);
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.accepted-pro-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.accepted-rating-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.star-filled {
+  color: #f59e0b;
+  fill: #f59e0b;
+}
+
+.rating-score {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.rating-count {
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.accepted-exp-tag,
+.accepted-city-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #64748b;
+}
+
+/* Service Booking Snapshot */
+.accepted-booking-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 14px 16px;
+  text-align: left;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.accepted-booking-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.accepted-booking-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #94a3b8;
+}
+
+.accepted-booking-id {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6366f1;
+  background: rgba(99, 102, 241, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.accepted-service-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 8px;
+}
+
+.accepted-booking-details-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.accepted-detail-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.accepted-detail-item .detail-icon {
+  color: #059669;
+  flex-shrink: 0;
+}
+
+.detail-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Action Buttons Bar */
+.accepted-actions-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.btn-track-accepted {
+  width: 100%;
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  color: white;
+  border: none;
+  padding: 14px 20px;
+  border-radius: 16px;
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 8px 24px -4px rgba(16, 185, 129, 0.45);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-track-accepted:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px -4px rgba(16, 185, 129, 0.55);
+}
+
+.btn-track-accepted:active {
+  transform: translateY(0);
+}
+
+.btn-call-accepted {
+  width: 100%;
+  background: white;
+  border: 1.5px solid rgba(16, 185, 129, 0.4);
+  color: #059669;
+  padding: 12px 20px;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-call-accepted:hover {
+  background: #f0fdf4;
+  border-color: #059669;
+}
+
+.btn-accepted-dismiss {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: color 0.15s ease;
+}
+
+.btn-accepted-dismiss:hover {
+  color: #475569;
+}
+
+/* Home Bell Button Badge */
+.home-bell-btn {
+  position: relative;
+}
+
+.home-bell-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: white;
+  font-size: 10.5px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid white;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+  animation: badgePop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes badgePop {
+  0% { transform: scale(0); }
+  100% { transform: scale(1); }
+}
