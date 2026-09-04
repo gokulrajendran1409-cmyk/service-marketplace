@@ -65,6 +65,26 @@ exports.getCategories = async (req, res) => {
     }
 };
 
+// GET /api/user/subcategories - list all subcategories or filter by ?category=...
+exports.getSubcategories = async (req, res) => {
+    try {
+        const { category } = req.query;
+        let query = 'SELECT id, category_id, category_name, name, image_url, price_estimate FROM subcategories';
+        const params = [];
+        if (category) {
+            query += ' WHERE LOWER(category_name) = LOWER($1)';
+            params.push(category);
+        }
+        query += ' ORDER BY category_name ASC, id ASC';
+        const result = await pool.query(query, params);
+        res.json(result.rows);
+    } catch (err) {
+        console.error('getSubcategories error:', err);
+        res.status(500).json({ message: 'Failed to fetch subcategories' });
+    }
+};
+
+
 // GET /api/user/professionals?category=Plumbing - list verified professionals, optionally filtered by category
 exports.getProfessionals = async (req, res) => {
     try {
@@ -78,6 +98,10 @@ exports.getProfessionals = async (req, res) => {
         const query = `
                  SELECT p.id, p.full_name, p.category, p.experience_years, p.bio, p.city, p.state,
                      p.registered_latitude, p.registered_longitude,
+                     p.current_latitude, p.current_longitude,
+                     COALESCE(p.current_latitude, p.registered_latitude) AS effective_latitude,
+                     COALESCE(p.current_longitude, p.registered_longitude) AS effective_longitude,
+                     p.location_updated_at,
                      (SELECT COUNT(*)
                         FROM service_offers so
                         JOIN service_requests sr ON sr.id = so.request_id
@@ -113,12 +137,21 @@ exports.createRequest = async (req, res) => {
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
+            const categoryClause = "p.category = $1";
+
             const professionals = await client.query(
-                                `SELECT p.id, p.full_name, p.registered_latitude, p.registered_longitude
+                                `SELECT p.id, p.full_name,
+                                        p.registered_latitude, p.registered_longitude,
+                                        p.current_latitude, p.current_longitude,
+                                        COALESCE(p.current_latitude, p.registered_latitude) AS effective_latitude,
+                                        COALESCE(p.current_longitude, p.registered_longitude) AS effective_longitude
                                  FROM professionals p
-                                 WHERE p.category = $1 AND p.verification_status = 'verified'
+                                 WHERE ${categoryClause} AND p.verification_status = 'verified'
                                      AND ($2::bigint IS NULL OR p.id = $2)
-                                     AND ($2::bigint IS NOT NULL OR (p.registered_latitude IS NOT NULL AND p.registered_longitude IS NOT NULL))
+                                     AND ($2::bigint IS NOT NULL OR (
+                                         COALESCE(p.current_latitude, p.registered_latitude) IS NOT NULL AND
+                                         COALESCE(p.current_longitude, p.registered_longitude) IS NOT NULL
+                                     ))
                                      AND NOT EXISTS (
                                              SELECT 1
                                              FROM service_offers active_offer
@@ -132,20 +165,27 @@ exports.createRequest = async (req, res) => {
             const userLatitude = Number(latitude);
             const userLongitude = Number(longitude);
             const nearbyProfessionals = professional_id && professional_id !== 'undefined'
-                ? professionals.rows
-                : professionals.rows.filter(professional => {
-                const latitudeDelta = (Number(professional.registered_latitude) - userLatitude) * Math.PI / 180;
-                const longitudeDelta = (Number(professional.registered_longitude) - userLongitude) * Math.PI / 180;
-                const latitude1 = userLatitude * Math.PI / 180;
-                const latitude2 = Number(professional.registered_latitude) * Math.PI / 180;
-                const haversine = Math.sin(latitudeDelta / 2) ** 2
-                    + Math.cos(latitude1) * Math.cos(latitude2) * Math.sin(longitudeDelta / 2) ** 2;
-                const distanceKm = 6371 * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
-                return Number.isFinite(distanceKm) && distanceKm <= 15;
-                });
+                ? professionals.rows.map(p => ({ ...p, distance_km: null }))
+                : professionals.rows.map(professional => {
+                    const proLat = Number(professional.effective_latitude);
+                    const proLng = Number(professional.effective_longitude);
+                    if (!Number.isFinite(proLat) || !Number.isFinite(proLng)) return null;
+
+                    const latitudeDelta = (proLat - userLatitude) * Math.PI / 180;
+                    const longitudeDelta = (proLng - userLongitude) * Math.PI / 180;
+                    const latitude1 = userLatitude * Math.PI / 180;
+                    const latitude2 = proLat * Math.PI / 180;
+                    const haversine = Math.sin(latitudeDelta / 2) ** 2
+                        + Math.cos(latitude1) * Math.cos(latitude2) * Math.sin(longitudeDelta / 2) ** 2;
+                    const distanceKm = 6371 * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+                    if (Number.isFinite(distanceKm) && distanceKm <= 15) {
+                        return { ...professional, distance_km: Math.round(distanceKm * 10) / 10 };
+                    }
+                    return null;
+                }).filter(Boolean);
             if (!nearbyProfessionals.length) {
                 await client.query('ROLLBACK');
-                return res.status(404).json({ message: 'No available professionals were found. Professionals currently handling jobs will receive new requests after completing them.' });
+                return res.status(404).json({ message: 'No available professionals were found within a 15 km radius of your location. Professionals will receive new requests near their current location after completing their current jobs.' });
             }
 
             const result = await client.query(
@@ -167,6 +207,7 @@ exports.createRequest = async (req, res) => {
                 request_id: request.id,
                 customer_name: req.user.name || 'A customer',
                 title: request.title,
+                distance_km: professional.distance_km,
                 timestamp: new Date().toISOString()
             }));
             broadcast('service_request_created', {
@@ -332,6 +373,23 @@ exports.confirmPayment = async (req, res) => {
             return res.status(404).json({ message: 'Request not found or payment already confirmed' });
         }
 
+        const completedRequest = result.rows[0];
+
+        // Update the professional's current location to the completed service location
+        if (Number.isFinite(Number(completedRequest.latitude)) && Number.isFinite(Number(completedRequest.longitude))) {
+            await pool.query(
+                `UPDATE professionals p
+                 SET current_latitude = $1,
+                     current_longitude = $2,
+                     location_updated_at = CURRENT_TIMESTAMP
+                 FROM service_offers so
+                 WHERE so.request_id = $3
+                   AND so.status = 'accepted'
+                   AND p.id = so.professional_id`,
+                [completedRequest.latitude, completedRequest.longitude, requestId]
+            );
+        }
+
         const { broadcast: broadcastSse } = require('../utils/sseClients');
         broadcastSse('payment_confirmed', {
             id: requestId,
@@ -340,7 +398,7 @@ exports.confirmPayment = async (req, res) => {
             timestamp: new Date().toISOString()
         });
 
-        res.json({ message: 'Payment confirmed successfully', request: result.rows[0] });
+        res.json({ message: 'Payment confirmed successfully', request: completedRequest });
     } catch (err) {
         console.error('confirmPayment error:', err);
         res.status(500).json({ message: 'Failed to confirm payment' });

@@ -1,36 +1,85 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, BriefcaseBusiness, CheckCircle2, ChevronRight, Link, MapPin, RefreshCw, Star, Tags } from 'lucide-react';
+import {
+  ArrowLeft,
+  BriefcaseBusiness,
+  CheckCircle2,
+  ChevronRight,
+  Home,
+  Link,
+  MapPin,
+  Monitor,
+  RefreshCw,
+  Search,
+  Sparkles,
+  Star,
+  Tags,
+  Wrench
+} from 'lucide-react';
 import { categoryColors, categoryIcons, serviceGroups, API } from '../constants';
 import { BookingModal } from '../components/BookingModal';
 import { useToast, Toast } from '../components/Toast';
 
-import gardeningImg from '../assets/service-icons/gardening.jpg';
-import acRepairImg from '../assets/service-icons/ac-appliance-repair.jpg';
-import cctvSecurityImg from '../assets/service-icons/cctv-security.jpg';
-import appliancesImg from '../assets/service-icons/appliances.jpg';
-import computerRepairImg from '../assets/service-icons/computer-repair.jpg';
-import carpentryImg from '../assets/service-icons/carpentry.jpg';
-import cleaningImg from '../assets/service-icons/cleaning.jpg';
-import electricalImg from '../assets/service-icons/electrical.jpg';
-import paintingImg from '../assets/service-icons/painting.jpg';
-import plumbingImg from '../assets/service-icons/plumbing.jpg';
+import keralaCarpentry from '../assets/kerala/carpentry.jpg';
+import keralaGardening from '../assets/kerala/gardening.jpg';
+import keralaPlumbing from '../assets/kerala/plumbing.jpg';
+import keralaElectrical from '../assets/kerala/electrical.jpg';
+import keralaCleaning from '../assets/kerala/cleaning.jpg';
+import keralaAcRepair from '../assets/kerala/ac_repair.jpg';
+import keralaPainting from '../assets/kerala/painting.jpg';
+import keralaCctv from '../assets/kerala/cctv.jpg';
+import keralaHomeRepair from '../assets/kerala/home_repair.jpg';
+import keralaComputerRepair from '../assets/kerala/computer_repair.jpg';
+import keralaPhotography from '../assets/kerala/photography.jpg';
 
+import gardeningFallback from '../assets/service-icons/gardening.jpg';
+import acRepairFallback from '../assets/service-icons/ac-appliance-repair.jpg';
+import cctvSecurityFallback from '../assets/service-icons/cctv-security.jpg';
+import appliancesFallback from '../assets/service-icons/appliances.jpg';
+import computerRepairFallback from '../assets/service-icons/computer-repair.jpg';
+import carpentryFallback from '../assets/service-icons/carpentry.jpg';
+import cleaningFallback from '../assets/service-icons/cleaning.jpg';
+import electricalFallback from '../assets/service-icons/electrical.jpg';
+import paintingFallback from '../assets/service-icons/painting.jpg';
+import plumbingFallback from '../assets/service-icons/plumbing.jpg';
+
+// Aesthetic, realistic photographic images connecting deeply with Kerala homes, lifestyle & architecture
 const categoryImages = {
-  'Gardening & Landscaping': gardeningImg,
-  'Gardening': gardeningImg,
-  'AC & Appliance Repair': acRepairImg,
-  'AC Repair': acRepairImg,
-  'CCTV & Security': cctvSecurityImg,
-  'Security': cctvSecurityImg,
-  'Appliances': appliancesImg,
-  'Computer & Mobile Repair': computerRepairImg,
-  'Computer Repair': computerRepairImg,
-  'Computer Repairing': computerRepairImg,
-  'Carpentry': carpentryImg,
-  'Cleaning': cleaningImg,
-  'Electrical': electricalImg,
-  'Painting': paintingImg,
-  'Plumbing': plumbingImg,
+  'Gardening & Landscaping': keralaGardening,
+  'Gardening': keralaGardening,
+  'AC & Appliance Repair': keralaAcRepair,
+  'AC Repair': keralaAcRepair,
+  'Appliances': keralaAcRepair,
+  'CCTV & Security': keralaCctv,
+  'Security': keralaCctv,
+  'Computer & Mobile Repair': keralaComputerRepair,
+  'Computer Repair': keralaComputerRepair,
+  'Computer Repairing': keralaComputerRepair,
+  'Carpentry': keralaCarpentry,
+  'Cleaning': keralaCleaning,
+  'Electrical': keralaElectrical,
+  'Painting': keralaPainting,
+  'Plumbing': keralaPlumbing,
+  'Home Repair & Maintenance': keralaHomeRepair,
+  'Photography & Videography': keralaPhotography,
+};
+
+const localCategoryFallbacks = {
+  'Gardening & Landscaping': gardeningFallback,
+  'Gardening': gardeningFallback,
+  'AC & Appliance Repair': acRepairFallback,
+  'AC Repair': acRepairFallback,
+  'CCTV & Security': cctvSecurityFallback,
+  'Security': cctvSecurityFallback,
+  'Appliances': appliancesFallback,
+  'Computer & Mobile Repair': computerRepairFallback,
+  'Computer Repair': computerRepairFallback,
+  'Carpentry': carpentryFallback,
+  'Cleaning': cleaningFallback,
+  'Electrical': electricalFallback,
+  'Painting': paintingFallback,
+  'Plumbing': plumbingFallback,
+  'Home Repair & Maintenance': keralaHomeRepair,
+  'Photography & Videography': keralaPhotography,
 };
 
 function Services({ navigate, initialGroup = null, initialCategory = null }) {
@@ -45,8 +94,24 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
   const [booking, setBooking] = useState(null); // { professional, category }
   const [profileProfessional, setProfileProfessional] = useState(null);
   const [showLocationModal, setShowLocationModal] = useState(false);
+  const [activeGroup, setActiveGroup] = useState(initialGroup || 'all');
+  const [subcategories, setSubcategories] = useState([]);
+  const [loadingSubcats, setLoadingSubcats] = useState(true);
+  const [subcatSearch, setSubcatSearch] = useState('');
   const { toast, showToast } = useToast();
   const nearbyLimitKm = 15;
+
+  useEffect(() => {
+    if (initialGroup) {
+      setActiveGroup(initialGroup);
+    }
+  }, [initialGroup]);
+
+  const filteredGlobalSubcats = subcategories.filter(sub => {
+    if (!subcatSearch.trim()) return false;
+    const q = subcatSearch.toLowerCase().trim();
+    return sub.name.toLowerCase().includes(q) || sub.category_name.toLowerCase().includes(q);
+  });
 
   const calculateDistanceInKm = (firstLatitude, firstLongitude, secondLatitude, secondLongitude) => {
     if (![firstLatitude, firstLongitude, secondLatitude, secondLongitude].every(Number.isFinite)) return null;
@@ -66,6 +131,12 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
       .then(data => setCategories(Array.isArray(data) ? data : []))
       .catch(() => showToast('Failed to load categories', 'error'))
       .finally(() => setLoadingCats(false));
+
+    fetch(`${API}/subcategories`)
+      .then(r => r.json())
+      .then(data => setSubcategories(Array.isArray(data) ? data : []))
+      .catch(err => console.error('Failed to load subcategories:', err))
+      .finally(() => setLoadingSubcats(false));
   }, []);
 
   const requestLocation = () => new Promise((resolve, reject) => {
@@ -133,8 +204,8 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
         distance_from_user: location ? calculateDistanceInKm(
           location.latitude,
           location.longitude,
-          Number(professional.registered_latitude),
-          Number(professional.registered_longitude)
+          Number(professional.effective_latitude || professional.current_latitude || professional.registered_latitude),
+          Number(professional.effective_longitude || professional.current_longitude || professional.registered_longitude)
         ) : null,
       })));
     } catch {
@@ -144,10 +215,16 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
     }
   };
 
+  const handleCategoryClick = (cat) => {
+    selectCategory(cat);
+  };
+
   useEffect(() => {
     if (!initialCategory || categories.length === 0 || selected?.name === initialCategory) return;
     const category = categories.find(item => item.name === initialCategory);
-    if (category) selectCategory(category);
+    if (category) {
+      selectCategory(category);
+    }
   }, [categories, initialCategory]);
 
   // Update distances when location becomes available
@@ -158,8 +235,8 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
         distance_from_user: calculateDistanceInKm(
           location.latitude,
           location.longitude,
-          Number(pro.registered_latitude),
-          Number(pro.registered_longitude)
+          Number(pro.effective_latitude || pro.current_latitude || pro.registered_latitude),
+          Number(pro.effective_longitude || pro.current_longitude || pro.registered_longitude)
         )
       })));
     }
@@ -212,13 +289,17 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
       <div className="page-header">
         <div className="services-heading-row">
           <div>
-            <h1 className="page-title">{initialGroup || 'Find a Service'}</h1>
-            <p className="page-subtitle">{initialGroup
-              ? `Choose a ${initialGroup.toLowerCase()} service and connect with a trusted professional.`
-              : 'Choose a category and send one request to nearby professionals.'}</p>
+            <h1 className="page-title">
+              {activeGroup === 'all' ? 'Find a Service' : activeGroup}
+            </h1>
+            <p className="page-subtitle">
+              {activeGroup === 'all'
+                ? 'Choose a category and send one request to nearby verified professionals.'
+                : `Choose a ${activeGroup.toLowerCase()} service and connect with a trusted professional.`}
+            </p>
           </div>
-          {initialGroup && (
-            <button className="show-all-services-btn" onClick={() => navigate('services')}>
+          {activeGroup !== 'all' && (
+            <button className="show-all-services-btn" onClick={() => { setActiveGroup('all'); navigate && navigate('services'); }}>
               <Tags size={16} /> Show all services
             </button>
           )}
@@ -240,6 +321,49 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
           <ChevronRight size={14} />
         </button>
       </div>
+
+      {/* Category Group Selector Tabs */}
+      {!selected && (
+        <div className="services-group-tabs-scroll">
+          <div className="services-group-tabs">
+            <button 
+              className={`services-group-tab ${activeGroup === 'all' ? 'active' : ''}`}
+              onClick={() => setActiveGroup('all')}
+            >
+              <Tags size={15} />
+              <span>All Services</span>
+            </button>
+            <button 
+              className={`services-group-tab ${activeGroup === 'Home Repairs' ? 'active' : ''}`}
+              onClick={() => setActiveGroup('Home Repairs')}
+            >
+              <Wrench size={15} />
+              <span>Home Repairs</span>
+            </button>
+            <button 
+              className={`services-group-tab ${activeGroup === 'Personal Care' ? 'active' : ''}`}
+              onClick={() => setActiveGroup('Personal Care')}
+            >
+              <Sparkles size={15} />
+              <span>Personal Care</span>
+            </button>
+            <button 
+              className={`services-group-tab ${activeGroup === 'Home Services' ? 'active' : ''}`}
+              onClick={() => setActiveGroup('Home Services')}
+            >
+              <Home size={15} />
+              <span>Home Services</span>
+            </button>
+            <button 
+              className={`services-group-tab ${activeGroup === 'Education' ? 'active' : ''}`}
+              onClick={() => setActiveGroup('Education')}
+            >
+              <Monitor size={15} />
+              <span>Education</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Location Modal */}
       {showLocationModal && (
@@ -304,51 +428,155 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
           <RefreshCw className="spin" size={32} color="var(--text-muted)" />
         </div>
       ) : !selected && (
-        <div className="subcategory-list">
-          {serviceGroups
-            .filter(group => !initialGroup || group.name === initialGroup)
-            .flatMap(group => group.categories.map(name => categoriesByName.get(name) || {
-              id: name,
-              name,
-              description: 'Browse available professionals',
-            }))
-            .map((cat, index) => {
-              const CategoryIcon = categoryIcons[cat.name] || Tags;
-              const iconColor = categoryColors[cat.name] || 'var(--accent-primary)';
-              const dummyPrice = (14.25 + (index * 4.5)).toFixed(2);
-              const serviceImg = categoryImages[cat.name] || categoryImages[cat.id];
-              
-              return (
-                <button
-                  key={cat.id}
-                  className={`subcategory-item ${selected?.id === cat.id ? 'selected' : ''}`}
-                  onClick={() => selectCategory(cat)}
+        <>
+          {/* Instant Sub-Category Live Filter */}
+
+          {/* Instant Sub-Category Live Filter */}
+          <div className="services-subcat-browser">
+            <div className="services-subcat-search-row">
+              <Search size={16} color="#64748b" />
+              <input
+                type="text"
+                placeholder="Search all services & sub-categories (e.g. pipe leak, AC clean, fan fitting, painting, lock)..."
+                value={subcatSearch}
+                onChange={(e) => setSubcatSearch(e.target.value)}
+              />
+              {subcatSearch && (
+                <button 
+                  type="button" 
+                  className="services-subcat-search-clear" 
+                  onClick={() => setSubcatSearch('')}
                 >
-                  <div className="subcategory-item-image">
-                    {serviceImg ? (
-                      <img 
-                        src={serviceImg} 
-                        alt={cat.name} 
-                        className="subcategory-img-preview" 
-                        loading="lazy" 
-                      />
-                    ) : (
-                      <CategoryIcon size={52} strokeWidth={1.5} color={iconColor} />
-                    )}
+                  ×
+                </button>
+              )}
+            </div>
+
+            {subcatSearch.trim() && (
+              <div style={{ marginTop: 14 }}>
+                <div className="subcat-search-results-header">
+                  <h4>Matching Services ({filteredGlobalSubcats.length})</h4>
+                </div>
+                {filteredGlobalSubcats.length > 0 ? (
+                  <div className="subcat-visual-grid">
+                    {filteredGlobalSubcats.map((subcat) => (
+                      <div key={`${subcat.category_name}-${subcat.name}`} className="subcat-visual-card fade-up">
+                        <div className="subcat-visual-img-wrap">
+                          <img
+                            src={subcat.image_url}
+                            alt={subcat.name}
+                            className="subcat-visual-img"
+                            loading="lazy"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = categoryImages[subcat.category_name] || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80';
+                            }}
+                          />
+                          {subcat.price_estimate && (
+                            <span className="subcat-price-badge">{subcat.price_estimate}</span>
+                          )}
+                        </div>
+                        <div className="subcat-visual-body">
+                          <div>
+                            <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: categoryColors[subcat.category_name] || 'var(--accent-primary)', display: 'block', marginBottom: 2 }}>
+                              {subcat.category_name}
+                            </span>
+                            <h4 className="subcat-visual-title">{subcat.name}</h4>
+                          </div>
+                          <div className="subcat-visual-actions">
+                            <button
+                              type="button"
+                              className="btn-subcat-book"
+                              onClick={() => setBooking({
+                                professional: null,
+                                category: subcat.category_name,
+                                location,
+                                initialTitle: subcat.name,
+                                initialDescription: `I need assistance with ${subcat.name} (${subcat.price_estimate || 'Standard rate'}).`
+                              })}
+                            >
+                              <Sparkles size={13} /> Book Service
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-subcat-pros"
+                              onClick={() => {
+                                const targetCat = categoriesByName.get(subcat.category_name) || { id: subcat.category_name, name: subcat.category_name };
+                                selectCategory(targetCat);
+                              }}
+                            >
+                              Find Pros <ChevronRight size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="subcategory-item-content">
-                    <h3 className="subcategory-item-title">{cat.name}</h3>
-                    <div className="subcategory-item-bottom">
-                      <span className="subcategory-item-price">${dummyPrice} <small>/hr</small></span>
-                      <div className="subcategory-item-add-btn">
-                        <ChevronRight size={14} strokeWidth={3} />
+                ) : (
+                  <div className="subcat-search-empty">
+                    No sub-categories matched &ldquo;{subcatSearch}&rdquo;. Try searching for &ldquo;leak&rdquo;, &ldquo;clean&rdquo;, &ldquo;paint&rdquo;, or &ldquo;wiring&rdquo;.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="subcategory-list">
+            {serviceGroups
+              .filter(group => activeGroup === 'all' || group.name === activeGroup)
+              .flatMap(group => group.categories.map(name => categoriesByName.get(name) || {
+                id: name,
+                name,
+                description: 'Browse available professionals',
+              }))
+              .map((cat, index) => {
+                const CategoryIcon = categoryIcons[cat.name] || Tags;
+                const iconColor = categoryColors[cat.name] || 'var(--accent-primary)';
+                const dummyPrice = (14.25 + (index * 4.5)).toFixed(2);
+                const serviceImg = categoryImages[cat.name] || categoryImages[cat.id];
+                const catSubcatCount = subcategories.filter(s => s.category_name?.toLowerCase() === cat.name?.toLowerCase()).length;
+                
+                return (
+                  <button
+                    key={cat.id}
+                    className={`subcategory-item ${selected?.id === cat.id ? 'selected' : ''}`}
+                    onClick={() => handleCategoryClick(cat)}
+                  >
+                    <div className="subcategory-item-image">
+                      {serviceImg ? (
+                        <img 
+                          src={serviceImg} 
+                          alt={cat.name} 
+                          className="subcategory-img-preview" 
+                          loading="lazy" 
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            if (localCategoryFallbacks[cat.name]) {
+                              e.target.src = localCategoryFallbacks[cat.name];
+                            }
+                          }}
+                        />
+                      ) : (
+                        <CategoryIcon size={52} strokeWidth={1.5} color={iconColor} />
+                      )}
+                    </div>
+                    <div className="subcategory-item-content">
+                      <h3 className="subcategory-item-title">{cat.name}</h3>
+                      <span style={{ fontSize: '11px', color: '#6366f1', fontWeight: 600, display: 'block', marginTop: 1 }}>
+                        {catSubcatCount > 0 ? `${catSubcatCount} sub-services` : 'Explore'}
+                      </span>
+                      <div className="subcategory-item-bottom">
+                        <span className="subcategory-item-price">${dummyPrice} <small>/hr</small></span>
+                        <div className="subcategory-item-add-btn">
+                          <ChevronRight size={14} strokeWidth={3} />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </button>
-              );
-            })}
-        </div>
+                  </button>
+                );
+              })}
+          </div>
+        </>
       )}
 
       {/* Professionals section */}
@@ -369,15 +597,92 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
               </h2>
               <p>Choose a provider or send your request to nearby professionals.</p>
             </div>
-            {nearbyProfessionals.length > 0 && (
-              <button
-                className="broadcast-request-btn"
-                onClick={() => setBooking({ professional: null, category: selected.name, location })}
-              >
-                Auto-assign for me
-              </button>
-            )}
+            <div className="provider-header-actions">
+              {nearbyProfessionals.length > 0 && (
+                <button
+                  className="broadcast-request-btn"
+                  onClick={() => setBooking({ professional: null, category: selected.name, location })}
+                >
+                  Auto-assign for me
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* Sub-Categories Visual Showcase */}
+          {(() => {
+            const catSubcats = subcategories.filter(
+              s => s.category_name?.toLowerCase() === selected.name?.toLowerCase()
+            );
+            if (catSubcats.length === 0) return null;
+
+            return (
+              <div className="cat-subcategories-section fade-up">
+                <div className="cat-subcategories-header">
+                  <div>
+                    <span className="subcat-section-tag">POPULAR {selected.name.toUpperCase()} SERVICES</span>
+                    <h3 className="subcat-section-title">Select a Specific Service to Book</h3>
+                    <p className="subcat-section-subtitle">
+                      Visual guide of specialized services. Click <strong>Book Service</strong> to request immediately.
+                    </p>
+                  </div>
+                  <span className="subcat-count-pill">{catSubcats.length} Sub-Categories</span>
+                </div>
+
+                <div className="subcat-visual-grid">
+                  {catSubcats.map((subcat) => (
+                    <div key={subcat.id || subcat.name} className="subcat-visual-card fade-up">
+                      <div className="subcat-visual-img-wrap">
+                        <img
+                          src={subcat.image_url}
+                          alt={subcat.name}
+                          className="subcat-visual-img"
+                          loading="lazy"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = categoryImages[selected.name] || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80';
+                          }}
+                        />
+                        {subcat.price_estimate && (
+                          <span className="subcat-price-badge">{subcat.price_estimate}</span>
+                        )}
+                      </div>
+                      <div className="subcat-visual-body">
+                        <h4 className="subcat-visual-title">{subcat.name}</h4>
+                        <div className="subcat-visual-actions">
+                          <button
+                            type="button"
+                            className="btn-subcat-book"
+                            onClick={() => setBooking({
+                              professional: null,
+                              category: selected.name,
+                              location,
+                              initialTitle: subcat.name,
+                              initialDescription: `I need assistance with ${subcat.name} (${subcat.price_estimate || 'Standard rate'}).`
+                            })}
+                          >
+                            <Sparkles size={13} /> Book Service
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-subcat-pros"
+                            onClick={() => {
+                              const el = document.getElementById('professionals-list-anchor');
+                              if (el) el.scrollIntoView({ behavior: 'smooth' });
+                            }}
+                          >
+                            Find Pros <ChevronRight size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          <div id="professionals-list-anchor" />
 
           {loadingPros ? (
             <div style={{ textAlign: 'center', padding: '40px' }}>
@@ -426,10 +731,13 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
           professional={booking.professional}
           category={booking.category}
           currentLocation={booking.location}
+          initialTitle={booking.initialTitle || ''}
+          initialDescription={booking.initialDescription || ''}
           onClose={() => setBooking(null)}
           onSuccess={handleRequestSuccess}
         />
       )}
+
 
       {profileProfessional && (
         <div className="modal-overlay" onClick={(event) => event.target === event.currentTarget && setProfileProfessional(null)}>

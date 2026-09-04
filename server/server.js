@@ -1,3 +1,23 @@
+const path = require("path");
+const fs = require("fs");
+const dotenv = require("dotenv");
+
+// Load .env before any routes or db modules
+const candidateEnvPaths = [
+    path.resolve(__dirname, ".env"),
+    path.resolve(__dirname, "utils/.env"),
+    path.resolve(process.cwd(), ".env"),
+    path.resolve(process.cwd(), "server/.env"),
+    path.resolve(process.cwd(), "server/utils/.env")
+];
+
+for (const envPath of candidateEnvPaths) {
+    if (fs.existsSync(envPath)) {
+        dotenv.config({ path: envPath });
+        break;
+    }
+}
+
 const express = require("express");
 const cors = require("cors");
 const adminRoutes = require("./routes/adminRoutes");

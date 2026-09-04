@@ -510,6 +510,17 @@ exports.verifyOtp = async (req, res) => {
              RETURNING *`,
             [requestId]
         );
+
+        // Update professional's current coordinates to the arrival service location
+        if (Number.isFinite(Number(result.rows[0].latitude)) && Number.isFinite(Number(result.rows[0].longitude))) {
+            await client.query(
+                `UPDATE professionals
+                 SET current_latitude = $1, current_longitude = $2, location_updated_at = CURRENT_TIMESTAMP
+                 WHERE id = $3`,
+                [result.rows[0].latitude, result.rows[0].longitude, professionalId]
+            );
+        }
+
         await client.query('COMMIT');
 
         // Create persistent notification for customer about arrival
@@ -700,5 +711,35 @@ exports.submitWage = async (req, res) => {
         res.status(500).json({ message: 'Failed to submit wage' });
     } finally {
         client.release();
+    }
+};
+
+// PATCH /api/professionals/current-location - update standby/live location anytime
+exports.updateCurrentLocation = async (req, res) => {
+    const professionalId = req.professionalId;
+    const { latitude, longitude } = req.body;
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        return res.status(400).json({ message: 'Valid latitude and longitude are required' });
+    }
+
+    try {
+        await db.query(
+            `UPDATE professionals
+             SET current_latitude = $1, current_longitude = $2, location_updated_at = CURRENT_TIMESTAMP
+             WHERE id = $3`,
+            [lat, lng, professionalId]
+        );
+
+        res.json({
+            message: 'Current location updated successfully',
+            latitude: lat,
+            longitude: lng
+        });
+    } catch (error) {
+        console.error('Update current location error:', error);
+        res.status(500).json({ message: 'Failed to update current location' });
     }
 };

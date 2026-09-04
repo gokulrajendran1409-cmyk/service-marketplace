@@ -1,15 +1,22 @@
 import { useEffect, useState, useRef } from 'react';
-import { ArrowRight, Award, BadgePercent, Bell, CheckCircle2, ChefHat, ChevronRight, MapPin, Navigation, Palette, Scissors, Search, ShieldCheck, Sparkles, Star, UserRoundCheck, Wrench, Zap } from 'lucide-react';
+import { ArrowRight, Award, BadgePercent, Bell, CheckCircle2, ChefHat, ChevronRight, MapPin, Navigation, Palette, Scissors, Search, ShieldCheck, Sparkles, Star, UserRoundCheck, Wrench, Zap, Wind, Hammer, Leaf, Shield, SlidersHorizontal } from 'lucide-react';
 import { API } from '../constants';
+import { useToast, Toast } from '../components/Toast';
+import keralaAcRepair from '../assets/kerala/ac_repair.jpg';
+import keralaCleaning from '../assets/kerala/cleaning.jpg';
+import keralaPainting from '../assets/kerala/painting.jpg';
+import keralaPlumbing from '../assets/kerala/plumbing.jpg';
 
 function Home({ navigate }) {
   const [locationName, setLocationName] = useState('Detecting location...');
+  const [currentCoords, setCurrentCoords] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [userName, setUserName] = useState('there');
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
   const [dbCategories, setDbCategories] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
+  const { toast, showToast } = useToast();
 
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
@@ -18,13 +25,6 @@ function Home({ navigate }) {
   const isPointerDown = useRef(false);
 
   const serviceCategoryItems = [
-    {
-      id: 'hairdresser',
-      title: 'Hairdresser',
-      icon: Scissors,
-      group: 'Personal Care',
-      category: 'Hairdresser',
-    },
     {
       id: 'cleaning',
       title: 'Cleaning',
@@ -40,13 +40,6 @@ function Home({ navigate }) {
       category: 'Painting',
     },
     {
-      id: 'cooking',
-      title: 'Cooking',
-      icon: ChefHat,
-      group: 'Personal Care',
-      category: 'Cooking',
-    },
-    {
       id: 'plumbing',
       title: 'Plumbing',
       icon: Wrench,
@@ -60,15 +53,56 @@ function Home({ navigate }) {
       group: 'Home Repairs',
       category: 'Electrical',
     },
+    {
+      id: 'ac-repair',
+      title: 'AC & Appliance',
+      icon: Wind,
+      group: 'Home Repairs',
+      category: 'AC & Appliance Repair',
+    },
+    {
+      id: 'carpentry',
+      title: 'Carpentry',
+      icon: Hammer,
+      group: 'Home Repairs',
+      category: 'Carpentry',
+    },
+    {
+      id: 'gardening',
+      title: 'Gardening',
+      icon: Leaf,
+      group: 'Personal Care',
+      category: 'Gardening & Landscaping',
+    },
+    {
+      id: 'security',
+      title: 'CCTV & Security',
+      icon: Shield,
+      group: 'Home Services',
+      category: 'CCTV & Security',
+    },
   ];
 
   const popularServices = [
+    {
+      id: 'ac-1',
+      title: 'AC Repair & Service',
+      category: 'AC & Appliance Repair',
+      group: 'Home Repairs',
+      image: keralaAcRepair,
+      rating: 4.9,
+      reviews: 165,
+      price: 'From $35',
+      provider: 'CoolTech Solutions',
+      avatarBg: '#06b6d4',
+      initials: 'CT',
+    },
     {
       id: 'clean-1',
       title: 'Home Cleaning',
       category: 'Cleaning',
       group: 'Personal Care',
-      image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&auto=format&fit=crop&q=80',
+      image: keralaCleaning,
       rating: 4.8,
       reviews: 128,
       price: '$25 - $30',
@@ -94,7 +128,7 @@ function Home({ navigate }) {
       title: 'Interior Painting',
       category: 'Painting',
       group: 'Home Repairs',
-      image: 'https://images.unsplash.com/photo-1562259949-e8e7689d7828?w=600&auto=format&fit=crop&q=80',
+      image: keralaPainting,
       rating: 4.7,
       reviews: 84,
       price: '$40 - $60',
@@ -107,7 +141,7 @@ function Home({ navigate }) {
       title: 'Plumbing & Repairs',
       category: 'Plumbing',
       group: 'Home Repairs',
-      image: 'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?w=600&auto=format&fit=crop&q=80',
+      image: keralaPlumbing,
       rating: 4.9,
       reviews: 152,
       price: '$30 - $45',
@@ -265,6 +299,10 @@ function Home({ navigate }) {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
+          setCurrentCoords({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude
+          });
           fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&zoom=10`)
             .then(r => r.json())
             .then(data => {
@@ -379,23 +417,25 @@ function Home({ navigate }) {
         </div>
         <div className="home-categories-grid-row">
           {serviceCategoryItems
-            .filter(item => dbCategories.some(dbCat => dbCat.name === item.category))
-            .slice(0, 4)
+            .filter(item => 
+              dbCategories.some(dbCat => dbCat.name === item.category)
+            )
+            .slice(0, 8)
             .map(item => (
-            <button
-              key={item.id}
-              className="home-cat-item-card"
-              onClick={() => navigate('services', item.group, item.category)}
-            >
-              <div className="home-cat-item-left">
-                <div className="home-cat-icon-box">
-                  <item.icon size={22} strokeWidth={2.2} />
+              <button
+                key={item.id}
+                className="home-cat-item-card"
+                onClick={() => navigate('services', item.group, item.category)}
+              >
+                <div className="home-cat-item-left">
+                  <div className="home-cat-icon-box">
+                    <item.icon size={22} strokeWidth={2.2} />
+                  </div>
+                  <span className="home-cat-title">{item.title}</span>
                 </div>
-                <span className="home-cat-title">{item.title}</span>
-              </div>
-              <ChevronRight size={15} className="home-cat-arrow" />
-            </button>
-          ))}
+                <ChevronRight size={15} className="home-cat-arrow" />
+              </button>
+            ))}
         </div>
       </section>
 
@@ -584,6 +624,8 @@ function Home({ navigate }) {
           <span className="home-trust-label">Live Tracking</span>
         </div>
       </section>
+
+      <Toast toast={toast} />
     </div>
   );
 }

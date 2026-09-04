@@ -4,6 +4,10 @@ import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
+const API_BASE = import.meta.env.DEV
+  ? 'http://localhost:5000'
+  : 'https://service-marketplace-af7p.onrender.com';
+
 function calculateDistanceInKm(firstLatitude, firstLongitude, secondLatitude, secondLongitude) {
   const earthRadiusKm = 6371;
   const latitudeDelta = (secondLatitude - firstLatitude) * Math.PI / 180;
@@ -178,10 +182,27 @@ function MyRequests() {
   const [wageInput, setWageInput] = useState('');
   const [wageDescription, setWageDescription] = useState('');
 
+  const syncCurrentLocation = async (lat, lng) => {
+    const token = localStorage.getItem("professionalToken");
+    if (!token || !Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) return;
+    try {
+      await fetch(`${API_BASE}/api/professionals/current-location`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ latitude: Number(lat), longitude: Number(lng) })
+      });
+    } catch (err) {
+      console.warn("Failed to sync current standby location", err);
+    }
+  };
+
   const fetchRequests = async () => {
     setLoading(true);
     try {
-      const response = await fetch("https://service-marketplace-af7p.onrender.com/api/professionals/requests", {
+      const response = await fetch(`${API_BASE}/api/professionals/requests`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("professionalToken")}` }
       });
       if (!response.ok) throw new Error("Failed to load requests");
@@ -198,11 +219,23 @@ function MyRequests() {
     fetchRequests();
     const professional = JSON.parse(localStorage.getItem('professional') || '{}');
     const token = localStorage.getItem('professionalToken');
-    if (!professional.id || !token) return undefined;
 
-    const API_BASE = import.meta.env.DEV
-        ? 'http://localhost:5000'
-        : 'https://service-marketplace-af7p.onrender.com';
+    // Auto-detect and sync standby current location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setProfessionalLocation({ latitude: lat, longitude: lng, accuracy: Math.round(pos.coords.accuracy) });
+          setLocationStatus('ready');
+          syncCurrentLocation(lat, lng);
+        },
+        () => {},
+        { maximumAge: 60000, timeout: 10000 }
+      );
+    }
+
+    if (!professional.id || !token) return undefined;
 
     // Native EventSource cannot send custom Authorization headers, so the JWT is
     // passed via ?token= query param. Backend extracts and verifies it identically to a Bearer header.
@@ -224,7 +257,7 @@ function MyRequests() {
           const lng = position.coords.longitude;
           setProfessionalLocation({ latitude: lat, longitude: lng, accuracy: position.coords.accuracy });
           try {
-            await fetch(`https://service-marketplace-af7p.onrender.com/api/professionals/requests/${activeNavigationRequest.id}/location`, {
+            await fetch(`${API_BASE}/api/professionals/requests/${activeNavigationRequest.id}/location`, {
               method: 'PATCH',
               headers: {
                 'Content-Type': 'application/json',
@@ -250,7 +283,7 @@ function MyRequests() {
   const respondToRequest = async (requestId, decision) => {
     setRespondingId(requestId);
     try {
-      const response = await fetch(`https://service-marketplace-af7p.onrender.com/api/professionals/requests/${requestId}/respond`, {
+      const response = await fetch(`${API_BASE}/api/professionals/requests/${requestId}/respond`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -287,7 +320,7 @@ function MyRequests() {
     }
     setRespondingId(requestId);
     try {
-      const response = await fetch(`https://service-marketplace-af7p.onrender.com/api/professionals/requests/${requestId}/journey`, {
+      const response = await fetch(`${API_BASE}/api/professionals/requests/${requestId}/journey`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -315,7 +348,7 @@ function MyRequests() {
     }
     setRespondingId(otpModalRequest);
     try {
-      const response = await fetch(`https://service-marketplace-af7p.onrender.com/api/professionals/requests/${otpModalRequest}/verify-otp`, {
+      const response = await fetch(`${API_BASE}/api/professionals/requests/${otpModalRequest}/verify-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -346,7 +379,7 @@ function MyRequests() {
     }
     setRespondingId(wageModalRequest);
     try {
-      const response = await fetch(`https://service-marketplace-af7p.onrender.com/api/professionals/requests/${wageModalRequest}/submit-wage`, {
+      const response = await fetch(`${API_BASE}/api/professionals/requests/${wageModalRequest}/submit-wage`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -388,6 +421,7 @@ function MyRequests() {
         };
         setProfessionalLocation(currentLocation);
         setLocationStatus('ready');
+        syncCurrentLocation(position.coords.latitude, position.coords.longitude);
         resolve(currentLocation);
       },
       (locationError) => {
@@ -574,9 +608,9 @@ function MyRequests() {
                       <div className="request-evidence">
                         <strong>Customer evidence</strong>
                         <div className="request-evidence-links">
-                          {req.photo_urls?.map((url, photoIndex) => <a key={url} href={`https://service-marketplace-af7p.onrender.com${url}`} target="_blank" rel="noreferrer">Photo {photoIndex + 1}</a>)}
-                          {req.video_url && <a href={`https://service-marketplace-af7p.onrender.com${req.video_url}`} target="_blank" rel="noreferrer">Watch video</a>}
-                          {req.voice_url && <a href={`https://service-marketplace-af7p.onrender.com${req.voice_url}`} target="_blank" rel="noreferrer">Play voice note</a>}
+                          {req.photo_urls?.map((url, photoIndex) => <a key={url} href={`${API_BASE}${url}`} target="_blank" rel="noreferrer">Photo {photoIndex + 1}</a>)}
+                          {req.video_url && <a href={`${API_BASE}${req.video_url}`} target="_blank" rel="noreferrer">Watch video</a>}
+                          {req.voice_url && <a href={`${API_BASE}${req.voice_url}`} target="_blank" rel="noreferrer">Play voice note</a>}
                         </div>
                       </div>
                     )}

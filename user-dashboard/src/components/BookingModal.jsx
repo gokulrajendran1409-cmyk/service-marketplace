@@ -2,10 +2,10 @@ import { useRef, useState } from 'react';
 import { X, MapPin, FileText, Loader2, ImagePlus, Video, Mic, Square } from 'lucide-react';
 import { API } from '../constants';
 
-export function BookingModal({ professional, category, currentLocation, onClose, onSuccess }) {
+export function BookingModal({ professional, category, currentLocation, initialTitle = '', initialDescription = '', onClose, onSuccess }) {
   const [form, setForm] = useState({
-    title: '',
-    description: '',
+    title: initialTitle || '',
+    description: initialDescription || '',
     requested_at: '',
     location: currentLocation
       ? currentLocation.placeName || `Current location (${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)})`
