@@ -6,6 +6,7 @@ const {
     getProfile,
     updateProfile,
     getCategories,
+    getSubcategories,
     getProfessionals,
     createRequest,
     getMyRequests,
@@ -30,6 +31,7 @@ const upload = multer({
 });
 
 router.get('/categories', getCategories);
+router.get('/subcategories', getSubcategories);
 router.get('/professionals', getProfessionals);
 router.get('/profile', protectCustomer, getProfile);
 router.patch('/profile', protectCustomer, updateProfile);

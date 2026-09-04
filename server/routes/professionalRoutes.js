@@ -32,6 +32,7 @@ router.patch('/requests/:id/journey', protectProfessional, professionalControlle
 router.post('/requests/:id/verify-otp', protectProfessional, professionalController.verifyOtp);
 router.post('/requests/:id/submit-wage', protectProfessional, professionalController.submitWage);
 router.patch('/requests/:id/location', protectProfessional, professionalController.updateLocation);
+router.patch('/current-location', protectProfessional, professionalController.updateCurrentLocation);
 
 const { addProClient, removeProClient } = require('../utils/proSseClients');
 
