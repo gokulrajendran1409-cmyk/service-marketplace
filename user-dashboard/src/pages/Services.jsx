@@ -98,8 +98,20 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
   const [subcategories, setSubcategories] = useState([]);
   const [loadingSubcats, setLoadingSubcats] = useState(true);
   const [subcatSearch, setSubcatSearch] = useState('');
+  const [selectedSubcat, setSelectedSubcat] = useState(null);
+  const [subcatProTab, setSubcatProTab] = useState('all'); // 'all' | 'nearby'
   const { toast, showToast } = useToast();
   const nearbyLimitKm = 15;
+
+  const handleOpenSubcatPros = (subcat) => {
+    const targetCat = categoriesByName.get(subcat.category_name) || { id: subcat.category_name, name: subcat.category_name };
+    if (!selected || selected.name?.toLowerCase() !== subcat.category_name?.toLowerCase()) {
+      selectCategory(targetCat);
+    }
+    setSelectedSubcat(subcat);
+    setSubcatProTab('all');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   useEffect(() => {
     if (initialGroup) {
@@ -216,6 +228,7 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
   };
 
   const handleCategoryClick = (cat) => {
+    setSelectedSubcat(null);
     selectCategory(cat);
   };
 
@@ -500,10 +513,7 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
                             <button
                               type="button"
                               className="btn-subcat-pros"
-                              onClick={() => {
-                                const targetCat = categoriesByName.get(subcat.category_name) || { id: subcat.category_name, name: subcat.category_name };
-                                selectCategory(targetCat);
-                              }}
+                              onClick={() => handleOpenSubcatPros(subcat)}
                             >
                               Find Pros <ChevronRight size={13} />
                             </button>
@@ -579,23 +589,23 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
         </>
       )}
 
-      {/* Professionals section */}
-      {selected && (
-        <div className="provider-selection-page">
-          <button className="provider-back-btn" onClick={() => setSelected(null)}>
-            <ArrowLeft size={16} /> Back to services
+      {/* Category Overview & Sub-Categories Visual Showcase */}
+      {selected && !selectedSubcat && (
+        <div className="provider-selection-page fade-up">
+          <button className="provider-back-btn" onClick={() => { setSelectedSubcat(null); setSelected(null); }}>
+            <ArrowLeft size={16} /> Back to all services
           </button>
           <div className="provider-selection-header">
             <div>
-              <span className="service-group-eyebrow">STEP 2 OF 2</span>
+              <span className="service-group-eyebrow">STEP 1 OF 2 • SPECIALIZED SERVICES</span>
               <h2>
               {(() => {
                 const CategoryIcon = categoryIcons[selected.name] || Tags;
                 return <CategoryIcon size={20} style={{ color: categoryColors[selected.name] || 'var(--accent-primary)', verticalAlign: 'middle', marginRight: 6 }} />;
               })()}
-              {selected.name} Professionals
+              {selected.name}
               </h2>
-              <p>Choose a provider or send your request to nearby professionals.</p>
+              <p>Select a specialized sub-service to book directly or explore dedicated verified professionals.</p>
             </div>
             <div className="provider-header-actions">
               {nearbyProfessionals.length > 0 && (
@@ -623,7 +633,7 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
                     <span className="subcat-section-tag">POPULAR {selected.name.toUpperCase()} SERVICES</span>
                     <h3 className="subcat-section-title">Select a Specific Service to Book</h3>
                     <p className="subcat-section-subtitle">
-                      Visual guide of specialized services. Click <strong>Book Service</strong> to request immediately.
+                      Visual guide of specialized services. Click <strong>Find Pros</strong> to open the specialist directory for that service.
                     </p>
                   </div>
                   <span className="subcat-count-pill">{catSubcats.length} Sub-Categories</span>
@@ -640,7 +650,7 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
                           loading="lazy"
                           onError={(e) => {
                             e.target.onerror = null;
-                            e.target.src = categoryImages[selected.name] || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80';
+                            e.target.src = categoryImages[selected.name] || localCategoryFallbacks[selected.name];
                           }}
                         />
                         {subcat.price_estimate && (
@@ -666,10 +676,7 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
                           <button
                             type="button"
                             className="btn-subcat-pros"
-                            onClick={() => {
-                              const el = document.getElementById('professionals-list-anchor');
-                              if (el) el.scrollIntoView({ behavior: 'smooth' });
-                            }}
+                            onClick={() => handleOpenSubcatPros(subcat)}
                           >
                             Find Pros <ChevronRight size={13} />
                           </button>
@@ -682,48 +689,239 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
             );
           })()}
 
-          <div id="professionals-list-anchor" />
+          {/* General category pros (available below showcase) */}
+          <div style={{ marginTop: 36 }}>
+            <div className="professional-section-heading">
+              <div>
+                <h3>All {selected.name} Professionals</h3>
+                <p>Browse general verified contractors registered across this category.</p>
+              </div>
+              <span className="section-count">{professionals.length}</span>
+            </div>
 
-          {loadingPros ? (
-            <div style={{ textAlign: 'center', padding: '40px' }}>
-              <RefreshCw className="spin" size={28} color="var(--text-muted)" />
-            </div>
-          ) : professionals.length === 0 ? (
-            <div className="empty-state">
-              <div style={{ fontSize: 40 }}>🔍</div>
-              <h3>No professionals found</h3>
-              <p>No verified professionals in this category yet.</p>
-            </div>
-          ) : (
-            <>
-              <section className="professional-section">
-                <div className="professional-section-heading">
-                  <div>
-                    <h3>Nearby Professionals</h3>
-                    <p>Registered within {nearbyLimitKm} km of your current location.</p>
-                  </div>
-                  <span className="section-count">{nearbyProfessionals.length}</span>
-                </div>
-                {nearbyProfessionals.length > 0 ? (
-                  <div className="professionals-grid">{nearbyProfessionals.map(professional => renderProfessionalCard(professional))}</div>
-                ) : (
-                  <div className="nearby-empty">No professionals were found within {nearbyLimitKm} km.</div>
-                )}
-              </section>
-              <section className="professional-section">
-                <div className="professional-section-heading">
-                  <div>
-                    <h3>Available Professionals</h3>
-                    <p>All verified professionals in this category.</p>
-                  </div>
-                  <span className="section-count">{professionals.length}</span>
-                </div>
-                <div className="professionals-grid">{professionals.map(professional => renderProfessionalCard(professional, true))}</div>
-              </section>
-            </>
-          )}
+            {loadingPros ? (
+              <div style={{ textAlign: 'center', padding: '40px' }}>
+                <RefreshCw className="spin" size={28} color="var(--text-muted)" />
+              </div>
+            ) : professionals.length === 0 ? (
+              <div className="empty-state">
+                <div style={{ fontSize: 40 }}>🔍</div>
+                <h3>No professionals found</h3>
+                <p>No verified professionals in this category yet.</p>
+              </div>
+            ) : (
+              <div className="professionals-grid">
+                {professionals.map(professional => renderProfessionalCard(professional, true))}
+              </div>
+            )}
+          </div>
         </div>
       )}
+
+      {/* Dedicated Sub-Category Pros Page */}
+      {selected && selectedSubcat && (() => {
+        const catColor = categoryColors[selected.name] || 'var(--accent-primary)';
+        const accentStyle = {
+          '--subcat-accent-color': catColor,
+          '--subcat-accent-bg': `${catColor}15`,
+          '--subcat-accent-border': `${catColor}35`,
+          '--subcat-accent-glow': `${catColor}20`,
+          '--subcat-accent-shadow': `${catColor}40`,
+        };
+        const displayedPros = subcatProTab === 'nearby' ? nearbyProfessionals : professionals;
+
+        return (
+          <div className="subcat-pros-page fade-up" style={accentStyle}>
+            {/* Top Navigation Bar */}
+            <div className="subcat-pros-nav-bar">
+              <button className="subcat-pros-back-btn" onClick={() => setSelectedSubcat(null)}>
+                <ArrowLeft size={16} /> Back to {selected.name} Services
+              </button>
+              <div className="subcat-pros-breadcrumb">
+                <span style={{ cursor: 'pointer' }} onClick={() => { setSelected(null); setSelectedSubcat(null); }}>Services</span>
+                <span>/</span>
+                <span style={{ cursor: 'pointer' }} onClick={() => setSelectedSubcat(null)}>{selected.name}</span>
+                <span>/</span>
+                <span className="active">{selectedSubcat.name}</span>
+              </div>
+            </div>
+
+            {/* Hero Showcase Card */}
+            <div className="subcat-pros-hero">
+              <div className="subcat-pros-hero-glow" />
+              <div className="subcat-pros-hero-image-wrap">
+                <img
+                  src={selectedSubcat.image_url}
+                  alt={selectedSubcat.name}
+                  className="subcat-pros-hero-img"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = categoryImages[selected.name] || localCategoryFallbacks[selected.name];
+                  }}
+                />
+                {selectedSubcat.price_estimate && (
+                  <span className="subcat-pros-hero-badge">{selectedSubcat.price_estimate}</span>
+                )}
+              </div>
+              <div className="subcat-pros-hero-body">
+                <div className="subcat-pros-hero-eyebrow">
+                  <Sparkles size={13} /> {selected.name} SPECIALIST DIRECTORY
+                </div>
+                <h2 className="subcat-pros-hero-title">{selectedSubcat.name}</h2>
+                <p className="subcat-pros-hero-desc">
+                  Showing verified professionals licensed and equipped for <strong>{selectedSubcat.name}</strong>. Choose a provider below or request an instant auto-assignment.
+                </p>
+                <div className="subcat-pros-hero-actions">
+                  <button
+                    className="btn-subcat-hero-book"
+                    onClick={() => setBooking({
+                      professional: null,
+                      category: selected.name,
+                      location,
+                      initialTitle: selectedSubcat.name,
+                      initialDescription: `I need assistance with ${selectedSubcat.name} (${selectedSubcat.price_estimate || 'Standard rate'}).`
+                    })}
+                  >
+                    <Sparkles size={14} /> Direct Book This Service
+                  </button>
+                  {nearbyProfessionals.length > 0 && (
+                    <button
+                      className="btn-subcat-hero-auto"
+                      onClick={() => setBooking({
+                        professional: null,
+                        category: selected.name,
+                        location,
+                        initialTitle: selectedSubcat.name,
+                        initialDescription: `Auto-dispatch request for ${selectedSubcat.name} to nearest specialist.`
+                      })}
+                    >
+                      <MapPin size={14} /> Auto-Assign Nearest Specialist
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Specialists Section */}
+            <div className="subcat-pros-section-header">
+              <div className="subcat-pros-header-title">
+                <h3>Verified Specialists for {selectedSubcat.name}</h3>
+                <p>Licensed & certified professionals ready to assist you across Kerala.</p>
+              </div>
+              <div className="subcat-pros-tabs">
+                <button
+                  className={`subcat-pros-tab-btn ${subcatProTab === 'all' ? 'active' : ''}`}
+                  onClick={() => setSubcatProTab('all')}
+                >
+                  All Specialists ({professionals.length})
+                </button>
+                <button
+                  className={`subcat-pros-tab-btn ${subcatProTab === 'nearby' ? 'active' : ''}`}
+                  onClick={() => setSubcatProTab('nearby')}
+                >
+                  Nearby &le; {nearbyLimitKm}km ({nearbyProfessionals.length})
+                </button>
+              </div>
+            </div>
+
+            {loadingPros ? (
+              <div style={{ textAlign: 'center', padding: '50px' }}>
+                <RefreshCw className="spin" size={32} color={catColor} />
+              </div>
+            ) : displayedPros.length === 0 ? (
+              <div className="subcat-pros-empty fade-up">
+                <div className="subcat-pros-empty-icon">🔍</div>
+                <h4>No verified specialists found {subcatProTab === 'nearby' ? `within ${nearbyLimitKm} km` : 'in this category yet'}</h4>
+                <p>
+                  {subcatProTab === 'nearby'
+                    ? `No registered specialists were detected within ${nearbyLimitKm} km of your location. You can view all specialists or broadcast your request.`
+                    : `No registered professionals are currently listed for this category. You can post a custom request and our network will be notified.`}
+                </p>
+                <button
+                  className="btn-subcat-hero-book"
+                  onClick={() => setBooking({
+                    professional: null,
+                    category: selected.name,
+                    location,
+                    initialTitle: selectedSubcat.name,
+                    initialDescription: `I need assistance with ${selectedSubcat.name} (${selectedSubcat.price_estimate || 'Standard rate'}).`
+                  })}
+                >
+                  <Sparkles size={14} /> Post Request For This Service
+                </button>
+              </div>
+            ) : (
+              <div className="subcat-pros-grid">
+                {displayedPros.map((pro) => (
+                  <div key={pro.id} className="subcat-pro-card fade-up">
+                    <div className="subcat-pro-card-accent-bar" />
+                    <div className="subcat-pro-card-header">
+                      <div className="subcat-pro-avatar">
+                        {pro.profile_photo ? (
+                          <img src={pro.profile_photo} alt={pro.full_name} />
+                        ) : (
+                          pro.full_name.charAt(0).toUpperCase()
+                        )}
+                      </div>
+                      <div className="subcat-pro-info">
+                        <div className="subcat-pro-name">{pro.full_name}</div>
+                        <span className="subcat-pro-specialty-badge">
+                          <CheckCircle2 size={11} /> {selectedSubcat.name} Pro
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="subcat-pro-meta-row">
+                      <div className="subcat-pro-meta-item">
+                        <span>⭐ {pro.experience_years || 1}y experience</span>
+                      </div>
+                      {pro.distance_from_user != null ? (
+                        <div className="subcat-pro-distance-badge">
+                          <MapPin size={13} />
+                          <span>
+                            {pro.distance_from_user < 1
+                              ? `${Math.round(pro.distance_from_user * 1000)}m away`
+                              : `${pro.distance_from_user.toFixed(1)} km away`}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="subcat-pro-meta-item">
+                          <span>📍 {[pro.city, pro.state].filter(Boolean).join(', ') || 'Kerala'}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {pro.bio && <div className="subcat-pro-bio">{pro.bio}</div>}
+
+                    <div className="subcat-pro-card-actions">
+                      <button
+                        type="button"
+                        className="btn-subcat-pro-profile"
+                        onClick={() => setProfileProfessional(pro)}
+                      >
+                        Profile
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-subcat-pro-book"
+                        onClick={() => setBooking({
+                          professional: pro,
+                          category: selected.name,
+                          location,
+                          initialTitle: selectedSubcat.name,
+                          initialDescription: `Booking ${pro.full_name} for ${selectedSubcat.name} (${selectedSubcat.price_estimate || 'Standard rate'}).`
+                        })}
+                      >
+                        <Sparkles size={13} /> Book Specialist
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Booking modal */}
       {booking && (
