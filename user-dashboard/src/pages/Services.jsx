@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
   BriefcaseBusiness,
+  Car,
   CheckCircle2,
   ChevronRight,
   Home,
@@ -9,6 +10,7 @@ import {
   MapPin,
   Monitor,
   RefreshCw,
+  Scissors,
   Search,
   Sparkles,
   Star,
@@ -30,6 +32,7 @@ import keralaCctv from '../assets/kerala/cctv.jpg';
 import keralaHomeRepair from '../assets/kerala/home_repair.jpg';
 import keralaComputerRepair from '../assets/kerala/computer_repair.jpg';
 import keralaPhotography from '../assets/kerala/photography.jpg';
+import keralaVehicle from '../assets/kerala/vehicle.jpg';
 
 import gardeningFallback from '../assets/service-icons/gardening.jpg';
 import acRepairFallback from '../assets/service-icons/ac-appliance-repair.jpg';
@@ -61,6 +64,10 @@ const categoryImages = {
   'Plumbing': keralaPlumbing,
   'Home Repair & Maintenance': keralaHomeRepair,
   'Photography & Videography': keralaPhotography,
+  'Vehicle Services': keralaVehicle,
+  'Vehicle Servicing': keralaVehicle,
+  'Personal Care': 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=800&q=80',
+  'Barber and Beautician Services': 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=800&q=80',
 };
 
 const localCategoryFallbacks = {
@@ -80,6 +87,9 @@ const localCategoryFallbacks = {
   'Plumbing': plumbingFallback,
   'Home Repair & Maintenance': keralaHomeRepair,
   'Photography & Videography': keralaPhotography,
+  'Vehicle Services': keralaVehicle,
+  'Personal Care': 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=800&q=80',
+  'Barber and Beautician Services': 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=800&q=80',
 };
 
 function Services({ navigate, initialGroup = null, initialCategory = null }) {
@@ -373,6 +383,13 @@ function Services({ navigate, initialGroup = null, initialCategory = null }) {
             >
               <Monitor size={15} />
               <span>Education</span>
+            </button>
+            <button 
+              className={`services-group-tab ${activeGroup === 'Vehicle Services' ? 'active' : ''}`}
+              onClick={() => setActiveGroup('Vehicle Services')}
+            >
+              <Car size={15} />
+              <span>Vehicle Services</span>
             </button>
           </div>
         </div>

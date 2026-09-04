@@ -1,10 +1,12 @@
 import {
   Camera,
+  Car,
   Hammer,
   Home,
   Leaf,
   Monitor,
   Paintbrush,
+  Scissors,
   Shield,
   Sparkles,
   Tags,
@@ -26,6 +28,9 @@ export const categoryIcons = {
   'Gardening & Landscaping': Leaf,
   'Computer & Mobile Repair': Monitor,
   'Photography & Videography': Camera,
+  'Vehicle Services': Car,
+  'Personal Care': Scissors,
+  'Barber and Beautician Services': Scissors,
 };
 
 export const categoryColors = {
@@ -40,6 +45,8 @@ export const categoryColors = {
   'Gardening & Landscaping': '#10b981',
   'Computer & Mobile Repair': '#0ea5e9',
   'Photography & Videography': '#d946ef',
+  'Vehicle Services': '#f97316',
+  'Personal Care': '#ec4899',
 };
 
 export const serviceGroups = [
@@ -47,7 +54,7 @@ export const serviceGroups = [
     name: 'Personal Care',
     icon: Sparkles,
     color: '#8b5cf6',
-    categories: ['Cleaning', 'Gardening & Landscaping'],
+    categories: ['Personal Care', 'Cleaning', 'Gardening & Landscaping'],
   },
   {
     name: 'Education',
@@ -67,9 +74,22 @@ export const serviceGroups = [
     color: '#6366F1',
     categories: ['Plumbing', 'Electrical', 'AC & Appliance Repair', 'Carpentry', 'Painting', 'Home Repair & Maintenance'],
   },
+  {
+    name: 'Vehicle Services',
+    icon: Car,
+    color: '#f97316',
+    categories: ['Vehicle Services'],
+  },
 ];
 
-export const VEHICLE_SUBCATEGORIES = [];
+export const VEHICLE_SUBCATEGORIES = [
+  'Periodic Car & Bike Maintenance',
+  'Car Spa, Snow Foam Wash & Detailing',
+  '24/7 Breakdown SOS, Jumpstart & Towing',
+  '3D Laser Wheel Alignment & Balancing',
+  'Car AC Gas Recharge & Cooling Repair',
+  'Battery Health Test & Jumpstart Service',
+];
 
 export const CLEANING_SUBCATEGORIES = [
   {

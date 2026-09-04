@@ -325,33 +325,97 @@ exports.respondToRequest = async (req, res) => {
         if (decision === 'accepted') {
             console.log(`[NOTIFICATION] Professional ${professionalId} accepted request ${requestId}, creating notification...`);
             const requestInfo = await db.query(
-                `SELECT sr.customer_id, p.full_name as professional_name
+                `SELECT sr.customer_id, sr.title, sr.description, sr.requested_at, sr.location,
+                        p.full_name as professional_name, p.category as professional_category,
+                        p.experience_years, p.bio, p.city as professional_city, p.state as professional_state,
+                        u.phone as professional_phone, u.email as professional_email,
+                        COALESCE(
+                            (SELECT ROUND(AVG(rating)::numeric, 1) FROM professional_reviews WHERE professional_id = p.id),
+                            5.0
+                        ) as professional_rating,
+                        COALESCE(
+                            (SELECT COUNT(*)::int FROM professional_reviews WHERE professional_id = p.id),
+                            0
+                        ) as professional_review_count
                  FROM service_requests sr
                  JOIN professionals p ON p.id = $2
+                 JOIN users u ON u.id = p.user_id
                  WHERE sr.id = $1`,
                 [requestId, professionalId]
             );
             if (requestInfo.rows.length) {
-                const { customer_id, professional_name } = requestInfo.rows[0];
-                console.log(`[NOTIFICATION] Creating notification for customer ${customer_id}`);
+                const row = requestInfo.rows[0];
+                const {
+                    customer_id,
+                    title: service_title,
+                    requested_at,
+                    location,
+                    professional_name,
+                    professional_category,
+                    professional_phone,
+                    professional_city,
+                    experience_years,
+                    professional_rating,
+                    professional_review_count
+                } = row;
+
+                const displayServiceTitle = service_title || professional_category || 'Requested Service';
+                const notificationTitle = 'Service Request Accepted! 🎉';
+                const notificationMsg = `${professional_name} has accepted your request for "${displayServiceTitle}".`;
+
+                const metadata = {
+                    status: 'accepted',
+                    requestId: requestId,
+                    serviceTitle: displayServiceTitle,
+                    requestedAt: requested_at,
+                    location: location,
+                    professionalId: professionalId,
+                    professionalName: professional_name,
+                    professionalCategory: professional_category,
+                    professionalPhone: professional_phone,
+                    professionalCity: professional_city,
+                    experienceYears: experience_years,
+                    rating: Number(professional_rating) || 5.0,
+                    reviewCount: Number(professional_review_count) || 0,
+                    acceptedAt: new Date().toISOString()
+                };
+
+                console.log(`[NOTIFICATION] Creating rich acceptance notification for customer ${customer_id}`);
                 const notification = await createNotification({
                     userId: customer_id,
                     type: NOTIFICATION_TYPES.REQUEST_ACCEPTED,
-                    title: 'Request Accepted',
-                    message: `${professional_name} has accepted your service request.`,
+                    title: notificationTitle,
+                    message: notificationMsg,
                     requestId: requestId,
                     professionalId: professionalId,
-                    metadata: { status: 'accepted' }
+                    metadata: metadata
                 });
                 console.log(`[NOTIFICATION] Notification created:`, notification);
 
-                // Notify customer in real-time
+                // Notify customer in real-time with complete recorded backend data
+                notifyCustomer(customer_id, 'requestAccepted', {
+                    notification: notification,
+                    requestId: requestId,
+                    newStatus: 'accepted',
+                    serviceTitle: displayServiceTitle,
+                    professionalName: professional_name,
+                    professionalPhone: professional_phone,
+                    professionalCategory: professional_category,
+                    experienceYears: experience_years,
+                    rating: Number(professional_rating) || 5.0,
+                    reviewCount: Number(professional_review_count) || 0,
+                    timestamp: new Date().toISOString()
+                });
+
+                notifyCustomer(customer_id, 'notification', notification);
+
                 notifyCustomer(customer_id, 'requestUpdate', {
                     requestId: requestId,
                     newStatus: 'accepted',
                     journeyStatus: 'accepted',
                     updateType: 'status_change',
-                    professionalName: professional_name
+                    professionalName: professional_name,
+                    notification: notification
                 });
             } else {
                 console.log(`[NOTIFICATION] No request info found for request ${requestId}`);

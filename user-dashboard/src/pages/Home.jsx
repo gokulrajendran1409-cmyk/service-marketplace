@@ -7,7 +7,7 @@ import keralaCleaning from '../assets/kerala/cleaning.jpg';
 import keralaPainting from '../assets/kerala/painting.jpg';
 import keralaPlumbing from '../assets/kerala/plumbing.jpg';
 
-function Home({ navigate }) {
+function Home({ navigate, unreadCount = 0 }) {
   const [locationName, setLocationName] = useState('Detecting location...');
   const [currentCoords, setCurrentCoords] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -335,6 +335,9 @@ function Home({ navigate }) {
         </div>
         <button className="home-bell-btn" onClick={() => navigate('notifications')} title="Notifications">
           <Bell size={18} />
+          {unreadCount > 0 && (
+            <span className="home-bell-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+          )}
         </button>
       </div>
 
