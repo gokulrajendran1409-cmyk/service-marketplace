@@ -90,7 +90,7 @@ function Wallet() {
         <div className="pro-earnings-right">
           <div className="pro-completion-ring">
             <svg viewBox="0 0 80 80" width="80" height="80">
-              <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="8" />
+              <circle cx="40" cy="40" r="32" fill="none" stroke="var(--ring-track)" strokeWidth="8" />
               <circle
                 cx="40" cy="40" r="32" fill="none"
                 stroke="var(--accent-primary)" strokeWidth="8"

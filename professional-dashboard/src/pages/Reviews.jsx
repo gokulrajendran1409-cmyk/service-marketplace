@@ -47,7 +47,7 @@ function Reviews() {
   return (
     <div className="section-container" style={{ padding: '0', minHeight: '100vh', background: 'var(--bg-base)' }}>
       {/* ── HEADER ── */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(12px)', padding: '20px 24px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '16px' }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'color-mix(in srgb, var(--bg-base) 92%, transparent)', backdropFilter: 'blur(12px)', padding: '20px 24px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '16px' }}>
         <button onClick={() => navigate(-1)} style={{ background: 'var(--bg-surface-hover)', border: 'none', padding: '10px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <ChevronLeft size={20} color="var(--text-primary)" />
         </button>
@@ -56,10 +56,10 @@ function Reviews() {
 
       <div style={{ padding: '24px' }}>
         {/* ── SUMMARY STATS ── */}
-        <div style={{ background: 'linear-gradient(135deg, #FEF9C3, #FEF08A)', borderRadius: '20px', padding: '24px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 4px 20px rgba(234, 179, 8, 0.15)' }}>
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)', borderRadius: '20px', padding: '24px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: 'var(--shadow-card)' }}>
           <div>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: '#A16207', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Overall Rating</div>
-            <div style={{ fontSize: '48px', fontWeight: 900, color: '#713F12', lineHeight: 1, marginTop: '4px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Overall Rating</div>
+            <div style={{ fontSize: '48px', fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1, marginTop: '4px' }}>
               {avgRating > 0 ? avgRating : '-'}
             </div>
           </div>
@@ -69,7 +69,7 @@ function Reviews() {
                 <Star key={star} size={24} fill={star <= Math.round(avgRating) ? '#EAB308' : '#FEF9C3'} color={star <= Math.round(avgRating) ? '#EAB308' : '#FDE047'} />
               ))}
             </div>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: '#854D0E' }}>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>
               Based on {totalReviews} review{totalReviews !== 1 ? 's' : ''}
             </div>
           </div>
@@ -81,7 +81,7 @@ function Reviews() {
         ) : error ? (
           <div style={{ padding: '20px', textAlign: 'center', color: 'var(--error)' }}>{error}</div>
         ) : reviews.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 20px', background: '#fff', borderRadius: '16px', border: '1px solid var(--border-light)' }}>
+          <div style={{ textAlign: 'center', padding: '40px 20px', background: 'var(--bg-surface)', borderRadius: '16px', border: '1px solid var(--border-light)' }}>
             <MessageSquareOff size={48} color="var(--text-muted)" style={{ marginBottom: '16px' }} />
             <h3 style={{ fontSize: '18px', margin: '0 0 8px', color: 'var(--text-primary)' }}>No reviews yet</h3>
             <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)' }}>Complete more jobs to start receiving customer ratings!</p>
@@ -89,7 +89,7 @@ function Reviews() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {reviews.map(review => (
-              <div key={review.id} style={{ background: '#fff', borderRadius: '16px', padding: '20px', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border-light)' }}>
+              <div key={review.id} style={{ background: 'var(--bg-surface)', borderRadius: '16px', padding: '20px', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border-light)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                   <div>
                     <h4 style={{ margin: '0 0 4px', fontSize: '15px', color: 'var(--text-primary)', fontWeight: 700 }}>{review.customer_name}</h4>

@@ -153,8 +153,8 @@ function SetupProfile() {
   };
 
   return (
-    <div className="pro-dashboard-root" style={{ background: '#F8FAFC' }}>
-      <header style={{ padding: '24px', background: '#fff', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '16px', position: 'sticky', top: 0, zIndex: 10 }}>
+    <div className="pro-dashboard-root" style={{ background: 'var(--bg-base)' }}>
+      <header style={{ padding: '24px', background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '16px', position: 'sticky', top: 0, zIndex: 10 }}>
         <button onClick={() => step > 1 ? setStep(step - 1) : navigate(-1)} style={{ background: 'var(--bg-surface-hover)', border: 'none', padding: '10px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <ChevronLeft size={20} color="var(--text-primary)" />
         </button>
@@ -208,7 +208,7 @@ function SetupProfile() {
                 value={fullName}
                 onChange={e => setFullName(e.target.value)}
                 placeholder="Enter your full name"
-                style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-light)', fontSize: '15px', outline: 'none', background: '#fff', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-light)', fontSize: '15px', outline: 'none', background: 'var(--bg-surface)', boxSizing: 'border-box' }}
               />
             </div>
 
@@ -219,7 +219,7 @@ function SetupProfile() {
                 onChange={e => setBio(e.target.value)}
                 placeholder="Tell customers a bit about yourself and your skills..."
                 rows={4}
-                style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-light)', fontSize: '15px', outline: 'none', background: '#fff', resize: 'vertical', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-light)', fontSize: '15px', outline: 'none', background: 'var(--bg-surface)', resize: 'vertical', boxSizing: 'border-box' }}
               />
             </div>
           </div>
@@ -235,7 +235,7 @@ function SetupProfile() {
               <select 
                 value={category}
                 onChange={e => setCategory(e.target.value)}
-                style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-light)', fontSize: '15px', outline: 'none', background: '#fff', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-light)', fontSize: '15px', outline: 'none', background: 'var(--bg-surface)', boxSizing: 'border-box' }}
               >
                 <option value="">Select a category</option>
                 {dbCategories.map(c => (
@@ -250,7 +250,7 @@ function SetupProfile() {
                 <select 
                   value={subCategory}
                   onChange={e => setSubCategory(e.target.value)}
-                  style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-light)', fontSize: '15px', outline: 'none', background: '#fff', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-light)', fontSize: '15px', outline: 'none', background: 'var(--bg-surface)', boxSizing: 'border-box' }}
                 >
                   <option value="">General / None</option>
                   {dbSubcategories.filter(s => s.category_name === category).map(s => (
@@ -268,7 +268,7 @@ function SetupProfile() {
                 value={experienceYears}
                 onChange={e => setExperienceYears(e.target.value)}
                 placeholder="e.g. 3"
-                style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-light)', fontSize: '15px', outline: 'none', background: '#fff', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-light)', fontSize: '15px', outline: 'none', background: 'var(--bg-surface)', boxSizing: 'border-box' }}
               />
             </div>
           </div>
@@ -289,7 +289,7 @@ function SetupProfile() {
                     style={{ 
                       padding: '12px', borderRadius: '12px', 
                       border: `1.5px solid ${transportMode === mode ? 'var(--accent-primary)' : 'var(--border-light)'}`,
-                      background: transportMode === mode ? 'var(--bg-light-green)' : '#fff',
+                      background: transportMode === mode ? 'var(--bg-light-green)' : 'var(--bg-surface)',
                       color: transportMode === mode ? 'var(--accent-primary)' : 'var(--text-secondary)',
                       fontWeight: 600, fontSize: '13px', cursor: 'pointer', textTransform: 'capitalize'
                     }}
@@ -305,7 +305,7 @@ function SetupProfile() {
               <select 
                 value={identityType}
                 onChange={e => setIdentityType(e.target.value)}
-                style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-light)', fontSize: '15px', outline: 'none', background: '#fff', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-light)', fontSize: '15px', outline: 'none', background: 'var(--bg-surface)', boxSizing: 'border-box' }}
               >
                 <option value="Aadhaar">Aadhaar Card</option>
                 <option value="PAN">PAN Card</option>
@@ -316,7 +316,7 @@ function SetupProfile() {
 
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '8px' }}>Upload Identity Document Photo *</label>
-              <label style={{ display: 'block', width: '100%', border: '2px dashed var(--border-light)', borderRadius: '16px', background: '#fff', padding: '24px', textAlign: 'center', cursor: 'pointer', boxSizing: 'border-box' }}>
+              <label style={{ display: 'block', width: '100%', border: '2px dashed var(--border-light)', borderRadius: '16px', background: 'var(--bg-surface)', padding: '24px', textAlign: 'center', cursor: 'pointer', boxSizing: 'border-box' }}>
                 {identityPreview ? (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <img src={identityPreview} alt="Identity Preview" style={{ maxWidth: '100%', maxHeight: '150px', borderRadius: '8px', marginBottom: '12px' }} />
@@ -324,8 +324,8 @@ function SetupProfile() {
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <div style={{ background: '#F1F5F9', padding: '12px', borderRadius: '50%', marginBottom: '12px' }}>
-                      <Camera size={24} color="#64748B" />
+                    <div style={{ background: 'var(--bg-surface-hover)', padding: '12px', borderRadius: '50%', marginBottom: '12px' }}>
+                      <Camera size={24} color="var(--text-secondary)" />
                     </div>
                     <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>Tap to upload photo</span>
                     <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Must be clear and readable</span>
@@ -335,9 +335,9 @@ function SetupProfile() {
               </label>
             </div>
             
-            <div style={{ background: '#EFF6FF', borderRadius: '12px', padding: '12px', display: 'flex', gap: '10px', marginTop: '24px' }}>
-              <Info size={18} color="#2563EB" style={{ flexShrink: 0, marginTop: '2px' }} />
-              <p style={{ margin: 0, fontSize: '12px', color: '#1E3A8A', lineHeight: 1.5 }}>
+            <div style={{ background: 'var(--bg-surface-hover)', border: '1px solid var(--border-light)', borderRadius: '12px', padding: '12px', display: 'flex', gap: '10px', marginTop: '24px' }}>
+              <Info size={18} color="var(--accent-primary)" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                 Your identity document is securely stored and used only for verification purposes to ensure safety on our platform.
               </p>
             </div>
@@ -347,7 +347,7 @@ function SetupProfile() {
       </div>
 
       {/* Fixed Bottom Button */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '20px 24px', background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)', borderTop: '1px solid var(--border-light)' }}>
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '20px 24px', background: 'color-mix(in srgb, var(--bg-surface) 94%, transparent)', backdropFilter: 'blur(10px)', borderTop: '1px solid var(--border-light)' }}>
         <button 
           onClick={handleNext}
           disabled={loading}

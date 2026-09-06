@@ -318,11 +318,11 @@ function Dashboard() {
         style={{
           margin: '0 24px 20px',
           borderRadius: 20,
-          background: 'linear-gradient(135deg, #1e293b 0%, #334155 60%, #475569 100%)',
+          background: 'var(--earnings-bg)',
           padding: '22px 24px',
           position: 'relative',
           overflow: 'hidden',
-          boxShadow: '0 8px 32px rgba(71,85,105,0.35)',
+          boxShadow: 'var(--earnings-shadow)',
         }}
       >
         {/* Decorative glows */}
@@ -380,7 +380,7 @@ function Dashboard() {
       )}
 
       {/* ── WORK AREA PREFERENCE ── */}
-      <div style={{ margin: '0 24px 24px', padding: '16px 20px', background: '#fff', border: '1.5px solid var(--border-light)', borderRadius: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: 'var(--shadow-sm)' }}>
+      <div style={{ margin: '0 24px 24px', padding: '16px 20px', background: 'var(--bg-surface)', border: '1.5px solid var(--border-light)', borderRadius: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: 'var(--shadow-sm)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <div style={{ background: 'var(--bg-light-green)', color: 'var(--accent-primary)', padding: '10px', borderRadius: '14px', flexShrink: 0 }}>
             <MapPin size={22} />
@@ -404,7 +404,7 @@ function Dashboard() {
               }
             }
           }}
-          style={{ background: '#F3F4F6', color: 'var(--text-primary)', border: 'none', padding: '8px 14px', borderRadius: '12px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', transition: 'all 0.15s ease', whiteSpace: 'nowrap', flexShrink: 0, marginLeft: '10px' }}
+          style={{ background: 'var(--bg-surface-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-light)', padding: '8px 14px', borderRadius: '12px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', transition: 'all 0.15s ease', whiteSpace: 'nowrap', flexShrink: 0, marginLeft: '10px' }}
         >
           {professional.work_radius ? 'Edit' : 'Set Area'}
         </button>
@@ -412,7 +412,7 @@ function Dashboard() {
 
       {/* ── ONGOING JOBS SECTION ── */}
       {ongoingRequests.length > 0 && (
-        <div className="pro-section" style={{ marginBottom: 24 }}>
+        <div className="pro-section pro-ongoing-section" style={{ marginBottom: 24 }}>
           <div className="pro-section-head">
             <h2>Ongoing Jobs</h2>
           </div>
@@ -459,9 +459,9 @@ function Dashboard() {
       {/* ── MAP MODAL ── */}
       {showMapModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div style={{ background: '#fff', borderRadius: '24px', width: '100%', maxWidth: '500px', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
-            <div style={{ padding: '20px', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800 }}>Select Work Area</h2>
+          <div style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', borderRadius: '24px', width: '100%', maxWidth: '500px', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.35)' }}>
+            <div style={{ padding: '20px', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>Select Work Area</h2>
               <button onClick={() => setShowMapModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
                 <XCircle size={24} color="var(--text-secondary)" />
               </button>

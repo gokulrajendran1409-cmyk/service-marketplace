@@ -39,6 +39,37 @@
   
   --shadow-card: 0 10px 40px -10px rgba(0,0,0,0.08);
   --shadow-glow: 0 0 20px rgba(71, 85, 105, 0.15);
+  --earnings-bg: linear-gradient(135deg, #1E293B 0%, #334155 60%, #475569 100%);
+  --earnings-shadow: 0 8px 32px rgba(71, 85, 105, 0.35);
+  --ring-track: #E2E8F0;
+}
+
+:root[data-theme="dark"] {
+  --bg-base: #0F172A;
+  --bg-surface: #1E293B;
+  --bg-surface-hover: #293548;
+  --bg-selected: #293548;
+
+  --text-primary: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --text-muted: #94A3B8;
+
+  --border-light: #334155;
+  --border-focus: #94A3B8;
+
+  --accent-primary: #64748B;
+  --accent-hover: #94A3B8;
+  --accent-light: #CBD5E1;
+  --accent-gradient: linear-gradient(135deg, #64748B 0%, #475569 100%);
+
+  --bg-light-green: #293548;
+  --bg-soft-orange: #293548;
+  --info-soft: #293548;
+  --shadow-card: 0 10px 40px -10px rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 0 20px rgba(148, 163, 184, 0.18);
+  --earnings-bg: linear-gradient(135deg, #1E293B 0%, #334155 60%, #475569 100%);
+  --earnings-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  --ring-track: #334155;
 }
 
 * {
@@ -54,6 +85,42 @@ body {
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
   overflow-x: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+:root[data-theme="dark"] .app-layout,
+:root[data-theme="dark"] .pro-dashboard-root,
+:root[data-theme="dark"] .pro-profile-root,
+:root[data-theme="dark"] .section-container {
+  background: var(--bg-base) !important;
+  color: var(--text-primary);
+}
+
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] textarea,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] .pro-modal-card {
+  background: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+}
+
+:root[data-theme="dark"] input::placeholder,
+:root[data-theme="dark"] textarea::placeholder {
+  color: var(--text-muted);
+}
+
+:root[data-theme="dark"] .registration-wrapper {
+  background: var(--bg-base);
+}
+
+:root[data-theme="dark"] .notification-dropdown,
+:root[data-theme="dark"] .notification-header {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+:root[data-theme="dark"] .notification-item:hover {
+  background: var(--bg-surface-hover);
 }
 
 a {

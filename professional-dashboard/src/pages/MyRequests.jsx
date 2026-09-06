@@ -482,9 +482,9 @@ function MyRequests() {
       
       {otpModalRequest && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
-            <h3 style={{ margin: '0 0 16px 0', color: '#111827' }}>Verify Arrival</h3>
-            <p style={{ margin: '0 0 20px 0', color: '#4b5563', fontSize: '14px' }}>Please enter the 6-digit OTP provided by the customer to confirm your arrival.</p>
+          <div style={{ background: 'var(--bg-surface)', padding: '24px', borderRadius: '12px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
+            <h3 style={{ margin: '0 0 16px 0', color: 'var(--text-primary)' }}>Verify Arrival</h3>
+            <p style={{ margin: '0 0 20px 0', color: 'var(--text-secondary)', fontSize: '14px' }}>Please enter the 6-digit OTP provided by the customer to confirm your arrival.</p>
             <input 
               type="text" 
               maxLength="6" 
@@ -496,7 +496,7 @@ function MyRequests() {
             <div style={{ display: 'flex', gap: '12px' }}>
               <button 
                 onClick={() => { setOtpModalRequest(null); setOtpInput(''); }} 
-                style={{ flex: 1, padding: '12px', background: '#f3f4f6', color: '#4b5563', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>
+                style={{ flex: 1, padding: '12px', background: 'var(--bg-surface-hover)', color: 'var(--text-primary)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>
                 Cancel
               </button>
               <button 
@@ -512,10 +512,10 @@ function MyRequests() {
 
       {wageModalRequest && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', padding: '28px 24px', borderRadius: '14px', width: '90%', maxWidth: '420px', boxShadow: '0 12px 30px rgba(0,0,0,0.15)' }}>
-            <h3 style={{ margin: '0 0 6px 0', color: '#111827', fontSize: '18px' }}>Submit Wage</h3>
-            <p style={{ margin: '0 0 20px 0', color: '#6b7280', fontSize: '14px' }}>Enter the amount you are charging for this job. The customer will review and confirm payment.</p>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Wage Amount (₹) *</label>
+          <div style={{ background: 'var(--bg-surface)', padding: '28px 24px', borderRadius: '14px', width: '90%', maxWidth: '420px', boxShadow: '0 12px 30px rgba(0,0,0,0.15)' }}>
+            <h3 style={{ margin: '0 0 6px 0', color: 'var(--text-primary)', fontSize: '18px' }}>Submit Wage</h3>
+            <p style={{ margin: '0 0 20px 0', color: 'var(--text-secondary)', fontSize: '14px' }}>Enter the amount you are charging for this job. The customer will review and confirm payment.</p>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>Wage Amount (₹) *</label>
             <input
               type="number"
               min="1"
@@ -524,7 +524,7 @@ function MyRequests() {
               placeholder="e.g. 500"
               style={{ width: '100%', padding: '12px', fontSize: '20px', borderRadius: '8px', border: '1px solid #d1d5db', marginBottom: '16px', boxSizing: 'border-box' }}
             />
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Breakdown / Description (optional)</label>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>Breakdown / Description (optional)</label>
             <textarea
               value={wageDescription}
               onChange={e => setWageDescription(e.target.value)}
@@ -535,7 +535,7 @@ function MyRequests() {
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
                 onClick={() => { setWageModalRequest(null); setWageInput(''); setWageDescription(''); }}
-                style={{ flex: 1, padding: '12px', background: '#f3f4f6', color: '#4b5563', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>
+                style={{ flex: 1, padding: '12px', background: 'var(--bg-surface-hover)', color: 'var(--text-primary)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>
                 Cancel
               </button>
               <button
@@ -549,7 +549,7 @@ function MyRequests() {
         </div>
       )}
 
-      <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(248, 250, 252, 0.9)', backdropFilter: 'blur(12px)', display: 'flex', flexWrap: 'nowrap', gap: '6px', padding: '16px 24px 12px', marginBottom: '8px', borderBottom: '1px solid rgba(0,0,0,0.04)', width: '100%', boxSizing: 'border-box' }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'color-mix(in srgb, var(--bg-base) 92%, transparent)', backdropFilter: 'blur(12px)', display: 'flex', flexWrap: 'nowrap', gap: '6px', padding: '16px 24px 12px', marginBottom: '8px', borderBottom: '1px solid var(--border-light)', width: '100%', boxSizing: 'border-box' }}>
         {['all', 'ongoing', 'completed', 'cancelled'].map(f => (
           <button 
             key={f}

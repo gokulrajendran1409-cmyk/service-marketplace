@@ -29,6 +29,10 @@ function Profile() {
   const [language, setLanguage] = useState(localStorage.getItem('pro_language') || 'en');
   const [theme, setTheme] = useState(localStorage.getItem('pro_theme') || 'Light');
 
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme === 'Dark' ? 'dark' : 'light';
+  }, [theme]);
+
   const fetchStats = async () => {
     try {
       const response = await fetch(`${API}/api/professionals/dashboard`, {
@@ -93,7 +97,7 @@ function Profile() {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, display: 'flex' }}>
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)' }} onClick={() => setIsSidebarOpen(false)} />
           
-          <div style={{ position: 'relative', width: '280px', height: '100%', background: '#ffffff', boxShadow: '4px 0 24px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', animation: 'slideInLeft 0.3s ease' }}>
+          <div style={{ position: 'relative', width: '280px', height: '100%', background: 'var(--bg-surface)', boxShadow: '4px 0 24px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', animation: 'slideInLeft 0.3s ease' }}>
             <div style={{ padding: '24px', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontWeight: 800, fontSize: 18, color: 'var(--text-primary)' }}>Menu</div>
               <button onClick={() => setIsSidebarOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
@@ -211,7 +215,11 @@ function Profile() {
             {['Light', 'Dark'].map(t => (
               <button
                 key={t}
-                onClick={() => { setTheme(t); localStorage.setItem('pro_theme', t); }}
+                onClick={() => {
+                  setTheme(t);
+                  localStorage.setItem('pro_theme', t);
+                  document.documentElement.dataset.theme = t === 'Dark' ? 'dark' : 'light';
+                }}
                 style={{
                   padding: '6px 14px',
                   borderRadius: 10,
