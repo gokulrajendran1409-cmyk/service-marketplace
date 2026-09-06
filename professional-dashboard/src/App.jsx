@@ -6,6 +6,8 @@ import MyRequests from "./pages/MyRequests";
 import Profile from "./pages/Profile";
 import Registration from "./pages/Registration";
 import Login from "./pages/Login";
+import Wallet from "./pages/Wallet";
+import Reviews from "./pages/Reviews";
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem("professionalToken");
@@ -29,7 +31,9 @@ function App() {
         <Route path="/" element={<ProtectedRoute><ProfessionalLayout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
           <Route path="requests" element={<MyRequests />} />
+          <Route path="wallet" element={<Wallet />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="reviews" element={<Reviews />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

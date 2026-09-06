@@ -192,28 +192,43 @@ exports.loginProfessional = async (req, res) => {
 exports.getDashboardStats = async (req, res) => {
     try {
         const professionalId = req.professionalId;
-        
-        // Count offers made by this professional for their stats
+
         const statsQuery = `
-            SELECT 
-                COUNT(*) as total_requests,
-                COUNT(*) FILTER (WHERE so.status = 'pending') as pending_requests,
-                COUNT(*) FILTER (WHERE so.status = 'accepted' AND sr.status = 'completed') as completed_requests
+            SELECT
+                COUNT(DISTINCT so.request_id) AS total_requests,
+                COUNT(DISTINCT so.request_id) FILTER (WHERE so.status = 'pending') AS pending_requests,
+                COUNT(DISTINCT so.request_id) FILTER (WHERE sr.payment_status = 'paid') AS completed_requests,
+                COALESCE(SUM(sr.wage) FILTER (WHERE sr.payment_status = 'paid'), 0) AS total_earnings
             FROM service_offers so
             JOIN service_requests sr ON sr.id = so.request_id
             WHERE so.professional_id = $1
         `;
-        
-        const result = await db.query(statsQuery, [professionalId]);
-        const row = result.rows[0];
-        
+
+        const reviewQuery = `
+            SELECT
+                ROUND(AVG(rating)::numeric, 1) AS avg_rating,
+                COUNT(*)::int AS review_count
+            FROM professional_reviews
+            WHERE professional_id = $1
+        `;
+
+        const [statsResult, reviewResult] = await Promise.all([
+            db.query(statsQuery, [professionalId]),
+            db.query(reviewQuery, [professionalId])
+        ]);
+
+        const row = statsResult.rows[0];
+        const rev = reviewResult.rows[0];
+
         const stats = {
             total_requests: parseInt(row.total_requests || 0),
             pending_requests: parseInt(row.pending_requests || 0),
             completed_requests: parseInt(row.completed_requests || 0),
-            total_earnings: parseInt(row.completed_requests || 0) * 500 // Assuming 500 per completed job
+            total_earnings: parseFloat(row.total_earnings || 0),
+            avg_rating: parseFloat(rev.avg_rating || 0),
+            review_count: parseInt(rev.review_count || 0)
         };
-        
+
         res.json(stats);
     } catch (err) {
         console.error('Dashboard Stats Error:', err);
@@ -805,5 +820,94 @@ exports.updateCurrentLocation = async (req, res) => {
     } catch (error) {
         console.error('Update current location error:', error);
         res.status(500).json({ message: 'Failed to update current location' });
+    }
+};
+
+// GET /api/professionals/earnings?period=week|month|year|all
+exports.getEarnings = async (req, res) => {
+    const professionalId = req.professionalId;
+    const { period = 'month' } = req.query;
+
+    let dateFilter = '';
+    if (period === 'week')  dateFilter = `AND sr.updated_at >= NOW() - INTERVAL '7 days'`;
+    if (period === 'month') dateFilter = `AND sr.updated_at >= NOW() - INTERVAL '30 days'`;
+    if (period === 'year')  dateFilter = `AND sr.updated_at >= NOW() - INTERVAL '1 year'`;
+    // 'all' → no date filter
+
+    try {
+        // Summary stats for the chosen period
+        const summaryQuery = `
+            SELECT
+                COUNT(*) FILTER (WHERE sr.payment_status = 'paid') AS paid_jobs,
+                COALESCE(SUM(sr.wage) FILTER (WHERE sr.payment_status = 'paid'), 0) AS period_earnings,
+                COUNT(*) FILTER (WHERE sr.payment_status = 'awaiting_payment') AS pending_jobs,
+                COALESCE(SUM(sr.wage) FILTER (WHERE sr.payment_status = 'awaiting_payment'), 0) AS pending_earnings
+            FROM service_requests sr
+            JOIN service_offers so ON sr.id = so.request_id
+            WHERE so.professional_id = $1
+              ${dateFilter}
+        `;
+
+        // Individual paid job rows for display
+        const jobsQuery = `
+            SELECT
+                sr.id,
+                u.name AS customer_name,
+                sr.title,
+                sr.wage,
+                sr.payment_status,
+                sr.updated_at AS paid_at
+            FROM service_requests sr
+            JOIN service_offers so ON sr.id = so.request_id
+            JOIN users u ON sr.customer_id = u.id
+            WHERE so.professional_id = $1
+              AND sr.payment_status IN ('paid', 'awaiting_payment')
+              ${dateFilter}
+            ORDER BY sr.updated_at DESC
+            LIMIT 50
+        `;
+
+        const [summaryResult, jobsResult] = await Promise.all([
+            db.query(summaryQuery, [professionalId]),
+            db.query(jobsQuery, [professionalId])
+        ]);
+
+        const s = summaryResult.rows[0];
+        res.json({
+            period,
+            paid_jobs: parseInt(s.paid_jobs || 0),
+            period_earnings: parseFloat(s.period_earnings || 0),
+            pending_jobs: parseInt(s.pending_jobs || 0),
+            pending_earnings: parseFloat(s.pending_earnings || 0),
+            jobs: jobsResult.rows
+        });
+    } catch (err) {
+        console.error('Earnings Error:', err);
+        res.status(500).json({ message: 'Failed to fetch earnings' });
+    }
+};
+
+exports.getReviews = async (req, res) => {
+    const professionalId = req.professionalId;
+    try {
+        const query = `
+            SELECT 
+                pr.id, 
+                pr.rating, 
+                pr.comment, 
+                pr.created_at, 
+                u.name AS customer_name,
+                sr.title AS service_title
+            FROM professional_reviews pr
+            JOIN users u ON pr.customer_id = u.id
+            JOIN service_requests sr ON pr.request_id = sr.id
+            WHERE pr.professional_id = $1
+            ORDER BY pr.created_at DESC
+        `;
+        const result = await db.query(query, [professionalId]);
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Fetch Reviews Error:', err);
+        res.status(500).json({ message: 'Failed to fetch reviews' });
     }
 };

@@ -195,14 +195,16 @@ textarea.form-input {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 9px 14px;
+  gap: 0;
+  padding: 10px;
   border-radius: 50px;
-  transition: background 0.25s ease, padding 0.25s ease, box-shadow 0.25s ease;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   color: #9CA3AF;
 }
 
 .bottom-nav-item.active .bottom-nav-pill {
+  gap: 7px;
+  padding: 9px 16px;
   background: var(--accent-primary);
   color: #ffffff;
   box-shadow: 0 4px 14px rgba(46, 125, 50, 0.28); /* Green tinted shadow for pro */
@@ -231,12 +233,15 @@ textarea.form-input {
   font-weight: 700;
   letter-spacing: 0.1px;
   white-space: nowrap;
-  animation: nav-label-in 0.2s ease forwards;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
 }
 
-@keyframes nav-label-in {
-  from { opacity: 0; transform: translateX(-4px); }
-  to   { opacity: 1; transform: translateX(0); }
+.bottom-nav-item.active .bottom-nav-label {
+  max-width: 100px;
+  opacity: 1;
 }
 
 /* Dashboard Header Styles */
@@ -981,18 +986,20 @@ textarea.form-input {
 ═══════════════════════════════════════════════ */
 .pro-dashboard-root { display: flex; flex-direction: column; min-height: 100%; background: #F5F7FA; }
 
-/* Hero Header */
 .pro-hero-header {
   position: relative;
-  padding: 52px 20px 24px;
-  background: linear-gradient(135deg, #0A2E0A 0%, #1A4D1A 60%, #2E7D32 100%);
+  padding: 40px 20px 24px;
+  margin: 0;
+  border-radius: 0 0 32px 32px;
+  background: linear-gradient(135deg, #0F172A 0%, #1E293B 60%, #334155 100%);
   overflow: hidden;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
 }
 .pro-hero-bg {
   position: absolute; inset: 0;
   background:
     radial-gradient(circle at 80% 20%, rgba(255,255,255,0.08) 0%, transparent 50%),
-    radial-gradient(circle at 10% 80%, rgba(255,111,0,0.15) 0%, transparent 40%);
+    radial-gradient(circle at 10% 80%, rgba(148,163,184,0.15) 0%, transparent 40%);
   pointer-events: none;
 }
 .pro-hero-content {
@@ -1187,8 +1194,11 @@ textarea.form-input {
 
 .pro-profile-hero {
   position: relative;
-  background: linear-gradient(160deg, #0A2E0A 0%, #2E7D32 100%);
-  padding: 52px 24px 36px;
+  background: linear-gradient(135deg, #0F172A 0%, #1E293B 60%, #334155 100%);
+  padding: 40px 24px 32px;
+  margin: 0;
+  border-radius: 0 0 32px 32px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
   display: flex; flex-direction: column; align-items: center;
   overflow: hidden;
 }
