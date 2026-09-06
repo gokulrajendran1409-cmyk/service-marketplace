@@ -359,7 +359,7 @@ function Dashboard() {
       </div>
 
       {/* ── PROFILE SETUP BANNER ── */}
-      {(!professional.skills || professional.skills.length === 0 || professional.verification_status !== 'verified') && (
+      {stats?.profile_setup_completed === false && (
         <div style={{ margin: '0 24px 24px', padding: '16px 20px', background: 'linear-gradient(135deg, #FFFBEB, #FEF3C7)', border: '1px solid #FDE68A', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: 'var(--shadow-sm)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ background: '#F59E0B', color: 'white', padding: '8px', borderRadius: '12px' }}>
@@ -371,7 +371,7 @@ function Dashboard() {
             </div>
           </div>
           <button 
-            onClick={() => navigate('/profile')}
+            onClick={() => navigate('/setup-profile')}
             style={{ background: '#D97706', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '12px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
             Set Up

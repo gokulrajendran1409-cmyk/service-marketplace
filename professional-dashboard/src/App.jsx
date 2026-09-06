@@ -8,6 +8,7 @@ import Registration from "./pages/Registration";
 import Login from "./pages/Login";
 import Wallet from "./pages/Wallet";
 import Reviews from "./pages/Reviews";
+import SetupProfile from "./pages/SetupProfile";
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem("professionalToken");
@@ -28,6 +29,7 @@ function App() {
       <Routes>
         <Route path="/register" element={<Registration />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/setup-profile" element={<ProtectedRoute><SetupProfile /></ProtectedRoute>} />
         <Route path="/" element={<ProtectedRoute><ProfessionalLayout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
           <Route path="requests" element={<MyRequests />} />

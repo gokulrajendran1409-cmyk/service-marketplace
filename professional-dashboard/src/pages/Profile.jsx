@@ -105,7 +105,7 @@ function Profile() {
               <button style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', borderRadius: '12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 <Settings size={20} color="var(--text-secondary)" /> App Settings
               </button>
-              <button onClick={() => { setIsSidebarOpen(false); setShowEditModal(true); }} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', borderRadius: '12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
+              <button onClick={() => { setIsSidebarOpen(false); navigate('/setup-profile?edit=1'); }} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', borderRadius: '12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 <User size={20} color="var(--text-secondary)" /> Edit Profile
               </button>
               <button onClick={() => navigate('/reviews')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', borderRadius: '12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
@@ -137,7 +137,9 @@ function Profile() {
           )}
         </div>
         <h1 className="pro-profile-name">{professional.full_name || "Professional"}</h1>
-        <p className="pro-profile-role">{professional.service_category || "Service Provider"}</p>
+        <p className="pro-profile-role">
+          {[professional.category, professional.sub_category].filter(Boolean).join(' / ') || "Service Provider"}
+        </p>
         {professional.verification_status === "verified" && (
           <span className="pro-profile-verified-tag">✓ Verified Professional</span>
         )}

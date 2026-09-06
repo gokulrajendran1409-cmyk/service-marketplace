@@ -4,7 +4,6 @@ const jwt = require('jsonwebtoken');
 const { broadcast } = require('../utils/sseClients');
 const { notifyPro } = require('../utils/proSseClients');
 const { notifyCustomer } = require('../utils/customerSseClients');
-const { createJourneyNotification, createNotification, NOTIFICATION_TYPES } = require('../utils/notifications');
 
 const JOURNEY_STEPS = ['accepted', 'start_navigation', 'on_the_way', 'arrived', 'working'];
 
@@ -32,40 +31,20 @@ exports.registerProfessional = async (req, res) => {
     try {
         const {
             email,
-            phone,
             password,
-            full_name,
-            date_of_birth,
-            address,
-            city,
-            state,
-            pincode,
-            bio,
-            experience_years,
-            category
+            full_name
         } = req.body;
-        
-        // Extract uploaded files
-        let idProofPath = '';
-        let certificatePath = '';
 
-        if (req.files) {
-            if (req.files.id_proof) idProofPath = req.files.id_proof[0].filename;
-            if (req.files.certificate) certificatePath = req.files.certificate[0].filename;
+        if (!full_name?.trim() || !email?.trim() || !password) {
+            return res.status(400).json({ message: 'First name, last name, email, and password are required' });
         }
-
-        if (!full_name || !email || !phone || !password || !category || !experience_years) {
-            return res.status(400).json({ message: 'Please complete all required account and professional details' });
-        }
-
-        const registeredLocation = await geocodeProfessionalAddress(address, city, state, pincode);
 
         const client = await db.connect();
         try {
             await client.query('BEGIN');
             const existing = await client.query(
-                'SELECT id FROM users WHERE email = $1 OR phone = $2',
-                [email.trim().toLowerCase(), phone.trim()]
+                'SELECT id FROM users WHERE email = $1',
+                [email.trim().toLowerCase()]
             );
             if (existing.rows.length) {
                 await client.query('ROLLBACK');
@@ -75,51 +54,26 @@ exports.registerProfessional = async (req, res) => {
             const passwordHash = await bcrypt.hash(password, 10);
             const userRes = await client.query(
                 'INSERT INTO users (name, email, phone, password_hash) VALUES ($1, $2, $3, $4) RETURNING id, name, email, phone',
-                [full_name.trim(), email.trim().toLowerCase(), phone.trim(), passwordHash]
+                [full_name.trim(), email.trim().toLowerCase(), null, passwordHash]
             );
             const user = userRes.rows[0];
 
         // Insert into professionals
             const profQuery = `
             INSERT INTO professionals (
-                user_id, full_name, date_of_birth, address, city, state, pincode, bio, experience_years, category, password_hash, registered_latitude, registered_longitude
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id
+                user_id, full_name, experience_years, password_hash
+            ) VALUES ($1, $2, $3, $4) RETURNING id
         `;
         const profValues = [
             user.id,
             full_name,
-            date_of_birth || null,
-            address || null,
-            city || null,
-            state || null,
-            pincode || null,
-            bio || null,
-            parseInt(experience_years) || 0,
-            category || null,
-            passwordHash,
-            registeredLocation.latitude,
-            registeredLocation.longitude
+            0,
+            passwordHash
         ];
         
         profValues[0] = user.id;
         const profResult = await client.query(profQuery, profValues);
         const professionalId = profResult.rows[0].id;
-
-        // Insert ID Proof Document
-        if (idProofPath) {
-            await client.query(`
-                INSERT INTO professional_documents (professional_id, document_type, document_url) 
-                VALUES ($1, $2, $3)
-            `, [professionalId, 'id_proof', idProofPath]);
-        }
-
-        // Insert Certificate Document
-        if (certificatePath) {
-            await client.query(`
-                INSERT INTO professional_documents (professional_id, document_type, document_url) 
-                VALUES ($1, $2, $3)
-            `, [professionalId, 'certification', certificatePath]);
-        }
 
             await client.query('COMMIT');
 
@@ -127,7 +81,7 @@ exports.registerProfessional = async (req, res) => {
         broadcast('new_registration', {
             id: professionalId,
             full_name,
-            category: category || 'Uncategorized',
+            category: 'Uncategorized',
             timestamp: new Date().toISOString()
         });
 
@@ -189,46 +143,140 @@ exports.loginProfessional = async (req, res) => {
     }
 };
 
+exports.setupProfile = async (req, res) => {
+    const professionalId = req.professionalId;
+    const {
+        full_name,
+        bio,
+        category,
+        sub_category,
+        experience_years,
+        transport_mode,
+        identity_type
+    } = req.body;
+    const profilePhoto = req.files?.profile_photo?.[0]?.filename;
+    const identityPhoto = req.files?.identity_photo?.[0]?.filename;
+
+    if (!full_name?.trim() || !category || !experience_years || !identity_type) {
+        return res.status(400).json({ message: 'Please complete all required profile details' });
+    }
+
+    try {
+        const result = await db.query(
+            `UPDATE professionals
+             SET full_name = $1,
+                 bio = $2,
+                 category = $3,
+                 sub_category = $4,
+                 experience_years = $5,
+                 transport_mode = $6,
+                 identity_type = $7,
+                 profile_photo = COALESCE($8, profile_photo),
+                 identity_photo = COALESCE($9, identity_photo)
+             WHERE id = $10
+             RETURNING id, full_name, bio, category, sub_category, experience_years,
+                       transport_mode, identity_type, profile_photo, identity_photo,
+                       verification_status`,
+            [
+                full_name.trim(),
+                bio?.trim() || null,
+                category,
+                sub_category || null,
+                Number(experience_years),
+                transport_mode || null,
+                identity_type,
+                profilePhoto || null,
+                identityPhoto || null,
+                professionalId
+            ]
+        );
+
+        if (!result.rows.length) {
+            return res.status(404).json({ message: 'Professional profile not found' });
+        }
+
+        res.json({ message: 'Profile setup completed successfully', professional: result.rows[0] });
+    } catch (error) {
+        console.error('Profile setup error:', error);
+        res.status(500).json({ message: 'Failed to setup profile' });
+    }
+};
+
+exports.getProfessionalProfile = async (req, res) => {
+    try {
+        const result = await db.query(
+            `SELECT id, full_name, bio, category, sub_category, experience_years,
+                    transport_mode, identity_type, profile_photo, identity_photo,
+                    verification_status
+             FROM professionals
+             WHERE id = $1`,
+            [req.professionalId]
+        );
+
+        if (!result.rows.length) {
+            return res.status(404).json({ message: 'Professional profile not found' });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Fetch professional profile error:', error);
+        res.status(500).json({ message: 'Failed to fetch professional profile' });
+    }
+};
+
 exports.getDashboardStats = async (req, res) => {
     try {
         const professionalId = req.professionalId;
-
+        
+        // Count offers made by this professional for their stats
         const statsQuery = `
-            SELECT
-                COUNT(DISTINCT so.request_id) AS total_requests,
-                COUNT(DISTINCT so.request_id) FILTER (WHERE so.status = 'pending') AS pending_requests,
-                COUNT(DISTINCT so.request_id) FILTER (WHERE sr.payment_status = 'paid') AS completed_requests,
-                COALESCE(SUM(sr.wage) FILTER (WHERE sr.payment_status = 'paid'), 0) AS total_earnings
+            SELECT 
+                COUNT(*) as total_requests,
+                COUNT(*) FILTER (WHERE so.status = 'pending') as pending_requests,
+                COUNT(*) FILTER (WHERE so.status = 'accepted' AND sr.status = 'completed') as completed_requests
             FROM service_offers so
             JOIN service_requests sr ON sr.id = so.request_id
             WHERE so.professional_id = $1
         `;
-
+        
         const reviewQuery = `
             SELECT
-                ROUND(AVG(rating)::numeric, 1) AS avg_rating,
+                COALESCE(ROUND(AVG(rating)::numeric, 1), 0) AS avg_rating,
                 COUNT(*)::int AS review_count
             FROM professional_reviews
             WHERE professional_id = $1
         `;
 
-        const [statsResult, reviewResult] = await Promise.all([
+        const profileQuery = `
+            SELECT category, experience_years, identity_type, identity_photo
+            FROM professionals
+            WHERE id = $1
+        `;
+
+        const [statsResult, reviewResult, profileResult] = await Promise.all([
             db.query(statsQuery, [professionalId]),
-            db.query(reviewQuery, [professionalId])
+            db.query(reviewQuery, [professionalId]),
+            db.query(profileQuery, [professionalId])
         ]);
-
         const row = statsResult.rows[0];
-        const rev = reviewResult.rows[0];
-
+        const reviews = reviewResult.rows[0];
+        const profile = profileResult.rows[0];
+        
         const stats = {
             total_requests: parseInt(row.total_requests || 0),
             pending_requests: parseInt(row.pending_requests || 0),
             completed_requests: parseInt(row.completed_requests || 0),
-            total_earnings: parseFloat(row.total_earnings || 0),
-            avg_rating: parseFloat(rev.avg_rating || 0),
-            review_count: parseInt(rev.review_count || 0)
+            total_earnings: parseInt(row.completed_requests || 0) * 500,
+            avg_rating: parseFloat(reviews.avg_rating || 0),
+            review_count: parseInt(reviews.review_count || 0),
+            profile_setup_completed: Boolean(
+                profile?.category &&
+                profile?.experience_years != null &&
+                profile?.identity_type &&
+                profile?.identity_photo
+            )
         };
-
+        
         res.json(stats);
     } catch (err) {
         console.error('Dashboard Stats Error:', err);
@@ -336,107 +384,6 @@ exports.respondToRequest = async (req, res) => {
         }
         await client.query('COMMIT');
 
-        // Create persistent notification when professional accepts the request
-        if (decision === 'accepted') {
-            console.log(`[NOTIFICATION] Professional ${professionalId} accepted request ${requestId}, creating notification...`);
-            const requestInfo = await db.query(
-                `SELECT sr.customer_id, sr.title, sr.description, sr.requested_at, sr.location,
-                        p.full_name as professional_name, p.category as professional_category,
-                        p.experience_years, p.bio, p.city as professional_city, p.state as professional_state,
-                        u.phone as professional_phone, u.email as professional_email,
-                        COALESCE(
-                            (SELECT ROUND(AVG(rating)::numeric, 1) FROM professional_reviews WHERE professional_id = p.id),
-                            5.0
-                        ) as professional_rating,
-                        COALESCE(
-                            (SELECT COUNT(*)::int FROM professional_reviews WHERE professional_id = p.id),
-                            0
-                        ) as professional_review_count
-                 FROM service_requests sr
-                 JOIN professionals p ON p.id = $2
-                 JOIN users u ON u.id = p.user_id
-                 WHERE sr.id = $1`,
-                [requestId, professionalId]
-            );
-            if (requestInfo.rows.length) {
-                const row = requestInfo.rows[0];
-                const {
-                    customer_id,
-                    title: service_title,
-                    requested_at,
-                    location,
-                    professional_name,
-                    professional_category,
-                    professional_phone,
-                    professional_city,
-                    experience_years,
-                    professional_rating,
-                    professional_review_count
-                } = row;
-
-                const displayServiceTitle = service_title || professional_category || 'Requested Service';
-                const notificationTitle = 'Service Request Accepted! 🎉';
-                const notificationMsg = `${professional_name} has accepted your request for "${displayServiceTitle}".`;
-
-                const metadata = {
-                    status: 'accepted',
-                    requestId: requestId,
-                    serviceTitle: displayServiceTitle,
-                    requestedAt: requested_at,
-                    location: location,
-                    professionalId: professionalId,
-                    professionalName: professional_name,
-                    professionalCategory: professional_category,
-                    professionalPhone: professional_phone,
-                    professionalCity: professional_city,
-                    experienceYears: experience_years,
-                    rating: Number(professional_rating) || 5.0,
-                    reviewCount: Number(professional_review_count) || 0,
-                    acceptedAt: new Date().toISOString()
-                };
-
-                console.log(`[NOTIFICATION] Creating rich acceptance notification for customer ${customer_id}`);
-                const notification = await createNotification({
-                    userId: customer_id,
-                    type: NOTIFICATION_TYPES.REQUEST_ACCEPTED,
-                    title: notificationTitle,
-                    message: notificationMsg,
-                    requestId: requestId,
-                    professionalId: professionalId,
-                    metadata: metadata
-                });
-                console.log(`[NOTIFICATION] Notification created:`, notification);
-
-                // Notify customer in real-time with complete recorded backend data
-                notifyCustomer(customer_id, 'requestAccepted', {
-                    notification: notification,
-                    requestId: requestId,
-                    newStatus: 'accepted',
-                    serviceTitle: displayServiceTitle,
-                    professionalName: professional_name,
-                    professionalPhone: professional_phone,
-                    professionalCategory: professional_category,
-                    experienceYears: experience_years,
-                    rating: Number(professional_rating) || 5.0,
-                    reviewCount: Number(professional_review_count) || 0,
-                    timestamp: new Date().toISOString()
-                });
-
-                notifyCustomer(customer_id, 'notification', notification);
-
-                notifyCustomer(customer_id, 'requestUpdate', {
-                    requestId: requestId,
-                    newStatus: 'accepted',
-                    journeyStatus: 'accepted',
-                    updateType: 'status_change',
-                    professionalName: professional_name,
-                    notification: notification
-                });
-            } else {
-                console.log(`[NOTIFICATION] No request info found for request ${requestId}`);
-            }
-        }
-
         broadcast('service_request_updated', {
             id: requestId,
             professional_id: professionalId,
@@ -509,17 +456,6 @@ exports.updateRequestJourney = async (req, res) => {
         );
         await client.query('COMMIT');
 
-        // Create persistent notification for customer
-        console.log(`[NOTIFICATION] Journey update to ${nextStatus} for request ${requestId}, creating notification for customer ${customerId}...`);
-        const journeyNotification = await createJourneyNotification({
-            userId: customerId,
-            professionalName: professionalName,
-            journeyStatus: nextStatus,
-            requestId: requestId,
-            professionalId: professionalId
-        });
-        console.log(`[NOTIFICATION] Journey notification created:`, journeyNotification);
-
         // Notify customer about the update
         notifyCustomer(customerId, 'requestUpdate', {
             requestId: requestId,
@@ -589,29 +525,7 @@ exports.verifyOtp = async (req, res) => {
              RETURNING *`,
             [requestId]
         );
-
-        // Update professional's current coordinates to the arrival service location
-        if (Number.isFinite(Number(result.rows[0].latitude)) && Number.isFinite(Number(result.rows[0].longitude))) {
-            await client.query(
-                `UPDATE professionals
-                 SET current_latitude = $1, current_longitude = $2, location_updated_at = CURRENT_TIMESTAMP
-                 WHERE id = $3`,
-                [result.rows[0].latitude, result.rows[0].longitude, professionalId]
-            );
-        }
-
         await client.query('COMMIT');
-
-        // Create persistent notification for customer about arrival
-        await createNotification({
-            userId: customerId,
-            type: NOTIFICATION_TYPES.ARRIVAL,
-            title: 'Professional Has Arrived',
-            message: `${professionalName} has arrived at your location.`,
-            requestId: requestId,
-            professionalId: professionalId,
-            metadata: { journey_status: 'arrived' }
-        });
 
         // Notify customer about arrival
         notifyCustomer(customerId, 'requestUpdate', {
@@ -754,17 +668,6 @@ exports.submitWage = async (req, res) => {
 
         await client.query('COMMIT');
 
-        // Create persistent notification for customer about payment ready
-        await createNotification({
-            userId: customerId,
-            type: NOTIFICATION_TYPES.PAYMENT_READY,
-            title: 'Payment Ready',
-            message: `${professionalName} has submitted the wage of ₹${wageAmount}. Please confirm the payment.`,
-            requestId: requestId,
-            professionalId: professionalId,
-            metadata: { journey_status: 'awaiting_payment', wage: wageAmount }
-        });
-
         // Notify customer that payment is ready
         notifyCustomer(customerId, 'requestUpdate', {
             requestId: requestId,
@@ -793,12 +696,10 @@ exports.submitWage = async (req, res) => {
     }
 };
 
-// PATCH /api/professionals/current-location - update standby/live location anytime
 exports.updateCurrentLocation = async (req, res) => {
     const professionalId = req.professionalId;
-    const { latitude, longitude } = req.body;
-    const lat = Number(latitude);
-    const lng = Number(longitude);
+    const lat = Number(req.body.latitude);
+    const lng = Number(req.body.longitude);
 
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
         return res.status(400).json({ message: 'Valid latitude and longitude are required' });
@@ -812,30 +713,23 @@ exports.updateCurrentLocation = async (req, res) => {
             [lat, lng, professionalId]
         );
 
-        res.json({
-            message: 'Current location updated successfully',
-            latitude: lat,
-            longitude: lng
-        });
+        res.json({ message: 'Current location updated successfully', latitude: lat, longitude: lng });
     } catch (error) {
         console.error('Update current location error:', error);
         res.status(500).json({ message: 'Failed to update current location' });
     }
 };
 
-// GET /api/professionals/earnings?period=week|month|year|all
 exports.getEarnings = async (req, res) => {
     const professionalId = req.professionalId;
     const { period = 'month' } = req.query;
-
-    let dateFilter = '';
-    if (period === 'week')  dateFilter = `AND sr.updated_at >= NOW() - INTERVAL '7 days'`;
-    if (period === 'month') dateFilter = `AND sr.updated_at >= NOW() - INTERVAL '30 days'`;
-    if (period === 'year')  dateFilter = `AND sr.updated_at >= NOW() - INTERVAL '1 year'`;
-    // 'all' → no date filter
+    const dateFilter = {
+        week: `AND sr.updated_at >= NOW() - INTERVAL '7 days'`,
+        month: `AND sr.updated_at >= NOW() - INTERVAL '30 days'`,
+        year: `AND sr.updated_at >= NOW() - INTERVAL '1 year'`
+    }[period] || '';
 
     try {
-        // Summary stats for the chosen period
         const summaryQuery = `
             SELECT
                 COUNT(*) FILTER (WHERE sr.payment_status = 'paid') AS paid_jobs,
@@ -844,70 +738,51 @@ exports.getEarnings = async (req, res) => {
                 COALESCE(SUM(sr.wage) FILTER (WHERE sr.payment_status = 'awaiting_payment'), 0) AS pending_earnings
             FROM service_requests sr
             JOIN service_offers so ON sr.id = so.request_id
-            WHERE so.professional_id = $1
-              ${dateFilter}
-        `;
-
-        // Individual paid job rows for display
+            WHERE so.professional_id = $1 ${dateFilter}`;
         const jobsQuery = `
-            SELECT
-                sr.id,
-                u.name AS customer_name,
-                sr.title,
-                sr.wage,
-                sr.payment_status,
-                sr.updated_at AS paid_at
+            SELECT sr.id, u.name AS customer_name, sr.title, sr.wage, sr.payment_status,
+                   sr.updated_at AS paid_at
             FROM service_requests sr
             JOIN service_offers so ON sr.id = so.request_id
             JOIN users u ON sr.customer_id = u.id
             WHERE so.professional_id = $1
-              AND sr.payment_status IN ('paid', 'awaiting_payment')
-              ${dateFilter}
-            ORDER BY sr.updated_at DESC
-            LIMIT 50
-        `;
+              AND sr.payment_status IN ('paid', 'awaiting_payment') ${dateFilter}
+            ORDER BY sr.updated_at DESC LIMIT 50`;
 
         const [summaryResult, jobsResult] = await Promise.all([
             db.query(summaryQuery, [professionalId]),
             db.query(jobsQuery, [professionalId])
         ]);
-
-        const s = summaryResult.rows[0];
+        const summary = summaryResult.rows[0];
         res.json({
             period,
-            paid_jobs: parseInt(s.paid_jobs || 0),
-            period_earnings: parseFloat(s.period_earnings || 0),
-            pending_jobs: parseInt(s.pending_jobs || 0),
-            pending_earnings: parseFloat(s.pending_earnings || 0),
+            paid_jobs: Number(summary.paid_jobs || 0),
+            period_earnings: Number(summary.period_earnings || 0),
+            pending_jobs: Number(summary.pending_jobs || 0),
+            pending_earnings: Number(summary.pending_earnings || 0),
             jobs: jobsResult.rows
         });
-    } catch (err) {
-        console.error('Earnings Error:', err);
+    } catch (error) {
+        console.error('Earnings error:', error);
         res.status(500).json({ message: 'Failed to fetch earnings' });
     }
 };
 
 exports.getReviews = async (req, res) => {
-    const professionalId = req.professionalId;
     try {
-        const query = `
-            SELECT 
-                pr.id, 
-                pr.rating, 
-                pr.comment, 
-                pr.created_at, 
-                u.name AS customer_name,
-                sr.title AS service_title
-            FROM professional_reviews pr
-            JOIN users u ON pr.customer_id = u.id
-            JOIN service_requests sr ON pr.request_id = sr.id
-            WHERE pr.professional_id = $1
-            ORDER BY pr.created_at DESC
-        `;
-        const result = await db.query(query, [professionalId]);
+        const result = await db.query(
+            `SELECT pr.id, pr.rating, pr.comment, pr.created_at,
+                    u.name AS customer_name, sr.title AS service_title
+             FROM professional_reviews pr
+             JOIN users u ON pr.customer_id = u.id
+             JOIN service_requests sr ON pr.request_id = sr.id
+             WHERE pr.professional_id = $1
+             ORDER BY pr.created_at DESC`,
+            [req.professionalId]
+        );
         res.json(result.rows);
-    } catch (err) {
-        console.error('Fetch Reviews Error:', err);
+    } catch (error) {
+        console.error('Fetch reviews error:', error);
         res.status(500).json({ message: 'Failed to fetch reviews' });
     }
 };
