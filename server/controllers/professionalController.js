@@ -147,6 +147,10 @@ exports.setupProfile = async (req, res) => {
     const professionalId = req.professionalId;
     const {
         full_name,
+        phone,
+        date_of_birth,
+        address,
+        pincode,
         bio,
         category,
         sub_category,
@@ -157,28 +161,57 @@ exports.setupProfile = async (req, res) => {
     const profilePhoto = req.files?.profile_photo?.[0]?.filename;
     const identityPhoto = req.files?.identity_photo?.[0]?.filename;
 
-    if (!full_name?.trim() || !category || !experience_years || !identity_type) {
+    const phoneValue = phone?.trim() || '';
+    const addressValue = address?.trim() || '';
+    const pincodeValue = pincode?.trim() || '';
+    const birthDate = date_of_birth ? new Date(`${date_of_birth}T00:00:00`) : null;
+    const validPhone = /^\+?[0-9\s-]{7,15}$/.test(phoneValue);
+    const validBirthDate = birthDate && !Number.isNaN(birthDate.getTime()) && birthDate <= new Date();
+
+    if (!full_name?.trim() || !validPhone || !validBirthDate || addressValue.length < 5 || !/^\d{6}$/.test(pincodeValue) || !category || !experience_years || !identity_type) {
         return res.status(400).json({ message: 'Please complete all required profile details' });
     }
 
+    const client = await db.connect();
     try {
-        const result = await db.query(
+        await client.query('BEGIN');
+
+        const userResult = await client.query(
+            `UPDATE users
+             SET phone = $1, address = $2
+             WHERE id = (SELECT user_id FROM professionals WHERE id = $3)
+             RETURNING id`,
+            [phoneValue, addressValue, professionalId]
+        );
+
+        if (!userResult.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: 'Professional account not found' });
+        }
+
+        const result = await client.query(
             `UPDATE professionals
              SET full_name = $1,
-                 bio = $2,
-                 category = $3,
-                 sub_category = $4,
-                 experience_years = $5,
-                 transport_mode = $6,
-                 identity_type = $7,
-                 profile_photo = COALESCE($8, profile_photo),
-                 identity_photo = COALESCE($9, identity_photo)
-             WHERE id = $10
-             RETURNING id, full_name, bio, category, sub_category, experience_years,
-                       transport_mode, identity_type, profile_photo, identity_photo,
-                       verification_status`,
+                 date_of_birth = $2,
+                 address = $3,
+                 pincode = $4,
+                 bio = $5,
+                 category = $6,
+                 sub_category = $7,
+                 experience_years = $8,
+                 transport_mode = $9,
+                 identity_type = $10,
+                 profile_photo = COALESCE($11, profile_photo),
+                 identity_photo = COALESCE($12, identity_photo)
+             WHERE id = $13
+             RETURNING id, user_id, full_name, date_of_birth, address, pincode, bio,
+                       category, sub_category, experience_years, transport_mode,
+                       identity_type, profile_photo, identity_photo, verification_status`,
             [
                 full_name.trim(),
+                date_of_birth,
+                addressValue,
+                pincodeValue,
                 bio?.trim() || null,
                 category,
                 sub_category || null,
@@ -192,24 +225,31 @@ exports.setupProfile = async (req, res) => {
         );
 
         if (!result.rows.length) {
+            await client.query('ROLLBACK');
             return res.status(404).json({ message: 'Professional profile not found' });
         }
 
-        res.json({ message: 'Profile setup completed successfully', professional: result.rows[0] });
+        await client.query('COMMIT');
+        res.json({ message: 'Profile setup completed successfully', professional: { ...result.rows[0], phone: phoneValue } });
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('Profile setup error:', error);
         res.status(500).json({ message: 'Failed to setup profile' });
+    } finally {
+        client.release();
     }
 };
 
 exports.getProfessionalProfile = async (req, res) => {
     try {
         const result = await db.query(
-            `SELECT id, full_name, bio, category, sub_category, experience_years,
+                `SELECT p.id, p.full_name, p.date_of_birth, p.address, p.pincode, p.bio,
+                    p.category, p.sub_category, p.experience_years,
                     transport_mode, identity_type, profile_photo, identity_photo,
-                    verification_status
-             FROM professionals
-             WHERE id = $1`,
+                    p.verification_status, u.phone, u.email
+                 FROM professionals p
+                 JOIN users u ON u.id = p.user_id
+                 WHERE p.id = $1`,
             [req.professionalId]
         );
 
@@ -292,6 +332,7 @@ exports.getMyRequests = async (req, res) => {
         const query = `
             SELECT 
                 sr.*, 
+                sr.updated_at AS work_completed_at,
                 u.name as customer_name, 
                 u.phone as customer_phone,
                 so.status as offer_status

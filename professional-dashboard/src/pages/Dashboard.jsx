@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useProfessionalNotifications } from "../hooks/useProfessionalNotifications";
 import { useNavigate } from "react-router-dom";
-import { MapContainer, TileLayer, Circle, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Circle, CircleMarker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -23,6 +23,15 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
+function LocationPicker({ onSelect }) {
+  useMapEvents({
+    click(event) {
+      onSelect([event.latlng.lat, event.latlng.lng]);
+    },
+  });
+  return null;
+}
+
 function Dashboard() {
   const navigate = useNavigate();
   const professional = JSON.parse(localStorage.getItem("professional") || "{}");
@@ -36,7 +45,11 @@ function Dashboard() {
   const [ongoingRequests, setOngoingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [currentLocation, setCurrentLocation] = useState(professional.city || professional.location || "");
+  const [currentLocation, setCurrentLocation] = useState(
+    professional.location && professional.location !== professional.city
+      ? professional.location
+      : ""
+  );
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
 
   // Map Modal State
@@ -44,14 +57,36 @@ function Dashboard() {
   const [mapCenter, setMapCenter] = useState(professional.work_lat && professional.work_lng ? [parseFloat(professional.work_lat), parseFloat(professional.work_lng)] : [19.0760, 72.8777]);
   const [mapRadius, setMapRadius] = useState(professional.work_radius ? parseInt(professional.work_radius) : 10);
 
-  function LocationPicker() {
-    useMapEvents({
-      click(e) {
-        setMapCenter([e.latlng.lat, e.latlng.lng]);
-      },
-    });
-    return null;
-  }
+  const updateLocationFromCoordinates = async (latitude, longitude) => {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`);
+    const data = await res.json();
+          
+    const address = data.address || {};
+          const localPlace = address.neighbourhood || address.suburb || address.residential || address.road || address.hamlet || "";
+          const city = address.city || address.town || address.village || address.state_district || "";
+          const addressParts = [
+            address.house_number,
+            address.road,
+            address.neighbourhood || address.suburb,
+            city,
+            address.state,
+            address.postcode,
+          ].filter(Boolean);
+          const accurateLocation = data.display_name || [...new Set(addressParts)].join(', ') || localPlace || "Location Found";
+          
+          setCurrentLocation(accurateLocation);
+          
+          const updatedProf = {
+            ...professional,
+            location: accurateLocation,
+            address: addressParts.join(', '),
+            city: city || accurateLocation,
+            pincode: address.postcode || professional.pincode,
+            work_lat: latitude,
+            work_lng: longitude,
+          };
+          localStorage.setItem("professional", JSON.stringify(updatedProf));
+  };
 
   const fetchLocation = () => {
     if (!navigator.geolocation) {
@@ -62,25 +97,7 @@ function Dashboard() {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
-          const { latitude, longitude } = position.coords;
-          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-          const data = await res.json();
-          
-          const address = data.address || {};
-          const localPlace = address.neighbourhood || address.suburb || address.residential || address.road || address.hamlet || "";
-          const city = address.city || address.town || address.village || address.state_district || "";
-          
-          let accurateLocation = "Location Found";
-          if (localPlace && city && localPlace !== city) {
-            accurateLocation = `${localPlace}, ${city}`;
-          } else if (localPlace || city) {
-            accurateLocation = localPlace || city;
-          }
-          
-          setCurrentLocation(accurateLocation);
-          
-          const updatedProf = { ...professional, location: accurateLocation, city: city || accurateLocation, work_lat: latitude, work_lng: longitude };
-          localStorage.setItem("professional", JSON.stringify(updatedProf));
+          await updateLocationFromCoordinates(position.coords.latitude, position.coords.longitude);
         } catch (err) {
           setCurrentLocation("Accurate Location Found");
         } finally {
@@ -94,6 +111,14 @@ function Dashboard() {
       }
     );
   };
+
+  useEffect(() => {
+    const latitude = Number(professional.work_lat);
+    const longitude = Number(professional.work_lng);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || currentLocation) return;
+
+    updateLocationFromCoordinates(latitude, longitude).catch(() => {});
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -127,10 +152,11 @@ function Dashboard() {
         const sorted = [...allRequests].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         setRecentRequests(sorted.slice(0, 3));
         
-        // Ongoing = any active, non-completed job
-        const ACTIVE_STATUSES = new Set(['pending', 'accepted', 'in_progress']);
+        // Ongoing contains only jobs accepted by this professional until completion.
+        const ACTIVE_STATUSES = new Set(['accepted', 'in_progress']);
         const ongoing = sorted.filter(req =>
-          ACTIVE_STATUSES.has(req.status) || req.payment_status === 'awaiting_payment'
+          req.offer_status === 'accepted'
+          && (ACTIVE_STATUSES.has(req.status) || req.payment_status === 'awaiting_payment')
         );
         setOngoingRequests(ongoing);
       }
@@ -141,7 +167,12 @@ function Dashboard() {
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+    const handleRequestUpdated = () => fetchData();
+    window.addEventListener('professional-request-updated', handleRequestUpdated);
+    return () => window.removeEventListener('professional-request-updated', handleRequestUpdated);
+  }, []);
 
   const getInitials = (name) => {
     if (!name) return "P";
@@ -189,11 +220,11 @@ function Dashboard() {
         <div className="pro-hero-content" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
           {/* Top Bar with Location & Notifications */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255, 255, 255, 0.9)', padding: '6px 14px', borderRadius: '24px', backdropFilter: 'blur(8px)', boxShadow: '0 4px 14px rgba(0,0,0,0.06)' }}>
+            <div className="pro-location-control" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255, 255, 255, 0.9)', padding: '6px 14px', borderRadius: '14px', backdropFilter: 'blur(8px)', boxShadow: '0 4px 14px rgba(0,0,0,0.06)', maxWidth: 'calc(100% - 48px)' }}>
               <MapPin size={16} color="var(--accent-primary)" />
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700, lineHeight: 1 }}>Current Location</span>
-                <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 800, lineHeight: 1.2, marginTop: '2px' }}>
+                <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 800, lineHeight: 1.2, marginTop: '2px', maxWidth: 'min(62vw, 360px)', whiteSpace: 'normal' }}>
                   {currentLocation ? (
                     currentLocation
                   ) : isFetchingLocation ? (
@@ -268,29 +299,29 @@ function Dashboard() {
             label: 'Total',
             value: stats?.total_requests ?? '—',
             icon: '📋',
-            bg: '#F1F5F9',
+            bg: 'var(--stat-total-bg)',
             color: 'var(--text-primary)'
           },
           {
             label: 'Pending',
             value: stats?.pending_requests ?? '—',
             icon: '⏳',
-            bg: '#FFFBEB',
-            color: '#B45309'
+            bg: 'var(--stat-pending-bg)',
+            color: 'var(--stat-pending-text)'
           },
           {
             label: 'Done',
             value: stats?.completed_requests ?? '—',
             icon: '✅',
-            bg: '#F0FDF4',
-            color: '#15803D'
+            bg: 'var(--stat-done-bg)',
+            color: 'var(--stat-done-text)'
           },
           {
             label: 'Rating',
             value: stats?.avg_rating > 0 ? stats.avg_rating.toFixed(1) : '—',
             icon: '⭐',
-            bg: '#FEF9C3',
-            color: '#92400E',
+            bg: 'var(--stat-rating-bg)',
+            color: 'var(--stat-rating-text)',
             sub: stats?.review_count > 0 ? `${stats.review_count} review${stats.review_count !== 1 ? 's' : ''}` : 'No reviews'
           }
         ].map(({ label, value, icon, bg, color, sub }) => (
@@ -473,9 +504,21 @@ function Dashboard() {
               <div style={{ height: '300px', borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-light)', marginBottom: '16px', position: 'relative', zIndex: 0 }}>
                 <MapContainer center={mapCenter} zoom={11} style={{ height: '100%', width: '100%' }}>
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  <LocationPicker />
+                  <LocationPicker onSelect={setMapCenter} />
                   <Circle center={mapCenter} radius={mapRadius * 1000} pathOptions={{ color: 'var(--accent-primary)', fillColor: 'var(--accent-primary)', fillOpacity: 0.2 }} />
+                  <CircleMarker
+                    center={mapCenter}
+                    radius={7}
+                    pathOptions={{ color: '#F8FAFC', weight: 3, fillColor: '#0F172A', fillOpacity: 1 }}
+                  />
                 </MapContainer>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', padding: '10px 12px', borderRadius: '10px', background: 'var(--bg-surface-hover)', border: '1px solid var(--border-light)' }}>
+                <MapPin size={15} color="var(--accent-primary)" />
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  Center point: {mapCenter[0].toFixed(5)}, {mapCenter[1].toFixed(5)}
+                </span>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

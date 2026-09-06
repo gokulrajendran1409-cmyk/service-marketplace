@@ -42,6 +42,13 @@
   --earnings-bg: linear-gradient(135deg, #1E293B 0%, #334155 60%, #475569 100%);
   --earnings-shadow: 0 8px 32px rgba(71, 85, 105, 0.35);
   --ring-track: #E2E8F0;
+  --stat-total-bg: #F1F5F9;
+  --stat-pending-bg: #FFFBEB;
+  --stat-pending-text: #B45309;
+  --stat-done-bg: #F0FDF4;
+  --stat-done-text: #15803D;
+  --stat-rating-bg: #FEF9C3;
+  --stat-rating-text: #92400E;
 }
 
 :root[data-theme="dark"] {
@@ -70,6 +77,13 @@
   --earnings-bg: linear-gradient(135deg, #1E293B 0%, #334155 60%, #475569 100%);
   --earnings-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
   --ring-track: #334155;
+  --stat-total-bg: #1E293B;
+  --stat-pending-bg: #3A3020;
+  --stat-pending-text: #FCD34D;
+  --stat-done-bg: #19352C;
+  --stat-done-text: #86EFAC;
+  --stat-rating-bg: #3B3520;
+  --stat-rating-text: #FDE68A;
 }
 
 * {
@@ -121,6 +135,12 @@ body {
 
 :root[data-theme="dark"] .notification-item:hover {
   background: var(--bg-surface-hover);
+}
+
+:root[data-theme="dark"] .pro-location-control {
+  background: rgba(30, 41, 59, 0.92) !important;
+  border: 1px solid var(--border-light);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.24) !important;
 }
 
 a {

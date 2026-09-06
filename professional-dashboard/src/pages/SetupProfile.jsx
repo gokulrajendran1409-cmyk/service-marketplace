@@ -17,6 +17,10 @@ function SetupProfile() {
 
   // Form State
   const [fullName, setFullName] = useState(professional.full_name || '');
+  const [phone, setPhone] = useState(professional.phone || '');
+  const [dateOfBirth, setDateOfBirth] = useState(professional.date_of_birth || '');
+  const [address, setAddress] = useState(professional.address || '');
+  const [pincode, setPincode] = useState(professional.pincode || '');
   const [bio, setBio] = useState(professional.bio || '');
   const [profilePhoto, setProfilePhoto] = useState(null);
   const [profilePreview, setProfilePreview] = useState(professional.profile_photo ? `${API}/uploads/${professional.profile_photo}` : null);
@@ -64,6 +68,10 @@ function SetupProfile() {
         if (!response.ok) throw new Error(data.message || 'Failed to load profile');
 
         setFullName(data.full_name || '');
+        setPhone(data.phone || '');
+        setDateOfBirth(data.date_of_birth ? data.date_of_birth.slice(0, 10) : '');
+        setAddress(data.address || '');
+        setPincode(data.pincode || '');
         setBio(data.bio || '');
         setCategory(data.category || '');
         setSubCategory(data.sub_category || '');
@@ -96,7 +104,15 @@ function SetupProfile() {
   };
 
   const handleNext = () => {
-    if (step === 1 && !fullName.trim()) return setError('Full Name is required');
+    const validPhone = /^\+?[0-9\s-]{7,15}$/.test(phone.trim());
+    const birthDate = dateOfBirth ? new Date(`${dateOfBirth}T00:00:00`) : null;
+    const validBirthDate = birthDate && !Number.isNaN(birthDate.getTime()) && birthDate <= new Date();
+
+    if (step === 1 && !fullName.trim()) return setError('Full name is required');
+    if (step === 1 && !validPhone) return setError('Enter a valid phone number');
+    if (step === 1 && !validBirthDate) return setError('Enter a valid date of birth');
+    if (step === 1 && address.trim().length < 5) return setError('Enter a complete address');
+    if (step === 1 && !/^\d{6}$/.test(pincode.trim())) return setError('Pincode must contain 6 digits');
     if (step === 2 && !category) return setError('Category is required');
     if (step === 2 && !experienceYears) return setError('Experience is required');
     if (step === 3 && !identityType) return setError('Identity Type is required');
@@ -117,6 +133,10 @@ function SetupProfile() {
 
     const formData = new FormData();
     formData.append('full_name', fullName);
+    formData.append('phone', phone);
+    formData.append('date_of_birth', dateOfBirth);
+    formData.append('address', address);
+    formData.append('pincode', pincode);
     formData.append('bio', bio);
     formData.append('category', category);
     formData.append('sub_category', subCategory);
@@ -209,6 +229,53 @@ function SetupProfile() {
                 onChange={e => setFullName(e.target.value)}
                 placeholder="Enter your full name"
                 style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-light)', fontSize: '15px', outline: 'none', background: 'var(--bg-surface)', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '8px' }}>Phone Number *</label>
+              <input
+                type="tel"
+                maxLength="15"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="Enter your phone number"
+                style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-light)', fontSize: '15px', outline: 'none', background: 'var(--bg-surface)', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '8px' }}>Date of Birth *</label>
+                <input
+                  type="date"
+                  value={dateOfBirth}
+                  onChange={e => setDateOfBirth(e.target.value)}
+                  style={{ width: '100%', padding: '14px 10px', borderRadius: '12px', border: '1px solid var(--border-light)', fontSize: '14px', outline: 'none', background: 'var(--bg-surface)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '8px' }}>Pincode *</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength="6"
+                  value={pincode}
+                  onChange={e => setPincode(e.target.value)}
+                  placeholder="Pincode"
+                  style={{ width: '100%', padding: '14px 10px', borderRadius: '12px', border: '1px solid var(--border-light)', fontSize: '14px', outline: 'none', background: 'var(--bg-surface)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '8px' }}>Address *</label>
+              <textarea
+                value={address}
+                onChange={e => setAddress(e.target.value)}
+                placeholder="Enter your full address"
+                rows={3}
+                style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-light)', fontSize: '15px', outline: 'none', background: 'var(--bg-surface)', color: 'var(--text-primary)', resize: 'vertical', boxSizing: 'border-box' }}
               />
             </div>
 

@@ -97,7 +97,7 @@ function StatusBadge({ status }) {
     in_progress: { bg: 'rgba(59, 130, 246, 0.1)', color: '#2563eb', icon: <Navigation size={14} />, label: 'In Progress' },
     completed: { bg: 'rgba(16, 185, 129, 0.1)', color: '#10b981', icon: <CheckCircle size={14} />, label: 'Completed' },
     rejected: { bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', icon: <XCircle size={14} />, label: 'Rejected' },
-    cancelled: { bg: 'rgba(148, 163, 184, 0.1)', color: '#94a3b8', icon: <Ban size={14} />, label: 'Cancelled' },
+    cancelled: { bg: 'rgba(239, 68, 68, 0.12)', color: '#dc2626', icon: <Ban size={14} />, label: 'Cancelled' },
   };
   const s = styles[status] || styles.pending;
   return (
@@ -479,7 +479,7 @@ function MyRequests() {
           onClose={() => setShowLiveMap(false)}
         />
       )}
-      
+
       {otpModalRequest && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: 'var(--bg-surface)', padding: '24px', borderRadius: '12px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
@@ -594,31 +594,42 @@ function MyRequests() {
         }
 
         return (
-          <div className="section-container" style={{ padding: 0, overflow: 'hidden' }}>
-            {filteredRequests.map((req, idx) => {
+          <div className="my-works-list">
+            {filteredRequests.map(req => {
               const isRestricted = req.status === 'completed'
                 || req.journey_status === 'completed'
                 || req.journey_status === 'awaiting_payment'
                 || req.payment_status === 'awaiting_payment'
                 || (req.status === 'accepted' && req.offer_status !== 'accepted');
+              const isCompleted = req.status === 'completed' || req.journey_status === 'completed';
+              const isCancelled = req.status === 'cancelled' || req.status === 'rejected';
+              const workDate = isCompleted
+                ? (req.work_completed_at || req.updated_at || req.journey_updated_at)
+                : isCancelled ? null : req.requested_at;
+              const canShowLocation = !isRestricted && req.status !== 'cancelled' && req.status !== 'rejected';
 
               return (
-                <div key={req.id} style={{ padding: '20px 24px', borderBottom: idx !== filteredRequests.length - 1 ? '1px solid var(--border-light)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                <div key={req.id} className="my-work-card">
+                  <div className="my-work-main">
+                    <div className="my-work-customer">
                       <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <User size={16} />
                       </div>
                       <div>
-                        <h4 style={{ margin: 0, fontSize: '15px' }}>{req.customer_name}</h4>
+                        <h4 style={{ margin: 0, fontSize: '15px', color: 'var(--text-primary)' }}>{req.customer_name}</h4>
                         {!isRestricted && <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{req.customer_phone || 'No phone'}</span>}
                       </div>
                     </div>
-                    <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-primary)', fontWeight: 600 }}>{req.title}</p>
-                    {req.requested_at && <p className="request-schedule">Customer expects you: {new Date(req.requested_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p>}
+                    <p className="my-work-title">{req.title}</p>
+                    {workDate && (
+                      <p className="request-schedule">
+                        {isCompleted ? 'Work completed on: ' : 'Customer expects you: '}
+                        {new Date(workDate).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                      </p>
+                    )}
                     {!isRestricted && <>
                       {req.description && <p style={{ margin: '4px 0 0', fontSize: '14px', color: 'var(--text-secondary)' }}>{req.description}</p>}
-                      <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>{req.location}</p>
+                      {canShowLocation && <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>{req.location}</p>}
                       {(req.photo_urls?.length > 0 || req.video_url || req.voice_url) && (
                         <div className="request-evidence">
                           <strong>Customer evidence</strong>
@@ -670,7 +681,7 @@ function MyRequests() {
                         </div>
                       </div>
                     )}
-                    {!isRestricted && (req.offer_status === 'accepted' || req.offer_status === 'pending') && (
+                    {canShowLocation && (req.offer_status === 'accepted' || req.offer_status === 'pending') && (
                       <div className="request-location-tools">
                         <button className="view-location-btn" onClick={() => viewingLocationId === req.id ? setViewingLocationId(null) : viewRequestLocation(req)} disabled={locationLoadingId === req.id}>
                           {locationLoadingId === req.id ? <Loader2 size={14} className="spin" /> : <MapPin size={14} />}
@@ -696,7 +707,7 @@ function MyRequests() {
                       Created: {new Date(req.created_at).toLocaleDateString()}
                     </div>}
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
+                  <div className="my-work-side">
                     {req.payment_status === 'awaiting_payment'
                       ? <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', background: '#fef3c7', color: '#d97706' }}>⏳ Awaiting Payment</span>
                       : req.payment_status === 'paid'
