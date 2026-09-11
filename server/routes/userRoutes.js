@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
 const router = express.Router();
-const { getProfile, updateProfile, getCategories, getSubcategories, getProfessionals, createRequest, getMyRequests, streamNotifications, confirmPayment, createReview } = require('../controllers/userController');
+const { getProfile, updateProfile, getCategories, getSubcategories, getProfessionals, getCategoryReviews, createRequest, getMyRequests, streamNotifications, confirmPayment, createReview } = require('../controllers/userController');
 const { protectCustomer } = require('../middleware/authMiddleware');
 
 if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
@@ -17,6 +17,7 @@ const upload = multer({
 router.get('/categories', getCategories);
 router.get('/subcategories', getSubcategories);
 router.get('/professionals', getProfessionals);
+router.get('/reviews', getCategoryReviews);
 router.get('/profile', protectCustomer, getProfile);
 router.patch('/profile', protectCustomer, updateProfile);
 router.post('/requests', protectCustomer, upload.fields([

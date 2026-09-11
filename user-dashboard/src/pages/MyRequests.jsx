@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Calendar, CheckCircle2, Clock3, MapPin, Navigation, Plus, RefreshCw, Search, ShieldCheck } from 'lucide-react';
+import { Calendar, CheckCircle2, Clock3, MapPin, Navigation, Plus, RefreshCw, Search, ShieldCheck, MessageSquare, ChevronRight, XCircle, Clock, Wrench, Zap, Snowflake, Paintbrush, Monitor, FileText, Repeat } from 'lucide-react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -251,10 +251,9 @@ function MyRequests({ navigate }) {
 
   const selectedRequest = requests.find(request => request.id === selectedRequestId);
   const filterOptions = [
-    { key: 'active', label: 'Active', matches: request => ['accepted', 'in_progress'].includes(request.status) },
-    { key: 'pending', label: 'Pending', matches: request => request.status === 'pending' },
-    { key: 'completed', label: 'Completed', matches: request => request.status === 'completed' },
-    { key: 'all', label: 'All bookings', matches: () => true },
+    { key: 'upcoming', label: 'Upcoming', icon: <Calendar size={14} />, matches: request => ['pending', 'accepted', 'in_progress'].includes(request.status) },
+    { key: 'past', label: 'Past', icon: <Clock size={14} />, matches: request => request.status === 'completed' },
+    { key: 'cancelled', label: 'Cancelled', icon: <XCircle size={14} />, matches: request => request.status === 'cancelled' },
   ];
   const currentFilter = filterOptions.find(option => option.key === requestFilter) || filterOptions[0];
   const filteredRequests = requests
@@ -275,186 +274,170 @@ function MyRequests({ navigate }) {
     return `${hours}h ${remainingMinutes}m`;
   };
 
-  const activeCount = requests.filter(r => ['accepted', 'in_progress'].includes(r.status)).length;
-  const pendingCount = requests.filter(r => r.status === 'pending').length;
-  const completedCount = requests.filter(r => r.status === 'completed').length;
+  // Get category icon
+  const getCategoryIcon = (category) => {
+    switch(category?.toLowerCase()) {
+      case 'plumbing': return <Wrench className="service-icon plumbing" />;
+      case 'electrical': return <Zap className="service-icon electrical" />;
+      case 'ac repair': return <Snowflake className="service-icon ac-repair" />;
+      case 'painting': return <Paintbrush className="service-icon painting" />;
+      case 'electronics': return <Monitor className="service-icon electronics" />;
+      default: return <Wrench className="service-icon default" />;
+    }
+  };
+
+  const upcomingCount = requests.filter(r => ['pending', 'accepted', 'in_progress'].includes(r.status)).length;
+  const pastCount = requests.filter(r => r.status === 'completed').length;
+  const cancelledCount = requests.filter(r => r.status === 'cancelled').length;
 
   return (
-    <div className="page-container bookings-page-container">
-      {/* ====== MOBILE-OPTIMIZED HERO HEADER ====== */}
-      <div className="bookings-hero-banner">
-        <div className="bookings-hero-top">
-          <div className="bookings-hero-text">
-            <span className="bookings-hero-kicker">ACTIVITY & STATUS</span>
-            <h1 className="bookings-hero-title">My Bookings</h1>
-            <p className="bookings-hero-subtitle">Track and manage all your service requests</p>
-          </div>
-          <div className="bookings-hero-actions">
-            <button
-              onClick={fetchRequests}
-              className="bookings-hero-icon-btn"
-              title="Refresh bookings"
-              aria-label="Refresh bookings"
-            >
-              <RefreshCw size={16} />
-            </button>
-            <button
-              className="bookings-hero-new-btn"
-              onClick={() => navigate('services')}
-            >
-              <Plus size={16} />
-              <span>New</span>
-            </button>
+    <div className="page-container bookings-new-page-container">
+      <div className="bookings-header-area">
+        <div className="bookings-header-content">
+          <h1>My Bookings</h1>
+          <p>Track your service bookings and stay updated.</p>
+        </div>
+        <div className="bookings-header-illustration">
+          <div className="calendar-illustration">
+            <Calendar size={48} className="cal-icon" />
+            <div className="check-badge"><CheckCircle2 size={16} /></div>
           </div>
         </div>
+      </div>
 
-        {/* ====== QUICK STATS ROW ====== */}
-        <div className="bookings-stats-strip">
-          <button 
-            className={`bookings-stat-card ${requestFilter === 'active' ? 'active' : ''}`}
-            onClick={() => setRequestFilter('active')}
-          >
-            <div className="bookings-stat-header">
-              <span className="bookings-stat-dot active-dot"></span>
-              <span className="bookings-stat-label">Active</span>
-            </div>
-            <strong className="bookings-stat-num">{activeCount}</strong>
-          </button>
-
-          <div className="bookings-stat-sep" />
-
-          <button 
-            className={`bookings-stat-card ${requestFilter === 'pending' ? 'active' : ''}`}
-            onClick={() => setRequestFilter('pending')}
-          >
-            <div className="bookings-stat-header">
-              <span className="bookings-stat-dot pending-dot"></span>
-              <span className="bookings-stat-label">Pending</span>
-            </div>
-            <strong className="bookings-stat-num">{pendingCount}</strong>
-          </button>
-
-          <div className="bookings-stat-sep" />
-
-          <button 
-            className={`bookings-stat-card ${requestFilter === 'completed' ? 'active' : ''}`}
-            onClick={() => setRequestFilter('completed')}
-          >
-            <div className="bookings-stat-header">
-              <span className="bookings-stat-dot completed-dot"></span>
-              <span className="bookings-stat-label">Completed</span>
-            </div>
-            <strong className="bookings-stat-num">{completedCount}</strong>
-          </button>
-        </div>
+      <div className="bookings-tabs-container">
+        <button 
+          className={`booking-tab ${requestFilter === 'upcoming' ? 'active' : ''}`}
+          onClick={() => setRequestFilter('upcoming')}
+        >
+          <Calendar size={16} /> Upcoming <span className="tab-badge">{upcomingCount}</span>
+        </button>
+        <button 
+          className={`booking-tab ${requestFilter === 'past' ? 'active' : ''}`}
+          onClick={() => setRequestFilter('past')}
+        >
+          <Clock size={16} /> Past <span className="tab-badge past-badge">{pastCount}</span>
+        </button>
+        <button 
+          className={`booking-tab ${requestFilter === 'cancelled' ? 'active' : ''}`}
+          onClick={() => setRequestFilter('cancelled')}
+        >
+          <XCircle size={16} /> Cancelled <span className="tab-badge cancelled-badge">{cancelledCount}</span>
+        </button>
       </div>
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '60px' }}>
-          <RefreshCw className="spin" size={32} color="var(--text-muted)" />
+          <RefreshCw className="spin" size={32} color="var(--primary-color)" />
         </div>
-      ) : requests.length === 0 ? (
-        <div className="empty-state">
-          <div style={{ fontSize: 48 }}>📋</div>
-          <h3>No bookings yet</h3>
-          <p>Browse services and book your first professional!</p>
-          <button className="btn-hire" style={{ width: 'auto', padding: '12px 28px', marginTop: 20 }} onClick={() => navigate('services')}>
-            Browse Services
-          </button>
+      ) : filteredRequests.length === 0 ? (
+        <div className="empty-bookings">
+          <h3>No {currentFilter.label.toLowerCase()} bookings</h3>
+          <p>Your bookings will appear here.</p>
         </div>
       ) : (
-        <>
-        <div className="request-tools">
-          <label className="request-search-box">
-            <Search size={16} />
-            <input value={requestSearch} onChange={event => setRequestSearch(event.target.value)} placeholder="Search bookings..." aria-label="Search bookings" />
-          </label>
-          <label className="request-sort-box">
-            <span>Sort by</span>
-            <select value={requestSort} onChange={event => setRequestSort(event.target.value)} aria-label="Sort bookings by date">
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
-            </select>
-          </label>
-        </div>
-        <div className="request-filter-bar" role="tablist" aria-label="Filter bookings">
-          {filterOptions.map(option => {
-            const count = requests.filter(option.matches).length;
+        <div className="bookings-cards-list">
+          {filteredRequests.map(req => {
+            const isLive = ['accepted', 'in_progress'].includes(req.status);
+            
             return (
-              <button 
-                key={option.key} 
-                className={`filter-btn-${option.key} ${requestFilter === option.key ? 'active' : ''}`} 
-                onClick={() => setRequestFilter(option.key)} 
-                role="tab" 
-                aria-selected={requestFilter === option.key}
-              >
-                {option.label}
-                <span>{count}</span>
-              </button>
+            <div key={req.id} className="booking-card">
+              {/* Top row: image | info + price/status */}
+              <div className="booking-card-top">
+                <div className="booking-card-thumb">
+                  <div className="booking-thumb-bg"></div>
+                </div>
+
+                <div className="booking-card-body">
+                  {/* Title + Status on the same line */}
+                  <div className="booking-title-row">
+                    <div className="booking-title-group">
+                      {getCategoryIcon(req.professional_category || req.category)}
+                      <h3 className="booking-title">{req.title}</h3>
+                    </div>
+                    <span className={`booking-status-badge ${req.status}`}>
+                      {req.status === 'completed' ? 'Completed' : 
+                       req.status === 'cancelled' ? 'Cancelled' : 
+                       req.status === 'pending' ? 'Upcoming' : 
+                       req.status === 'accepted' ? 'Confirmed' : 'In Progress'}
+                    </span>
+                  </div>
+
+                  {/* Professional info */}
+                  {req.professional_name && (
+                    <div className="booking-pro-row">
+                      <span className="booking-pro-name">{req.professional_name}</span>
+                      <span className="booking-verified"><ShieldCheck size={11} /> Verified</span>
+                    </div>
+                  )}
+
+                  {/* Rating */}
+                  <div className="booking-rating-row">
+                    <span className="rating-star">★</span>
+                    <strong>{req.professional_avg_rating || '4.5'}</strong>
+                    <span className="rating-count">({req.professional_review_count || 0} reviews)</span>
+                  </div>
+
+                  {/* Date & Location */}
+                  <div className="booking-meta-row">
+                    <div className="booking-meta-item">
+                      <Calendar size={13} />
+                      <span>{new Date(req.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}, {new Date(req.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    {req.location && (
+                      <div className="booking-meta-item">
+                        <MapPin size={13} />
+                        <span className="meta-location-text">{req.location}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Price row */}
+                  <div className="booking-price-row">
+                    {req.wage ? (
+                      <>
+                        <span className="booking-price">₹{Number(req.wage).toLocaleString('en-IN')}</span>
+                        <span className="booking-price-sub">(Estimated)</span>
+                      </>
+                    ) : (
+                      <span className="booking-price-sub">Price TBD</span>
+                    )}
+                    <ChevronRight className="booking-price-arrow" size={14} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom action buttons */}
+              <div className="booking-card-btns">
+                {req.status === 'completed' && (
+                  <>
+                    <button className="bk-btn bk-btn-outline"><FileText size={15} /> View Invoice</button>
+                    <button className="bk-btn bk-btn-outline"><Repeat size={15} /> Book Again</button>
+                  </>
+                )}
+                {req.status === 'cancelled' && (
+                  <>
+                    <button className="bk-btn bk-btn-outline" onClick={() => setSelectedRequestId(req.id)}>View Details</button>
+                    <button className="bk-btn bk-btn-outline"><Repeat size={15} /> Rebook</button>
+                  </>
+                )}
+                {req.status === 'pending' && (
+                  <>
+                    <button className="bk-btn bk-btn-outline" onClick={() => setSelectedRequestId(req.id)}>View Details</button>
+                    <button className="bk-btn bk-btn-primary"><Calendar size={15} /> Reschedule</button>
+                  </>
+                )}
+                {(req.status === 'accepted' || req.status === 'in_progress') && (
+                  <>
+                    <button className="bk-btn bk-btn-outline"><MessageSquare size={15} /> Chat with Professional</button>
+                    <button className="bk-btn bk-btn-primary" onClick={() => setSelectedRequestId(req.id)}><Navigation size={15} /> Track Live</button>
+                  </>
+                )}
+              </div>
+            </div>
             );
           })}
         </div>
-        {filteredRequests.length === 0 ? (
-          <div className="request-filter-empty"><h3>No {currentFilter.label.toLowerCase()} bookings</h3><p>Your bookings will appear here as their status changes.</p></div>
-        ) : (
-        <div className="requests-list">
-          <div className="requests-list-heading"><div><span>BOOKINGS</span><h2>{currentFilter.label}</h2></div><strong>{filteredRequests.length} {filteredRequests.length === 1 ? 'booking' : 'bookings'}</strong></div>
-          {filteredRequests.map(req => (
-            <div key={req.id} className={`request-card-compact request-card-clickable ${['accepted', 'in_progress'].includes(req.status) ? 'live-request-item' : ''}`} onClick={(event) => {
-              if (!event.target.closest('button')) {
-                setSelectedRequestId(req.id);
-                // Clear the update badge when user views the request
-                if (req.has_update) {
-                  setRequests(current => current.map(r => r.id === req.id ? { ...r, has_update: false } : r));
-                }
-              }
-            }}>
-              {/* New Update Badge */}
-              {req.has_update && (
-                <div className="request-update-badge">
-                  <span className="update-dot"></span>
-                  New update
-                </div>
-              )}
-              {/* Left Section - Title & Details */}
-              <div className="compact-card-left">
-                <div className="compact-card-id">Request #{req.id.toString().padStart(3, '0')}</div>
-                <div className="compact-card-title">{req.title}</div>
-                <div className="compact-card-date">
-                  <Calendar size={12} />
-                  {new Date(req.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}
-                </div>
-                {req.location && (
-                  <div className="compact-card-location">
-                    <MapPin size={11} />
-                    {req.location}
-                  </div>
-                )}
-              </div>
-
-              {/* Right Section - Price & Status */}
-              <div className="compact-card-right">
-                {req.wage && (
-                  <div className="compact-card-price">
-                    ₹{Number(req.wage).toLocaleString('en-IN')}
-                  </div>
-                )}
-                <div className="status-badge-wrapper">
-                  <span className={`status-badge-compact ${req.status}`}>
-                    {req.journey_status && req.journey_status !== 'accepted'
-                      ? JOURNEY_STEPS.find(step => step.key === req.journey_status)?.label || statusLabel[req.status]
-                      : statusLabel[req.status] || req.status}
-                  </span>
-                  {req.has_update && (
-                    <span className="live-status-dot" title="Live update just received"></span>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-        )}
-        </>
       )}
 
       {selectedRequest && (
