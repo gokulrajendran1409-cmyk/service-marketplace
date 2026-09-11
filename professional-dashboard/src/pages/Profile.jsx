@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { 
   CheckCircle2, ChevronRight, CircleDollarSign, Clock, HelpCircle, 
-  LogOut, User, X, Save, Phone, Mail, MapPin, Briefcase, RefreshCw
+  LogOut, User, X, Save, Phone, Mail, MapPin, Briefcase, RefreshCw,
+  Menu, Settings, Bell, Shield, Star
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-
+const API = import.meta.env.DEV
+  ? 'http://localhost:5000'
+  : 'https://service-marketplace-af7p.onrender.com';
 
 function Profile() {
   const navigate = useNavigate();
@@ -13,6 +16,7 @@ function Profile() {
   const [stats, setStats] = useState({ total_earnings: 0 });
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     full_name: professional.full_name || "",
     email: professional.email || "",
@@ -22,10 +26,16 @@ function Profile() {
   });
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
+  const [language, setLanguage] = useState(localStorage.getItem('pro_language') || 'en');
+  const [theme, setTheme] = useState(localStorage.getItem('pro_theme') || 'Light');
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme === 'Dark' ? 'dark' : 'light';
+  }, [theme]);
 
   const fetchStats = async () => {
     try {
-      const response = await fetch("https://service-marketplace-af7p.onrender.com/api/professionals/dashboard", {
+      const response = await fetch(`${API}/api/professionals/dashboard`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("professionalToken")}` }
       });
       if (response.status === 401) { handleLogout(); return; }
@@ -71,6 +81,53 @@ function Profile() {
 
   return (
     <div className="pro-profile-root">
+      
+      {/* ── TOP HEADER WITH MENU ── */}
+      <div style={{ position: 'absolute', top: 24, left: 24, zIndex: 10 }}>
+        <button 
+          onClick={() => setIsSidebarOpen(true)}
+          style={{ background: 'transparent', border: 'none', padding: '8px', color: '#fff', cursor: 'pointer' }}
+        >
+          <Menu size={24} />
+        </button>
+      </div>
+
+      {/* ── SIDEBAR DRAWER ── */}
+      {isSidebarOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, display: 'flex' }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)' }} onClick={() => setIsSidebarOpen(false)} />
+          
+          <div style={{ position: 'relative', width: '280px', height: '100%', background: 'var(--bg-surface)', boxShadow: '4px 0 24px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', animation: 'slideInLeft 0.3s ease' }}>
+            <div style={{ padding: '24px', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontWeight: 800, fontSize: 18, color: 'var(--text-primary)' }}>Menu</div>
+              <button onClick={() => setIsSidebarOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+              <button style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', borderRadius: '12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
+                <Settings size={20} color="var(--text-secondary)" /> App Settings
+              </button>
+              <button onClick={() => { setIsSidebarOpen(false); navigate('/setup-profile?edit=1'); }} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', borderRadius: '12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
+                <User size={20} color="var(--text-secondary)" /> Edit Profile
+              </button>
+              <button onClick={() => navigate('/reviews')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', borderRadius: '12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
+                <Star size={20} color="var(--text-secondary)" /> My Reviews
+              </button>
+              <button style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', borderRadius: '12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
+                <Shield size={20} color="var(--text-secondary)" /> Privacy Policy
+              </button>
+            </div>
+            
+            <div style={{ padding: '24px', borderTop: '1px solid var(--border-light)' }}>
+              <button onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', borderRadius: '12px', border: 'none', background: '#fee2e2', width: '100%', textAlign: 'left', cursor: 'pointer', fontSize: 15, fontWeight: 700, color: '#dc2626' }}>
+                <LogOut size={20} /> Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── PROFILE HERO ── */}
       <div className="pro-profile-hero">
@@ -84,34 +141,12 @@ function Profile() {
           )}
         </div>
         <h1 className="pro-profile-name">{professional.full_name || "Professional"}</h1>
-        <p className="pro-profile-role">{professional.service_category || "Service Provider"}</p>
+        <p className="pro-profile-role">
+          {[professional.category, professional.sub_category].filter(Boolean).join(' / ') || "Service Provider"}
+        </p>
         {professional.verification_status === "verified" && (
           <span className="pro-profile-verified-tag">✓ Verified Professional</span>
         )}
-      </div>
-
-      {/* ── WALLET CARD ── */}
-      <div className="pro-profile-wallet">
-        <div className="pro-wallet-glow" />
-        <div className="pro-wallet-top">
-          <div>
-            <div className="pro-wallet-label">Total Earnings</div>
-            <div className="pro-wallet-amount">
-              {loading ? <span className="pro-wallet-loading">···</span> : `₹${(stats.total_earnings || 0).toLocaleString()}`}
-            </div>
-          </div>
-          <div className="pro-wallet-chip">
-            <CheckCircle2 size={14} color="#34D399" />
-            <span>Last: Completed</span>
-          </div>
-        </div>
-        <button
-          className="pro-wallet-withdraw-btn"
-          onClick={() => alert("Withdrawal system coming soon! Contact support for manual payout.")}
-        >
-          <CircleDollarSign size={18} />
-          <span>Request Cash Withdrawal</span>
-        </button>
       </div>
 
       {/* ── QUICK INFO ── */}
@@ -122,70 +157,89 @@ function Profile() {
             <span>{professional.phone}</span>
           </div>
         )}
-        {professional.email && (
-          <div className="pro-info-chip">
-            <Mail size={14} />
-            <span>{professional.email}</span>
-          </div>
-        )}
       </div>
 
-      {/* ── SETTINGS LIST ── */}
+      {/* ── SETTINGS SECTIONS ── */}
       <div className="pro-profile-settings">
-        <div className="pro-settings-group-label">Account</div>
 
-        <button className="pro-setting-row" onClick={() => setShowEditModal(true)}>
+        {/* Language */}
+        <div className="pro-settings-group-label">Language</div>
+        <div className="pro-setting-row" style={{ cursor: 'default' }}>
           <div className="pro-setting-row-left">
             <div className="pro-setting-icon-box" style={{ background: '#EDE9FE', color: '#7C3AED' }}>
-              <User size={18} />
+              <span style={{ fontSize: 18 }}>🌐</span>
             </div>
             <div>
-              <div className="pro-setting-title">Edit Personal Details</div>
-              <div className="pro-setting-subtitle">Name, phone, location</div>
+              <div className="pro-setting-title">Select Language</div>
+              <div className="pro-setting-subtitle">Choose your preferred language</div>
             </div>
           </div>
-          <ChevronRight size={16} color="var(--text-muted)" />
-        </button>
+          <select
+            value={language}
+            onChange={e => { setLanguage(e.target.value); localStorage.setItem('pro_language', e.target.value); }}
+            style={{
+              border: '1.5px solid var(--border-light)',
+              borderRadius: 10,
+              padding: '6px 10px',
+              fontSize: 13,
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              background: 'var(--bg-surface)',
+              cursor: 'pointer',
+              outline: 'none',
+              fontFamily: 'inherit'
+            }}
+          >
+            <option value="en">English</option>
+            <option value="ta">Tamil</option>
+            <option value="hi">Hindi</option>
+            <option value="te">Telugu</option>
+            <option value="kn">Kannada</option>
+            <option value="ml">Malayalam</option>
+          </select>
+        </div>
 
-        <button className="pro-setting-row" onClick={() => {}}>
+        {/* Theme */}
+        <div className="pro-settings-group-label" style={{ marginTop: 8 }}>Appearance</div>
+        <div className="pro-setting-row" style={{ cursor: 'default' }}>
           <div className="pro-setting-row-left">
-            <div className="pro-setting-icon-box" style={{ background: '#FEF3C7', color: '#B45309' }}>
-              <Clock size={18} />
+            <div className="pro-setting-icon-box" style={{ background: '#FEF9C3', color: '#92400E' }}>
+              <span style={{ fontSize: 18 }}>🎨</span>
             </div>
             <div>
-              <div className="pro-setting-title">Withdrawal History</div>
-              <div className="pro-setting-subtitle">View past transactions</div>
+              <div className="pro-setting-title">Select Theme</div>
+              <div className="pro-setting-subtitle">Light or dark mode</div>
             </div>
           </div>
-          <ChevronRight size={16} color="var(--text-muted)" />
-        </button>
-
-        <div className="pro-settings-group-label" style={{ marginTop: 8 }}>More</div>
-
-        <button className="pro-setting-row" onClick={() => {}}>
-          <div className="pro-setting-row-left">
-            <div className="pro-setting-icon-box" style={{ background: '#F0FDF4', color: '#16A34A' }}>
-              <HelpCircle size={18} />
-            </div>
-            <div>
-              <div className="pro-setting-title">Help & Support</div>
-              <div className="pro-setting-subtitle">Contact us anytime</div>
-            </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {['Light', 'Dark'].map(t => (
+              <button
+                key={t}
+                onClick={() => {
+                  setTheme(t);
+                  localStorage.setItem('pro_theme', t);
+                  document.documentElement.dataset.theme = t === 'Dark' ? 'dark' : 'light';
+                }}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 10,
+                  border: '1.5px solid',
+                  borderColor: theme === t ? 'var(--accent-primary)' : 'var(--border-light)',
+                  background: theme === t ? 'var(--accent-primary)' : 'transparent',
+                  color: theme === t ? '#fff' : 'var(--text-secondary)',
+                  fontWeight: 700,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  transition: 'all 0.18s',
+                  fontFamily: 'inherit'
+                }}
+              >
+                {t === 'Light' ? '☀️' : '🌙'} {t}
+              </button>
+            ))}
           </div>
-          <ChevronRight size={16} color="var(--text-muted)" />
-        </button>
+        </div>
 
-        <button className="pro-setting-row danger" onClick={handleLogout}>
-          <div className="pro-setting-row-left">
-            <div className="pro-setting-icon-box" style={{ background: '#FEE2E2', color: '#DC2626' }}>
-              <LogOut size={18} />
-            </div>
-            <div>
-              <div className="pro-setting-title">Log Out</div>
-              <div className="pro-setting-subtitle">Sign out of your account</div>
-            </div>
-          </div>
-        </button>
       </div>
 
       {/* ── EDIT MODAL ── */}

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { ArrowRight, Award, BadgePercent, Bell, CheckCircle2, ChefHat, ChevronRight, MapPin, Navigation, Palette, Scissors, Search, ShieldCheck, Sparkles, Star, UserRoundCheck, Wrench, Zap, Wind, Hammer, Leaf, Shield, SlidersHorizontal } from 'lucide-react';
+import { ArrowRight, Bell, CheckCircle2, ChevronRight, MapPin, Palette, Search, Sparkles, Star, UserRoundCheck, Wrench, Zap, Wind, Hammer, Leaf, Shield, SlidersHorizontal } from 'lucide-react';
 import { API } from '../constants';
 import { useToast, Toast } from '../components/Toast';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +7,28 @@ import keralaAcRepair from '../assets/kerala/ac_repair.jpg';
 import keralaCleaning from '../assets/kerala/cleaning.jpg';
 import keralaPainting from '../assets/kerala/painting.jpg';
 import keralaPlumbing from '../assets/kerala/plumbing.jpg';
+
+// Category icon images (circular, from Services page)
+import plumbingIcon from '../assets/category-icons/plumbing.png';
+import electricalIcon from '../assets/category-icons/electrical.png';
+import acRepairIcon from '../assets/category-icons/ac_repair.png';
+import carpentryIcon from '../assets/category-icons/carpentry.png';
+import cleaningIcon from '../assets/category-icons/cleaning.png';
+import paintingIcon from '../assets/category-icons/painting.png';
+import mechanicIcon from '../assets/category-icons/mechanic.png';
+import cctvIcon from '../assets/category-icons/cctv.png';
+import applianceRepairIcon from '../assets/category-icons/appliance_repair.png';
+import beautyWellnessIcon from '../assets/category-icons/beauty_wellness.png';
+import tutoringIcon from '../assets/category-icons/tutoring.png';
+import photographyIcon from '../assets/category-icons/photography.png';
+import eventPlanningIcon from '../assets/category-icons/event_planning.png';
+import landscapingIcon from '../assets/category-icons/landscaping.png';
+import movingPackingIcon from '../assets/category-icons/moving_packing.png';
+import homeRenovationIcon from '../assets/category-icons/home_renovation.png';
+import itSupportIcon from '../assets/category-icons/it_support.png';
+import languageClassesIcon from '../assets/category-icons/language_classes.png';
+import petCareIcon from '../assets/category-icons/pet_care.png';
+import otherServicesIcon from '../assets/category-icons/other_services.png';
 
 function Home({ navigate, unreadCount = 0 }) {
   const [locationName, setLocationName] = useState('Detecting location...');
@@ -84,6 +106,8 @@ function Home({ navigate, unreadCount = 0 }) {
       category: 'CCTV & Security',
     },
   ];
+
+  const serviceCategoryItems = browseCategories; // keep backward compat
 
   const popularServices = [
     {
@@ -412,7 +436,7 @@ function Home({ navigate, unreadCount = 0 }) {
         </div>
       </section>
 
-      {/* Service Categories Section */}
+      {/* Browse by Category — Horizontal Icon Strip */}
       <section className="home-featured-section home-order-categories">
         <div className="home-section-head">
           <h2>{t('home.categories')}</h2>
@@ -452,38 +476,27 @@ function Home({ navigate, unreadCount = 0 }) {
             {t('home.view_all')} <ChevronRight size={15} />
           </button>
         </div>
-        <div className="home-popular-scroll">
-          {popularServices.map(service => (
-            <div
-              key={service.id}
-              className="home-popular-card"
-              onClick={() => navigate('services', service.group, service.category)}
+        <div className="home-cat-icon-grid">
+          {browseCategories.slice(0, 8).map(item => (
+            <button
+              key={item.id}
+              className="home-cat-icon-btn"
+              onClick={() => navigate('services', item.group, item.category)}
             >
-              <div className="home-popular-img-wrap">
-                <img src={service.image} alt={service.title} className="home-popular-img" />
+              <div className="home-cat-icon-circle">
+                <img
+                  src={item.icon}
+                  alt={item.label}
+                  className="home-cat-icon-img"
+                  loading="lazy"
+                />
               </div>
-              <div className="home-popular-body">
-                <div className="home-popular-rating">
-                  <Star size={13} className="home-popular-rating-star" />
-                  <span className="home-popular-rating-score">{service.rating}</span>
-                  <span className="home-popular-rating-count">({service.reviews} Reviews)</span>
-                </div>
-                <h3 className="home-popular-title">{service.title}</h3>
-                <div className="home-popular-price">{service.price}</div>
-                <div className="home-popular-footer">
-                  <div className="home-popular-avatar" style={{ background: service.avatarBg }}>
-                    {service.initials}
-                  </div>
-                  <span className="home-popular-provider-name">{service.provider}</span>
-                  <span className="home-popular-verified" title="Verified Provider">
-                    <CheckCircle2 size={15} />
-                  </span>
-                </div>
-              </div>
-            </div>
+              <span className="home-cat-icon-label">{item.label}</span>
+            </button>
           ))}
         </div>
       </section>
+
 
       {/* Top Professionals Section */}
       <section className="home-featured-section home-order-pros">

@@ -97,7 +97,7 @@ function StatusBadge({ status }) {
     in_progress: { bg: 'rgba(59, 130, 246, 0.1)', color: '#2563eb', icon: <Navigation size={14} />, label: 'In Progress' },
     completed: { bg: 'rgba(16, 185, 129, 0.1)', color: '#10b981', icon: <CheckCircle size={14} />, label: 'Completed' },
     rejected: { bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', icon: <XCircle size={14} />, label: 'Rejected' },
-    cancelled: { bg: 'rgba(148, 163, 184, 0.1)', color: '#94a3b8', icon: <Ban size={14} />, label: 'Cancelled' },
+    cancelled: { bg: 'rgba(239, 68, 68, 0.12)', color: '#dc2626', icon: <Ban size={14} />, label: 'Cancelled' },
   };
   const s = styles[status] || styles.pending;
   return (
@@ -181,6 +181,7 @@ function MyRequests() {
   const [wageModalRequest, setWageModalRequest] = useState(null);
   const [wageInput, setWageInput] = useState('');
   const [wageDescription, setWageDescription] = useState('');
+  const [filter, setFilter] = useState('all');
 
   const syncCurrentLocation = async (lat, lng) => {
     const token = localStorage.getItem("professionalToken");
@@ -478,12 +479,12 @@ function MyRequests() {
           onClose={() => setShowLiveMap(false)}
         />
       )}
-      
+
       {otpModalRequest && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
-            <h3 style={{ margin: '0 0 16px 0', color: '#111827' }}>Verify Arrival</h3>
-            <p style={{ margin: '0 0 20px 0', color: '#4b5563', fontSize: '14px' }}>Please enter the 6-digit OTP provided by the customer to confirm your arrival.</p>
+          <div style={{ background: 'var(--bg-surface)', padding: '24px', borderRadius: '12px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
+            <h3 style={{ margin: '0 0 16px 0', color: 'var(--text-primary)' }}>Verify Arrival</h3>
+            <p style={{ margin: '0 0 20px 0', color: 'var(--text-secondary)', fontSize: '14px' }}>Please enter the 6-digit OTP provided by the customer to confirm your arrival.</p>
             <input 
               type="text" 
               maxLength="6" 
@@ -495,7 +496,7 @@ function MyRequests() {
             <div style={{ display: 'flex', gap: '12px' }}>
               <button 
                 onClick={() => { setOtpModalRequest(null); setOtpInput(''); }} 
-                style={{ flex: 1, padding: '12px', background: '#f3f4f6', color: '#4b5563', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>
+                style={{ flex: 1, padding: '12px', background: 'var(--bg-surface-hover)', color: 'var(--text-primary)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>
                 Cancel
               </button>
               <button 
@@ -511,10 +512,10 @@ function MyRequests() {
 
       {wageModalRequest && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', padding: '28px 24px', borderRadius: '14px', width: '90%', maxWidth: '420px', boxShadow: '0 12px 30px rgba(0,0,0,0.15)' }}>
-            <h3 style={{ margin: '0 0 6px 0', color: '#111827', fontSize: '18px' }}>Submit Wage</h3>
-            <p style={{ margin: '0 0 20px 0', color: '#6b7280', fontSize: '14px' }}>Enter the amount you are charging for this job. The customer will review and confirm payment.</p>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Wage Amount (₹) *</label>
+          <div style={{ background: 'var(--bg-surface)', padding: '28px 24px', borderRadius: '14px', width: '90%', maxWidth: '420px', boxShadow: '0 12px 30px rgba(0,0,0,0.15)' }}>
+            <h3 style={{ margin: '0 0 6px 0', color: 'var(--text-primary)', fontSize: '18px' }}>Submit Wage</h3>
+            <p style={{ margin: '0 0 20px 0', color: 'var(--text-secondary)', fontSize: '14px' }}>Enter the amount you are charging for this job. The customer will review and confirm payment.</p>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>Wage Amount (₹) *</label>
             <input
               type="number"
               min="1"
@@ -523,7 +524,7 @@ function MyRequests() {
               placeholder="e.g. 500"
               style={{ width: '100%', padding: '12px', fontSize: '20px', borderRadius: '8px', border: '1px solid #d1d5db', marginBottom: '16px', boxSizing: 'border-box' }}
             />
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Breakdown / Description (optional)</label>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>Breakdown / Description (optional)</label>
             <textarea
               value={wageDescription}
               onChange={e => setWageDescription(e.target.value)}
@@ -534,7 +535,7 @@ function MyRequests() {
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
                 onClick={() => { setWageModalRequest(null); setWageInput(''); setWageDescription(''); }}
-                style={{ flex: 1, padding: '12px', background: '#f3f4f6', color: '#4b5563', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>
+                style={{ flex: 1, padding: '12px', background: 'var(--bg-surface-hover)', color: 'var(--text-primary)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>
                 Cancel
               </button>
               <button
@@ -548,161 +549,186 @@ function MyRequests() {
         </div>
       )}
 
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h1 className="page-title">My Service Requests</h1>
-          <p className="page-subtitle">View and manage the jobs assigned to you.</p>
-        </div>
-        <button onClick={fetchRequests} style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <RefreshCw size={16} /> Refresh
-        </button>
+      <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'color-mix(in srgb, var(--bg-base) 92%, transparent)', backdropFilter: 'blur(12px)', display: 'flex', flexWrap: 'nowrap', gap: '6px', padding: '16px 24px 12px', marginBottom: '8px', borderBottom: '1px solid var(--border-light)', width: '100%', boxSizing: 'border-box' }}>
+        {['all', 'ongoing', 'completed', 'cancelled'].map(f => (
+          <button 
+            key={f}
+            onClick={() => setFilter(f)}
+            style={{ 
+              flex: 1,
+              padding: '8px 4px', 
+              borderRadius: '20px', 
+              border: 'none', 
+              background: filter === f ? 'var(--accent-primary)' : 'var(--bg-surface)', 
+              color: filter === f ? '#fff' : 'var(--text-secondary)',
+              fontWeight: 700,
+              fontSize: '11.5px',
+              textTransform: 'capitalize',
+              boxShadow: filter === f ? '0 4px 12px rgba(71, 85, 105, 0.2)' : '0 2px 6px rgba(0,0,0,0.05)',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.2s'
+            }}
+          >
+            {f}
+          </button>
+        ))}
       </div>
 
-      {error && <div className="request-error"><XCircle size={16} /> {error}</div>}
+      {(() => {
+        const filteredRequests = requests.filter(req => {
+          if (filter === 'all') return true;
+          if (filter === 'ongoing') return req.status === 'in_progress' || req.status === 'accepted' || req.status === 'pending';
+          if (filter === 'completed') return req.status === 'completed';
+          if (filter === 'cancelled') return req.status === 'cancelled' || req.status === 'rejected';
+          return true;
+        });
 
-      <div className="professional-location-panel">
-        <div>
-          <strong>Professional location</strong>
-          <p>{locationStatus === 'ready'
-            ? `Location enabled (accuracy about ${professionalLocation.accuracy}m).`
-            : 'Enable your location to view the distance to each customer before deciding.'}</p>
-        </div>
-        <button className="enable-location-btn" onClick={() => requestProfessionalLocation().catch(() => { })} disabled={locationStatus === 'requesting'}>
-          {locationStatus === 'requesting' ? <Loader2 size={15} className="spin" /> : <MapPin size={15} />}
-          {locationStatus === 'requesting' ? 'Finding your location...' : locationStatus === 'ready' ? 'Refresh location' : 'Enable my location'}
-        </button>
-      </div>
+        if (filteredRequests.length === 0) {
+          return (
+            <div className="section-container" style={{ textAlign: "center", padding: "60px 40px" }}>
+              <h3 style={{ marginBottom: "8px" }}>No {filter !== 'all' ? filter : ''} requests</h3>
+              <p style={{ color: "var(--text-muted)" }}>When customers book your service, they will appear here.</p>
+            </div>
+          );
+        }
 
-      {requests.length === 0 ? (
-        <div className="section-container" style={{ textAlign: "center", padding: "60px 40px" }}>
-          <h3 style={{ marginBottom: "8px" }}>No requests yet</h3>
-          <p style={{ color: "var(--text-muted)" }}>When customers book your service, they will appear here.</p>
-        </div>
-      ) : (
-        <div className="section-container" style={{ padding: 0, overflow: 'hidden' }}>
-          {requests.map((req, idx) => {
-            const isRestricted = req.status === 'completed'
-              || req.journey_status === 'completed'
-              || req.journey_status === 'awaiting_payment'
-              || req.payment_status === 'awaiting_payment'
-              || (req.status === 'accepted' && req.offer_status !== 'accepted');
+        return (
+          <div className="my-works-list">
+            {filteredRequests.map(req => {
+              const isRestricted = req.status === 'completed'
+                || req.journey_status === 'completed'
+                || req.journey_status === 'awaiting_payment'
+                || req.payment_status === 'awaiting_payment'
+                || (req.status === 'accepted' && req.offer_status !== 'accepted');
+              const isCompleted = req.status === 'completed' || req.journey_status === 'completed';
+              const isCancelled = req.status === 'cancelled' || req.status === 'rejected';
+              const workDate = isCompleted
+                ? (req.work_completed_at || req.updated_at || req.journey_updated_at)
+                : isCancelled ? null : req.requested_at;
+              const canShowLocation = !isRestricted && req.status !== 'cancelled' && req.status !== 'rejected';
 
-            return (
-              <div key={req.id} style={{ padding: '20px 24px', borderBottom: idx !== requests.length - 1 ? '1px solid var(--border-light)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <User size={16} />
+              return (
+                <div key={req.id} className="my-work-card">
+                  <div className="my-work-main">
+                    <div className="my-work-customer">
+                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <User size={16} />
+                      </div>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '15px', color: 'var(--text-primary)' }}>{req.customer_name}</h4>
+                        {!isRestricted && <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{req.customer_phone || 'No phone'}</span>}
+                      </div>
                     </div>
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: '15px' }}>{req.customer_name}</h4>
-                      {!isRestricted && <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{req.customer_phone || 'No phone'}</span>}
-                    </div>
-                  </div>
-                  <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-primary)', fontWeight: 600 }}>{req.title}</p>
-                  {req.requested_at && <p className="request-schedule">Customer expects you: {new Date(req.requested_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p>}
-                  {!isRestricted && <>
-                    {req.description && <p style={{ margin: '4px 0 0', fontSize: '14px', color: 'var(--text-secondary)' }}>{req.description}</p>}
-                    <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>{req.location}</p>
-                    {(req.photo_urls?.length > 0 || req.video_url || req.voice_url) && (
-                      <div className="request-evidence">
-                        <strong>Customer evidence</strong>
-                        <div className="request-evidence-links">
-                          {req.photo_urls?.map((url, photoIndex) => <a key={url} href={`${API_BASE}${url}`} target="_blank" rel="noreferrer">Photo {photoIndex + 1}</a>)}
-                          {req.video_url && <a href={`${API_BASE}${req.video_url}`} target="_blank" rel="noreferrer">Watch video</a>}
-                          {req.voice_url && <a href={`${API_BASE}${req.voice_url}`} target="_blank" rel="noreferrer">Play voice note</a>}
+                    <p className="my-work-title">{req.title}</p>
+                    {workDate && (
+                      <p className="request-schedule">
+                        {isCompleted ? 'Work completed on: ' : 'Customer expects you: '}
+                        {new Date(workDate).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                      </p>
+                    )}
+                    {!isRestricted && <>
+                      {req.description && <p style={{ margin: '4px 0 0', fontSize: '14px', color: 'var(--text-secondary)' }}>{req.description}</p>}
+                      {canShowLocation && <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>{req.location}</p>}
+                      {(req.photo_urls?.length > 0 || req.video_url || req.voice_url) && (
+                        <div className="request-evidence">
+                          <strong>Customer evidence</strong>
+                          <div className="request-evidence-links">
+                            {req.photo_urls?.map((url, photoIndex) => <a key={url} href={`${API_BASE}${url}`} target="_blank" rel="noreferrer">Photo {photoIndex + 1}</a>)}
+                            {req.video_url && <a href={`${API_BASE}${req.video_url}`} target="_blank" rel="noreferrer">Watch video</a>}
+                            {req.voice_url && <a href={`${API_BASE}${req.voice_url}`} target="_blank" rel="noreferrer">Play voice note</a>}
+                          </div>
+                        </div>
+                      )}
+                    </>}
+                    {req.offer_status === 'accepted' && req.journey_status !== 'completed' && (
+                      <div className="journey-controls">
+                        <strong>Update customer</strong>
+                        <div className="journey-step-buttons">
+                          {JOURNEY_STEPS.map((step, index) => {
+                            const currentIndex = ['accepted', ...JOURNEY_STEPS.map(item => item.key)].indexOf(req.journey_status || 'accepted');
+                            return index === currentIndex && (
+                              <button key={step.key} disabled={respondingId === req.id} onClick={() => {
+                                updateJourney(req.id, step.key);
+                              }}>
+                                {respondingId === req.id ? 'Updating...' : step.label}
+                              </button>
+                            );
+                          })}
+                          {(req.journey_status === 'start_navigation' || req.journey_status === 'on_the_way') && (
+                            <button onClick={() => setShowLiveMap(true)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Navigation size={14} /> View Live Map
+                            </button>
+                          )}
                         </div>
                       </div>
                     )}
-                  </>}
-                  {req.offer_status === 'accepted' && req.journey_status !== 'completed' && (
-                    <div className="journey-controls">
-                      <strong>Update customer</strong>
-                      <div className="journey-step-buttons">
-                        {JOURNEY_STEPS.map((step, index) => {
-                          const currentIndex = ['accepted', ...JOURNEY_STEPS.map(item => item.key)].indexOf(req.journey_status || 'accepted');
-                          return index === currentIndex && (
-                            <button key={step.key} disabled={respondingId === req.id} onClick={() => {
-                              updateJourney(req.id, step.key);
-                            }}>
-                              {respondingId === req.id ? 'Updating...' : step.label}
-                            </button>
-                          );
-                        })}
-                        {(req.journey_status === 'start_navigation' || req.journey_status === 'on_the_way') && (
-                          <button onClick={() => setShowLiveMap(true)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <Navigation size={14} /> View Live Map
-                          </button>
+                    {req.payment_status === 'awaiting_payment' && (
+                      <div style={{ marginTop: '12px', padding: '12px 14px', background: '#fefce8', borderRadius: '8px', border: '1px solid #fbbf24', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '18px' }}>⏳</span>
+                        <div>
+                          <strong style={{ fontSize: '13px', color: '#92400e', display: 'block' }}>Awaiting Customer Payment</strong>
+                          <span style={{ fontSize: '12px', color: '#b45309' }}>You have submitted ₹{Number(req.wage).toLocaleString('en-IN')}. Waiting for the customer to confirm payment.</span>
+                        </div>
+                      </div>
+                    )}
+                    {req.payment_status === 'paid' && (
+                      <div style={{ marginTop: '12px', padding: '10px 14px', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #86efac', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '18px' }}>✅</span>
+                        <div>
+                          <strong style={{ fontSize: '13px', color: '#166534', display: 'block' }}>Payment Received — Job Complete!</strong>
+                          <span style={{ fontSize: '12px', color: '#16a34a' }}>₹{Number(req.wage).toLocaleString('en-IN')} confirmed by customer.</span>
+                        </div>
+                      </div>
+                    )}
+                    {canShowLocation && (req.offer_status === 'accepted' || req.offer_status === 'pending') && (
+                      <div className="request-location-tools">
+                        <button className="view-location-btn" onClick={() => viewingLocationId === req.id ? setViewingLocationId(null) : viewRequestLocation(req)} disabled={locationLoadingId === req.id}>
+                          {locationLoadingId === req.id ? <Loader2 size={14} className="spin" /> : <MapPin size={14} />}
+                          {locationLoadingId === req.id ? 'Getting your location...' : viewingLocationId === req.id ? 'Hide route' : 'View customer location and distance'}
+                        </button>
+                        {viewingLocationId === req.id && req.distance_km != null && (
+                          <div className="request-distance"><Navigation size={14} /> {req.route_distance_km != null
+                            ? `${req.route_distance_km < 1 ? `${Math.round(req.route_distance_km * 1000)} m` : `${req.route_distance_km.toFixed(2)} km`} travel distance`
+                            : `${req.distance_km < 1 ? `${Math.round(req.distance_km * 1000)} m` : `${req.distance_km.toFixed(2)} km`} direct distance`}</div>
+                        )}
+                        {viewingLocationId === req.id && req.professional_latitude != null && (
+                          <>
+                            <RequestRouteMap
+                              request={req}
+                              onRouteDistance={(distance) => setRequests(current => current.map(item => item.id === req.id ? { ...item, route_distance_km: distance } : item))}
+                            />
+                            <div className="map-route-legend"><span>🛠️ Professional</span><span className="route-line-key" /> <span>👤 Customer</span></div>
+                          </>
                         )}
                       </div>
-                    </div>
-                  )}
-                  {req.payment_status === 'awaiting_payment' && (
-                    <div style={{ marginTop: '12px', padding: '12px 14px', background: '#fefce8', borderRadius: '8px', border: '1px solid #fbbf24', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '18px' }}>⏳</span>
-                      <div>
-                        <strong style={{ fontSize: '13px', color: '#92400e', display: 'block' }}>Awaiting Customer Payment</strong>
-                        <span style={{ fontSize: '12px', color: '#b45309' }}>You have submitted ₹{Number(req.wage).toLocaleString('en-IN')}. Waiting for the customer to confirm payment.</span>
-                      </div>
-                    </div>
-                  )}
-                  {req.payment_status === 'paid' && (
-                    <div style={{ marginTop: '12px', padding: '10px 14px', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #86efac', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '18px' }}>✅</span>
-                      <div>
-                        <strong style={{ fontSize: '13px', color: '#166534', display: 'block' }}>Payment Received — Job Complete!</strong>
-                        <span style={{ fontSize: '12px', color: '#16a34a' }}>₹{Number(req.wage).toLocaleString('en-IN')} confirmed by customer.</span>
-                      </div>
-                    </div>
-                  )}
-                  {!isRestricted && (req.offer_status === 'accepted' || req.offer_status === 'pending') && (
-                    <div className="request-location-tools">
-                      <button className="view-location-btn" onClick={() => viewingLocationId === req.id ? setViewingLocationId(null) : viewRequestLocation(req)} disabled={locationLoadingId === req.id}>
-                        {locationLoadingId === req.id ? <Loader2 size={14} className="spin" /> : <MapPin size={14} />}
-                        {locationLoadingId === req.id ? 'Getting your location...' : viewingLocationId === req.id ? 'Hide route' : 'View customer location and distance'}
-                      </button>
-                      {viewingLocationId === req.id && req.distance_km != null && (
-                        <div className="request-distance"><Navigation size={14} /> {req.route_distance_km != null
-                          ? `${req.route_distance_km < 1 ? `${Math.round(req.route_distance_km * 1000)} m` : `${req.route_distance_km.toFixed(2)} km`} travel distance`
-                          : `${req.distance_km < 1 ? `${Math.round(req.distance_km * 1000)} m` : `${req.distance_km.toFixed(2)} km`} direct distance`}</div>
-                      )}
-                      {viewingLocationId === req.id && req.professional_latitude != null && (
-                        <>
-                          <RequestRouteMap
-                            request={req}
-                            onRouteDistance={(distance) => setRequests(current => current.map(item => item.id === req.id ? { ...item, route_distance_km: distance } : item))}
-                          />
-                          <div className="map-route-legend"><span>🛠️ Professional</span><span className="route-line-key" /> <span>👤 Customer</span></div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                  {!isRestricted && <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
-                    Created: {new Date(req.created_at).toLocaleDateString()}
-                  </div>}
+                    )}
+                    {!isRestricted && <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                      Created: {new Date(req.created_at).toLocaleDateString()}
+                    </div>}
+                  </div>
+                  <div className="my-work-side">
+                    {req.payment_status === 'awaiting_payment'
+                      ? <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', background: '#fef3c7', color: '#d97706' }}>⏳ Awaiting Payment</span>
+                      : req.payment_status === 'paid'
+                      ? <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', background: '#dcfce7', color: '#16a34a' }}>✓ Paid & Completed</span>
+                      : <StatusBadge status={req.status} />}
+                    {req.offer_status === 'rejected' && req.status === 'accepted' && <span className="request-taken-label">Accepted by another professional</span>}
+                    {req.offer_status === 'pending' && (
+                      <>
+                        <button disabled={respondingId === req.id} onClick={() => respondToRequest(req.id, 'accepted')} style={{ border: 'none', background: 'var(--success)', color: 'white', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}>Accept</button>
+                        <button disabled={respondingId === req.id} onClick={() => respondToRequest(req.id, 'rejected')} style={{ border: 'none', background: 'var(--error)', color: 'white', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}>Reject</button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
-                  {req.payment_status === 'awaiting_payment'
-                    ? <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', background: '#fef3c7', color: '#d97706' }}>⏳ Awaiting Payment</span>
-                    : req.payment_status === 'paid'
-                    ? <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', background: '#dcfce7', color: '#16a34a' }}>✓ Paid & Completed</span>
-                    : <StatusBadge status={req.status} />}
-                  {req.offer_status === 'rejected' && req.status === 'accepted' && <span className="request-taken-label">Accepted by another professional</span>}
-                  {req.offer_status === 'pending' && (
-                    <>
-                      <button disabled={respondingId === req.id} onClick={() => respondToRequest(req.id, 'accepted')} style={{ border: 'none', background: 'var(--success)', color: 'white', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}>Accept</button>
-                      <button disabled={respondingId === req.id} onClick={() => respondToRequest(req.id, 'rejected')} style={{ border: 'none', background: 'var(--error)', color: 'white', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}>Reject</button>
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        );
+      })()}
     </div>
   );
 }
 
 export default MyRequests;
-

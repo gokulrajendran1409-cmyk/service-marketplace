@@ -2,25 +2,12 @@ const pool = require('../config/database');
 const { notifyPro } = require('../utils/proSseClients');
 const { broadcast } = require('../utils/sseClients');
 const { addCustomerClient, removeCustomerClient } = require('../utils/customerSseClients');
-const {
-    getNotificationsByUserId,
-    getUnreadCount,
-    markAsRead,
-    markAllAsRead,
-    deleteNotification,
-    createNotification,
-    NOTIFICATION_TYPES
-} = require('../utils/notifications');
 
 exports.getProfile = async (req, res) => {
     try {
-        const userId = Number(req.user.id);
-        if (!Number.isInteger(userId)) {
-            return res.status(400).json({ message: 'Invalid user ID' });
-        }
         const result = await pool.query(
             'SELECT id, name, email, phone, address FROM users WHERE id = $1',
-            [userId]
+            [req.user.id]
         );
         if (!result.rows[0]) return res.status(404).json({ message: 'Profile not found' });
         res.json(result.rows[0]);
@@ -33,16 +20,12 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
     try {
         const { phone, address } = req.body;
-        const userId = Number(req.user.id);
-        if (!Number.isInteger(userId)) {
-            return res.status(400).json({ message: 'Invalid user ID' });
-        }
         if (!phone?.trim()) return res.status(400).json({ message: 'Phone number is required' });
 
         const result = await pool.query(
             `UPDATE users SET phone = $1, address = $2
              WHERE id = $3 RETURNING id, name, email, phone, address`,
-            [phone.trim(), address?.trim() || null, userId]
+            [phone.trim(), address?.trim() || null, req.user.id]
         );
         if (!result.rows[0]) return res.status(404).json({ message: 'Profile not found' });
         res.json(result.rows[0]);
@@ -68,7 +51,6 @@ exports.getCategories = async (req, res) => {
     }
 };
 
-// GET /api/user/subcategories - list all subcategories or filter by ?category=...
 exports.getSubcategories = async (req, res) => {
     try {
         const { category, lang } = req.query;
@@ -90,7 +72,6 @@ exports.getSubcategories = async (req, res) => {
     }
 };
 
-
 // GET /api/user/professionals?category=Plumbing - list verified professionals, optionally filtered by category
 exports.getProfessionals = async (req, res) => {
     try {
@@ -102,19 +83,28 @@ exports.getProfessionals = async (req, res) => {
             where += ` AND p.category = $${params.length}`;
         }
         const query = `
-                 SELECT p.id, p.full_name, p.category, p.experience_years, p.bio, p.city, p.state,
-                     p.registered_latitude, p.registered_longitude,
-                     p.current_latitude, p.current_longitude,
-                     COALESCE(p.current_latitude, p.registered_latitude) AS effective_latitude,
-                     COALESCE(p.current_longitude, p.registered_longitude) AS effective_longitude,
-                     p.location_updated_at,
-                     (SELECT COUNT(*)
-                        FROM service_offers so
-                        JOIN service_requests sr ON sr.id = so.request_id
-                       WHERE so.professional_id = p.id AND sr.status = 'completed') AS completed_requests
+            SELECT p.id, p.full_name, p.category, p.sub_category, p.experience_years, p.bio,
+                   p.city, p.state, p.transport_mode, p.verified_at,
+                   p.registered_latitude, p.registered_longitude,
+                   p.current_latitude, p.current_longitude,
+                   COALESCE(p.current_latitude, p.registered_latitude) AS effective_latitude,
+                   COALESCE(p.current_longitude, p.registered_longitude) AS effective_longitude,
+                   CASE WHEN p.profile_photo IS NOT NULL
+                        THEN '/uploads/' || p.profile_photo
+                        ELSE NULL END AS profile_photo,
+                   (SELECT COUNT(*)
+                      FROM service_offers so
+                      JOIN service_requests sr ON sr.id = so.request_id
+                     WHERE so.professional_id = p.id AND sr.status = 'completed') AS completed_requests,
+                   (SELECT ROUND(AVG(r.rating)::numeric, 1)
+                      FROM professional_reviews r
+                     WHERE r.professional_id = p.id) AS avg_rating,
+                   (SELECT COUNT(*)
+                      FROM professional_reviews r
+                     WHERE r.professional_id = p.id) AS review_count
             FROM professionals p
             ${where}
-            ORDER BY experience_years DESC
+            ORDER BY p.experience_years DESC, p.full_name ASC
         `;
         const result = await pool.query(query, params);
         res.json(result.rows);
@@ -143,21 +133,12 @@ exports.createRequest = async (req, res) => {
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
-            const categoryClause = "p.category = $1";
-
             const professionals = await client.query(
-                                `SELECT p.id, p.full_name,
-                                        p.registered_latitude, p.registered_longitude,
-                                        p.current_latitude, p.current_longitude,
-                                        COALESCE(p.current_latitude, p.registered_latitude) AS effective_latitude,
-                                        COALESCE(p.current_longitude, p.registered_longitude) AS effective_longitude
+                                `SELECT p.id, p.full_name, p.registered_latitude, p.registered_longitude
                                  FROM professionals p
-                                 WHERE ${categoryClause} AND p.verification_status = 'verified'
+                                 WHERE p.category = $1 AND p.verification_status = 'verified'
                                      AND ($2::bigint IS NULL OR p.id = $2)
-                                     AND ($2::bigint IS NOT NULL OR (
-                                         COALESCE(p.current_latitude, p.registered_latitude) IS NOT NULL AND
-                                         COALESCE(p.current_longitude, p.registered_longitude) IS NOT NULL
-                                     ))
+                                     AND ($2::bigint IS NOT NULL OR (p.registered_latitude IS NOT NULL AND p.registered_longitude IS NOT NULL))
                                      AND NOT EXISTS (
                                              SELECT 1
                                              FROM service_offers active_offer
@@ -171,27 +152,20 @@ exports.createRequest = async (req, res) => {
             const userLatitude = Number(latitude);
             const userLongitude = Number(longitude);
             const nearbyProfessionals = professional_id && professional_id !== 'undefined'
-                ? professionals.rows.map(p => ({ ...p, distance_km: null }))
-                : professionals.rows.map(professional => {
-                    const proLat = Number(professional.effective_latitude);
-                    const proLng = Number(professional.effective_longitude);
-                    if (!Number.isFinite(proLat) || !Number.isFinite(proLng)) return null;
-
-                    const latitudeDelta = (proLat - userLatitude) * Math.PI / 180;
-                    const longitudeDelta = (proLng - userLongitude) * Math.PI / 180;
-                    const latitude1 = userLatitude * Math.PI / 180;
-                    const latitude2 = proLat * Math.PI / 180;
-                    const haversine = Math.sin(latitudeDelta / 2) ** 2
-                        + Math.cos(latitude1) * Math.cos(latitude2) * Math.sin(longitudeDelta / 2) ** 2;
-                    const distanceKm = 6371 * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
-                    if (Number.isFinite(distanceKm) && distanceKm <= 15) {
-                        return { ...professional, distance_km: Math.round(distanceKm * 10) / 10 };
-                    }
-                    return null;
-                }).filter(Boolean);
+                ? professionals.rows
+                : professionals.rows.filter(professional => {
+                const latitudeDelta = (Number(professional.registered_latitude) - userLatitude) * Math.PI / 180;
+                const longitudeDelta = (Number(professional.registered_longitude) - userLongitude) * Math.PI / 180;
+                const latitude1 = userLatitude * Math.PI / 180;
+                const latitude2 = Number(professional.registered_latitude) * Math.PI / 180;
+                const haversine = Math.sin(latitudeDelta / 2) ** 2
+                    + Math.cos(latitude1) * Math.cos(latitude2) * Math.sin(longitudeDelta / 2) ** 2;
+                const distanceKm = 6371 * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+                return Number.isFinite(distanceKm) && distanceKm <= 15;
+                });
             if (!nearbyProfessionals.length) {
                 await client.query('ROLLBACK');
-                return res.status(404).json({ message: 'No available professionals were found within a 15 km radius of your location. Professionals will receive new requests near their current location after completing their current jobs.' });
+                return res.status(404).json({ message: 'No available professionals were found. Professionals currently handling jobs will receive new requests after completing them.' });
             }
 
             const result = await client.query(
@@ -213,7 +187,6 @@ exports.createRequest = async (req, res) => {
                 request_id: request.id,
                 customer_name: req.user.name || 'A customer',
                 title: request.title,
-                distance_km: professional.distance_km,
                 timestamp: new Date().toISOString()
             }));
             broadcast('service_request_created', {
@@ -245,8 +218,11 @@ exports.getMyRequests = async (req, res) => {
                         offer_summary.offer_count,
                         offer_summary.pending_offer_count,
                     p.full_name AS professional_name,
+                    p.category AS professional_category,
                     p.current_latitude AS professional_latitude,
                     p.current_longitude AS professional_longitude,
+                    (SELECT ROUND(AVG(pr.rating)::numeric, 1) FROM professional_reviews pr WHERE pr.professional_id = p.id) AS professional_avg_rating,
+                    (SELECT COUNT(*) FROM professional_reviews pr WHERE pr.professional_id = p.id) AS professional_review_count,
                     review.id AS review_id,
                     review.rating AS review_rating,
                     review.comment AS review_comment
@@ -330,6 +306,69 @@ exports.createReview = async (req, res) => {
     }
 };
 
+// GET /api/user/reviews?category=Plumbing - reviews for professionals in a category
+exports.getCategoryReviews = async (req, res) => {
+    try {
+        const { category } = req.query;
+        if (!category) {
+            return res.status(400).json({ message: 'Category is required' });
+        }
+
+        const [reviewsResult, breakdownResult, summaryResult] = await Promise.all([
+            pool.query(
+                `SELECT r.rating, r.comment, r.created_at,
+                        u.name AS customer_name,
+                        p.full_name AS professional_name
+                 FROM professional_reviews r
+                 JOIN professionals p ON p.id = r.professional_id
+                 JOIN users u ON u.id = r.customer_id
+                 WHERE p.category = $1 AND p.verification_status = 'verified'
+                 ORDER BY r.created_at DESC
+                 LIMIT 10`,
+                [category]
+            ),
+            pool.query(
+                `SELECT r.rating, COUNT(*)::int AS count
+                 FROM professional_reviews r
+                 JOIN professionals p ON p.id = r.professional_id
+                 WHERE p.category = $1 AND p.verification_status = 'verified'
+                 GROUP BY r.rating
+                 ORDER BY r.rating DESC`,
+                [category]
+            ),
+            pool.query(
+                `SELECT ROUND(AVG(r.rating)::numeric, 1) AS avg_rating,
+                        COUNT(*)::int AS total_reviews
+                 FROM professional_reviews r
+                 JOIN professionals p ON p.id = r.professional_id
+                 WHERE p.category = $1 AND p.verification_status = 'verified'`,
+                [category]
+            ),
+        ]);
+
+        const breakdown = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+        breakdownResult.rows.forEach(row => {
+            breakdown[row.rating] = row.count;
+        });
+        const total = Object.values(breakdown).reduce((sum, n) => sum + n, 0);
+        const percentages = {};
+        [5, 4, 3, 2, 1].forEach(star => {
+            percentages[star] = total > 0 ? Math.round((breakdown[star] / total) * 100) : 0;
+        });
+
+        res.json({
+            reviews: reviewsResult.rows,
+            avg_rating: summaryResult.rows[0]?.avg_rating || null,
+            total_reviews: summaryResult.rows[0]?.total_reviews || 0,
+            breakdown,
+            percentages,
+        });
+    } catch (err) {
+        console.error('getCategoryReviews error:', err);
+        res.status(500).json({ message: 'Failed to fetch reviews' });
+    }
+};
+
 // GET /api/user/notifications/stream - SSE connection for real-time customer updates
 exports.streamNotifications = (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
@@ -379,23 +418,6 @@ exports.confirmPayment = async (req, res) => {
             return res.status(404).json({ message: 'Request not found or payment already confirmed' });
         }
 
-        const completedRequest = result.rows[0];
-
-        // Update the professional's current location to the completed service location
-        if (Number.isFinite(Number(completedRequest.latitude)) && Number.isFinite(Number(completedRequest.longitude))) {
-            await pool.query(
-                `UPDATE professionals p
-                 SET current_latitude = $1,
-                     current_longitude = $2,
-                     location_updated_at = CURRENT_TIMESTAMP
-                 FROM service_offers so
-                 WHERE so.request_id = $3
-                   AND so.status = 'accepted'
-                   AND p.id = so.professional_id`,
-                [completedRequest.latitude, completedRequest.longitude, requestId]
-            );
-        }
-
         const { broadcast: broadcastSse } = require('../utils/sseClients');
         broadcastSse('payment_confirmed', {
             id: requestId,
@@ -404,98 +426,9 @@ exports.confirmPayment = async (req, res) => {
             timestamp: new Date().toISOString()
         });
 
-        res.json({ message: 'Payment confirmed successfully', request: completedRequest });
+        res.json({ message: 'Payment confirmed successfully', request: result.rows[0] });
     } catch (err) {
         console.error('confirmPayment error:', err);
         res.status(500).json({ message: 'Failed to confirm payment' });
-    }
-};
-
-// GET /api/user/notifications - get all notifications for the logged in user
-exports.getNotifications = async (req, res) => {
-    try {
-        const customerId = req.user.id;
-        const { limit, offset, unreadOnly } = req.query;
-
-        const notifications = await getNotificationsByUserId(customerId, {
-            limit: limit ? parseInt(limit) : 50,
-            offset: offset ? parseInt(offset) : 0,
-            unreadOnly: unreadOnly === 'true'
-        });
-
-        const unreadCount = await getUnreadCount(customerId);
-
-        res.json({ notifications, unreadCount });
-    } catch (err) {
-        console.error('getNotifications error:', err);
-        res.status(500).json({ message: 'Failed to fetch notifications' });
-    }
-};
-
-// GET /api/user/notifications/unread-count - get unread notification count
-exports.getUnreadNotificationCount = async (req, res) => {
-    try {
-        const customerId = req.user.id;
-        const unreadCount = await getUnreadCount(customerId);
-        res.json({ unreadCount });
-    } catch (err) {
-        console.error('getUnreadNotificationCount error:', err);
-        res.status(500).json({ message: 'Failed to fetch unread count' });
-    }
-};
-
-// PATCH /api/user/notifications/:id/read - mark a notification as read
-exports.markNotificationAsRead = async (req, res) => {
-    try {
-        const customerId = req.user.id;
-        const notificationId = Number(req.params.id);
-
-        if (!Number.isInteger(notificationId)) {
-            return res.status(400).json({ message: 'Invalid notification ID' });
-        }
-
-        const notification = await markAsRead(notificationId, customerId);
-        if (!notification) {
-            return res.status(404).json({ message: 'Notification not found' });
-        }
-
-        res.json({ message: 'Notification marked as read', notification });
-    } catch (err) {
-        console.error('markNotificationAsRead error:', err);
-        res.status(500).json({ message: 'Failed to mark notification as read' });
-    }
-};
-
-// PATCH /api/user/notifications/read-all - mark all notifications as read
-exports.markAllNotificationsAsRead = async (req, res) => {
-    try {
-        const customerId = req.user.id;
-        await markAllAsRead(customerId);
-        res.json({ message: 'All notifications marked as read' });
-    } catch (err) {
-        console.error('markAllNotificationsAsRead error:', err);
-        res.status(500).json({ message: 'Failed to mark all notifications as read' });
-    }
-};
-
-// DELETE /api/user/notifications/:id - delete a notification
-exports.deleteNotification = async (req, res) => {
-    try {
-        const customerId = req.user.id;
-        const notificationId = Number(req.params.id);
-
-        if (!Number.isInteger(notificationId)) {
-            return res.status(400).json({ message: 'Invalid notification ID' });
-        }
-
-        const deleted = await deleteNotification(notificationId, customerId);
-        if (!deleted) {
-            return res.status(404).json({ message: 'Notification not found' });
-        }
-
-        res.json({ message: 'Notification deleted' });
-    } catch (err) {
-        console.error('deleteNotification error:', err);
-        res.status(500).json({ message: 'Failed to delete notification' });
     }
 };

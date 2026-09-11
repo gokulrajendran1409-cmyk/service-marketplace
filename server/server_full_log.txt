@@ -1,0 +1,24 @@
+﻿◇ injected env (2) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+node : D:\service-marketplace\server\node_modules\router\lib\route.js:228
+At line:1 char:1
++ node server.js 2>&1 | out-file -file server_full_log.txt -encoding ut ...
++ ~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (D:\service-mark...ib\route.js:228:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+        throw new TypeError('argument handler must be a function')
+        ^
+
+TypeError: argument handler must be a function
+    at Route.<computed> [as post] (D:\service-marketplace\server\node_modules\router\lib\route.js:228:15)
+    at Router.<computed> [as post] (D:\service-marketplace\server\node_modules\router\index.js:448:19)
+    at Object.<anonymous> (D:\service-marketplace\server\routes\professionalRoutes.js:28:8)
+    at Module._compile (node:internal/modules/cjs/loader:1854:14)
+    at Object..js (node:internal/modules/cjs/loader:1985:10)
+    at Module.load (node:internal/modules/cjs/loader:1577:32)
+    at Module._load (node:internal/modules/cjs/loader:1379:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1600:12)
+    at require (node:internal/modules/helpers:153:16)
+
+Node.js v24.16.0

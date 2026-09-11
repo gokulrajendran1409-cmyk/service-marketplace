@@ -63,10 +63,18 @@ export function BookingModal({ professional, category, currentLocation, initialT
         body: requestData,
       });
       const data = await res.json();
+      if (res.status === 401) {
+        localStorage.removeItem('userToken');
+        localStorage.removeItem('userData');
+        throw new Error('Your session has expired. Please log in again.');
+      }
       if (!res.ok) throw new Error(data.message || 'Failed to submit');
       onSuccess(data.request);
     } catch (error) {
       alert(error.message || 'Something went wrong, please try again.');
+      if (error.message === 'Your session has expired. Please log in again.') {
+        window.location.reload();
+      }
     } finally {
       setLoading(false);
     }

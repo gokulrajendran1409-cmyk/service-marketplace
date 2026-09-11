@@ -25,6 +25,11 @@ router.post('/register', upload.fields([
 router.post('/login', professionalController.loginProfessional);
 
 // Dashboard and Requests
+router.post('/setup-profile', protectProfessional, upload.fields([
+    { name: 'profile_photo', maxCount: 1 },
+    { name: 'identity_photo', maxCount: 1 }
+]), professionalController.setupProfile);
+router.get('/profile', protectProfessional, professionalController.getProfessionalProfile);
 router.get('/dashboard', protectProfessional, professionalController.getDashboardStats);
 router.get('/requests', protectProfessional, professionalController.getMyRequests);
 router.post('/requests/:id/respond', protectProfessional, professionalController.respondToRequest);
@@ -33,6 +38,8 @@ router.post('/requests/:id/verify-otp', protectProfessional, professionalControl
 router.post('/requests/:id/submit-wage', protectProfessional, professionalController.submitWage);
 router.patch('/requests/:id/location', protectProfessional, professionalController.updateLocation);
 router.patch('/current-location', protectProfessional, professionalController.updateCurrentLocation);
+router.get('/earnings', protectProfessional, professionalController.getEarnings);
+router.get('/reviews', protectProfessional, professionalController.getReviews);
 
 const { addProClient, removeProClient } = require('../utils/proSseClients');
 

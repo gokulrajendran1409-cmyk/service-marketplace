@@ -7,8 +7,30 @@ import {
 } from 'lucide-react';
 import { useProfessionalNotifications } from "../hooks/useProfessionalNotifications";
 import { useNavigate } from "react-router-dom";
+import { MapContainer, TileLayer, Circle, CircleMarker, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
-const API = "https://service-marketplace-af7p.onrender.com";
+const API = import.meta.env.DEV
+  ? 'http://localhost:5000'
+  : 'https://service-marketplace-af7p.onrender.com';
+
+// Fix leaflet default marker icon issue (optional for Circle, but good practice)
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+function LocationPicker({ onSelect }) {
+  useMapEvents({
+    click(event) {
+      onSelect([event.latlng.lat, event.latlng.lng]);
+    },
+  });
+  return null;
+}
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -20,8 +42,83 @@ function Dashboard() {
   const dropdownRef = useRef(null);
   const [stats, setStats] = useState(null);
   const [recentRequests, setRecentRequests] = useState([]);
+  const [ongoingRequests, setOngoingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [currentLocation, setCurrentLocation] = useState(
+    professional.location && professional.location !== professional.city
+      ? professional.location
+      : ""
+  );
+  const [isFetchingLocation, setIsFetchingLocation] = useState(false);
+
+  // Map Modal State
+  const [showMapModal, setShowMapModal] = useState(false);
+  const [mapCenter, setMapCenter] = useState(professional.work_lat && professional.work_lng ? [parseFloat(professional.work_lat), parseFloat(professional.work_lng)] : [19.0760, 72.8777]);
+  const [mapRadius, setMapRadius] = useState(professional.work_radius ? parseInt(professional.work_radius) : 10);
+
+  const updateLocationFromCoordinates = async (latitude, longitude) => {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`);
+    const data = await res.json();
+          
+    const address = data.address || {};
+          const localPlace = address.neighbourhood || address.suburb || address.residential || address.road || address.hamlet || "";
+          const city = address.city || address.town || address.village || address.state_district || "";
+          const addressParts = [
+            address.house_number,
+            address.road,
+            address.neighbourhood || address.suburb,
+            city,
+            address.state,
+            address.postcode,
+          ].filter(Boolean);
+          const accurateLocation = data.display_name || [...new Set(addressParts)].join(', ') || localPlace || "Location Found";
+          
+          setCurrentLocation(accurateLocation);
+          
+          const updatedProf = {
+            ...professional,
+            location: accurateLocation,
+            address: addressParts.join(', '),
+            city: city || accurateLocation,
+            pincode: address.postcode || professional.pincode,
+            work_lat: latitude,
+            work_lng: longitude,
+          };
+          localStorage.setItem("professional", JSON.stringify(updatedProf));
+  };
+
+  const fetchLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
+    }
+    setIsFetchingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          await updateLocationFromCoordinates(position.coords.latitude, position.coords.longitude);
+        } catch (err) {
+          setCurrentLocation("Accurate Location Found");
+        } finally {
+          setIsFetchingLocation(false);
+        }
+      },
+      (error) => {
+        console.error(error);
+        setIsFetchingLocation(false);
+        alert("Unable to retrieve your location. Please check your browser permissions.");
+      }
+    );
+  };
+
+  useEffect(() => {
+    const latitude = Number(professional.work_lat);
+    const longitude = Number(professional.work_lng);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || currentLocation) return;
+
+    updateLocationFromCoordinates(latitude, longitude).catch(() => {});
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -51,9 +148,17 @@ function Dashboard() {
       if (statsRes.ok) setStats(await statsRes.json());
       if (requestsRes.ok) {
         const allRequests = await requestsRes.json();
-        // Sort by newest first, take first 3
+        // Sort by newest first
         const sorted = [...allRequests].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         setRecentRequests(sorted.slice(0, 3));
+        
+        // Ongoing contains only jobs accepted by this professional until completion.
+        const ACTIVE_STATUSES = new Set(['accepted', 'in_progress']);
+        const ongoing = sorted.filter(req =>
+          req.offer_status === 'accepted'
+          && (ACTIVE_STATUSES.has(req.status) || req.payment_status === 'awaiting_payment')
+        );
+        setOngoingRequests(ongoing);
       }
     } catch (err) {
       setError(err.message);
@@ -62,7 +167,12 @@ function Dashboard() {
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+    const handleRequestUpdated = () => fetchData();
+    window.addEventListener('professional-request-updated', handleRequestUpdated);
+    return () => window.removeEventListener('professional-request-updated', handleRequestUpdated);
+  }, []);
 
   const getInitials = (name) => {
     if (!name) return "P";
@@ -106,24 +216,26 @@ function Dashboard() {
       {/* ── HERO HEADER ── */}
       <div className="pro-hero-header">
         <div className="pro-hero-bg" />
-        <div className="pro-hero-content">
-          <div className="pro-hero-left">
-            <div className="pro-hero-avatar">{getInitials(professional.full_name)}</div>
-            <div>
-              <div className="pro-hero-greeting">Welcome back 👋</div>
-              <h1 className="pro-hero-name">{professional.full_name?.split(' ')[0] || "Professional"}</h1>
-              <button
-                className={`pro-online-pill ${isOnline ? 'online' : 'offline'}`}
-                onClick={() => setIsOnline(!isOnline)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', gap: 5 }}
-              >
-                <span className="pro-online-dot" />
-                {isOnline ? "Online · Tap to go offline" : "Offline · Tap to go online"}
-              </button>
+        
+        <div className="pro-hero-content" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+          {/* Top Bar with Location & Notifications */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <div className="pro-location-control" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255, 255, 255, 0.9)', padding: '6px 14px', borderRadius: '14px', backdropFilter: 'blur(8px)', boxShadow: '0 4px 14px rgba(0,0,0,0.06)', maxWidth: 'calc(100% - 48px)' }}>
+              <MapPin size={16} color="var(--accent-primary)" />
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700, lineHeight: 1 }}>Current Location</span>
+                <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 800, lineHeight: 1.2, marginTop: '2px', maxWidth: 'min(62vw, 360px)', whiteSpace: 'normal' }}>
+                  {currentLocation ? (
+                    currentLocation
+                  ) : isFetchingLocation ? (
+                    "Fetching..."
+                  ) : (
+                    <span onClick={fetchLocation} style={{ color: 'var(--accent-primary)', cursor: 'pointer', textDecoration: 'underline' }}>Enable Location</span>
+                  )}
+                </span>
+              </div>
             </div>
-          </div>
 
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <div style={{ position: "relative" }} ref={dropdownRef}>
               <button
                 className="pro-bell-btn"
@@ -161,123 +273,187 @@ function Dashboard() {
               )}
             </div>
           </div>
+
+          <div className="pro-hero-left" style={{ width: '100%' }}>
+            <div className="pro-hero-avatar">{getInitials(professional.full_name)}</div>
+            <div>
+              <div className="pro-hero-greeting">Welcome back 👋</div>
+              <h1 className="pro-hero-name">{professional.full_name?.split(' ')[0] || "Professional"}</h1>
+              <button
+                className={`pro-online-pill ${isOnline ? 'online' : 'offline'}`}
+                onClick={() => setIsOnline(!isOnline)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: '4px' }}
+              >
+                <span className="pro-online-dot" />
+                {isOnline ? "Online · Tap to go offline" : "Offline · Tap to go online"}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── EARNINGS SPOTLIGHT CARD ── */}
-      <div className="pro-earnings-card">
-        <div className="pro-earnings-left">
-          <div className="pro-earnings-label">Total Earnings</div>
-          <div className="pro-earnings-amount">₹{(stats?.total_earnings || 0).toLocaleString()}</div>
-          <button className="pro-earnings-cta" onClick={() => navigate('/profile')}>
-            Withdraw <ArrowUpRight size={14} />
+      {/* ── STATS STRIP ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', margin: '0 24px 20px' }}>
+        {[
+          {
+            label: 'Total',
+            value: stats?.total_requests ?? '—',
+            icon: '📋',
+            bg: 'var(--stat-total-bg)',
+            color: 'var(--text-primary)'
+          },
+          {
+            label: 'Pending',
+            value: stats?.pending_requests ?? '—',
+            icon: '⏳',
+            bg: 'var(--stat-pending-bg)',
+            color: 'var(--stat-pending-text)'
+          },
+          {
+            label: 'Done',
+            value: stats?.completed_requests ?? '—',
+            icon: '✅',
+            bg: 'var(--stat-done-bg)',
+            color: 'var(--stat-done-text)'
+          },
+          {
+            label: 'Rating',
+            value: stats?.avg_rating > 0 ? stats.avg_rating.toFixed(1) : '—',
+            icon: '⭐',
+            bg: 'var(--stat-rating-bg)',
+            color: 'var(--stat-rating-text)',
+            sub: stats?.review_count > 0 ? `${stats.review_count} review${stats.review_count !== 1 ? 's' : ''}` : 'No reviews'
+          }
+        ].map(({ label, value, icon, bg, color, sub }) => (
+          <div 
+            key={label} 
+            style={{ 
+              background: bg, 
+              borderRadius: 14, 
+              padding: '12px 10px', 
+              textAlign: 'center', 
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+              cursor: 'default'
+            }}
+          >
+            <div style={{ fontSize: 18, marginBottom: 4 }}>{icon}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
+            {sub && <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>{sub}</div>}
+          </div>
+        ))}
+      </div>
+
+      {/* ── TOTAL EARNINGS HERO CARD ── */}
+      <div
+        style={{
+          margin: '0 24px 20px',
+          borderRadius: 20,
+          background: 'var(--earnings-bg)',
+          padding: '22px 24px',
+          position: 'relative',
+          overflow: 'hidden',
+          boxShadow: 'var(--earnings-shadow)',
+        }}
+      >
+        {/* Decorative glows */}
+        <div style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: -20, left: 60, width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
+          <div onClick={() => navigate('/wallet')} style={{ cursor: 'pointer', flex: 1 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+              💰 Total Earnings
+            </div>
+            <div style={{ fontSize: 36, fontWeight: 900, color: '#fff', letterSpacing: '-1px', lineHeight: 1 }}>
+              ₹{(stats?.total_earnings || 0).toLocaleString('en-IN')}
+            </div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 8, fontWeight: 500 }}>
+              from {stats?.completed_requests || 0} completed job{stats?.completed_requests !== 1 ? 's' : ''}
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+            <div 
+              onClick={() => navigate('/reviews')}
+              style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 12, padding: '8px 12px', backdropFilter: 'blur(8px)', cursor: 'pointer' }}
+            >
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', fontWeight: 700, textAlign: 'center', marginBottom: 2 }}>RATING</div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: '#FCD34D', textAlign: 'center' }}>
+                {stats?.avg_rating > 0 ? `${stats.avg_rating.toFixed(1)} ⭐` : '— ⭐'}
+              </div>
+            </div>
+            <div onClick={() => navigate('/wallet')} style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontWeight: 600, cursor: 'pointer' }}>
+              View Wallet →
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── PROFILE SETUP BANNER ── */}
+      {stats?.profile_setup_completed === false && (
+        <div style={{ margin: '0 24px 24px', padding: '16px 20px', background: 'linear-gradient(135deg, #FFFBEB, #FEF3C7)', border: '1px solid #FDE68A', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ background: '#F59E0B', color: 'white', padding: '8px', borderRadius: '12px' }}>
+              <User size={20} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#92400E', margin: 0 }}>Set up your profile</h3>
+              <p style={{ fontSize: '12.5px', color: '#B45309', margin: '2px 0 0', fontWeight: 500 }}>Complete your profile to start getting work.</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => navigate('/setup-profile')}
+            style={{ background: '#D97706', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '12px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            Set Up
           </button>
         </div>
-        <div className="pro-earnings-right">
-          <div className="pro-completion-ring">
-            <svg viewBox="0 0 80 80" width="80" height="80">
-              <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="8" />
-              <circle
-                cx="40" cy="40" r="32" fill="none"
-                stroke="var(--accent-primary)" strokeWidth="8"
-                strokeDasharray={`${2 * Math.PI * 32}`}
-                strokeDashoffset={`${2 * Math.PI * 32 * (1 - completionRate / 100)}`}
-                strokeLinecap="round"
-                style={{ transform: 'rotate(-90deg)', transformOrigin: 'center', transition: 'stroke-dashoffset 1s ease' }}
-              />
-            </svg>
-            <div className="pro-ring-label">
-              <span className="pro-ring-val">{completionRate}%</span>
-              <span className="pro-ring-sub">Done</span>
-            </div>
+      )}
+
+      {/* ── WORK AREA PREFERENCE ── */}
+      <div style={{ margin: '0 24px 24px', padding: '16px 20px', background: 'var(--bg-surface)', border: '1.5px solid var(--border-light)', borderRadius: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: 'var(--shadow-sm)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ background: 'var(--bg-light-green)', color: 'var(--accent-primary)', padding: '10px', borderRadius: '14px', flexShrink: 0 }}>
+            <MapPin size={22} />
+          </div>
+          <div>
+            <h3 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.2px' }}>Service Area</h3>
+            <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: '3px 0 0', fontWeight: 500, lineHeight: 1.4 }}>
+              {professional.work_radius ? `Available for jobs within ${professional.work_radius} km` : 'Set your preferred working radius'}
+            </p>
           </div>
         </div>
-      </div>
-
-      {/* ── STATS ROW (clickable → navigate to requests) ── */}
-      <div className="pro-stats-row">
-        <button className="pro-stat-chip blue" onClick={() => navigate('/requests')} style={{ border: 'none', cursor: 'pointer' }}>
-          <div className="pro-stat-chip-icon"><ClipboardList size={18} /></div>
-          <div className="pro-stat-chip-val">{stats?.total_requests || 0}</div>
-          <div className="pro-stat-chip-label">Total</div>
-        </button>
-        <button className="pro-stat-chip amber" onClick={() => navigate('/requests')} style={{ border: 'none', cursor: 'pointer' }}>
-          <div className="pro-stat-chip-icon"><Clock size={18} /></div>
-          <div className="pro-stat-chip-val">{stats?.pending_requests || 0}</div>
-          <div className="pro-stat-chip-label">Pending</div>
-        </button>
-        <button className="pro-stat-chip green" onClick={() => navigate('/requests')} style={{ border: 'none', cursor: 'pointer' }}>
-          <div className="pro-stat-chip-icon"><CheckCheck size={18} /></div>
-          <div className="pro-stat-chip-val">{stats?.completed_requests || 0}</div>
-          <div className="pro-stat-chip-label">Done</div>
-        </button>
-        <button className="pro-stat-chip purple" style={{ border: 'none', cursor: 'default' }}>
-          <div className="pro-stat-chip-icon"><Star size={18} fill="currentColor" /></div>
-          <div className="pro-stat-chip-val">4.9</div>
-          <div className="pro-stat-chip-label">Rating</div>
+        <button 
+          onClick={() => {
+            setShowMapModal(true);
+            if (!professional.work_lat || !professional.work_lng) {
+              if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                  (pos) => setMapCenter([pos.coords.latitude, pos.coords.longitude]),
+                  (err) => console.log("Location access denied, falling back to default.", err)
+                );
+              }
+            }
+          }}
+          style={{ background: 'var(--bg-surface-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-light)', padding: '8px 14px', borderRadius: '12px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', transition: 'all 0.15s ease', whiteSpace: 'nowrap', flexShrink: 0, marginLeft: '10px' }}
+        >
+          {professional.work_radius ? 'Edit' : 'Set Area'}
         </button>
       </div>
 
-      {/* ── ACHIEVEMENT BADGES ── */}
-      <div className="pro-section">
-        <div className="pro-section-head">
-          <h2>Highlights</h2>
-        </div>
-        <div className="pro-badges-row">
-          <div className="pro-badge-card">
-            <div className="pro-badge-icon" style={{ background: 'linear-gradient(135deg, #6366F1, #8B5CF6)' }}>
-              <ShieldCheck size={20} />
-            </div>
-            <div className="pro-badge-info">
-              <div className="pro-badge-title">Verified Professional</div>
-              <div className="pro-badge-sub">Identity & documents confirmed</div>
-            </div>
+      {/* ── ONGOING JOBS SECTION ── */}
+      {ongoingRequests.length > 0 && (
+        <div className="pro-section pro-ongoing-section" style={{ marginBottom: 24 }}>
+          <div className="pro-section-head">
+            <h2>Ongoing Jobs</h2>
           </div>
-          <div className="pro-badge-card">
-            <div className="pro-badge-icon" style={{ background: 'linear-gradient(135deg, #F59E0B, #EF4444)' }}>
-              <Star size={20} fill="currentColor" />
-            </div>
-            <div className="pro-badge-info">
-              <div className="pro-badge-title">Top Rated</div>
-              <div className="pro-badge-sub">4.9 average across all jobs</div>
-            </div>
-          </div>
-          <div className="pro-badge-card">
-            <div className="pro-badge-icon" style={{ background: 'linear-gradient(135deg, #10B981, #059669)' }}>
-              <Zap size={20} />
-            </div>
-            <div className="pro-badge-info">
-              <div className="pro-badge-title">Fast Responder</div>
-              <div className="pro-badge-sub">Replies in under 5 minutes</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── RECENT JOBS (real DB data) ── */}
-      <div className="pro-section" style={{ paddingBottom: 100 }}>
-        <div className="pro-section-head">
-          <h2>Recent Jobs</h2>
-          <button className="pro-view-all-btn" onClick={() => navigate('/requests')}>
-            View all <ChevronRight size={14} />
-          </button>
-        </div>
-
-        {recentRequests.length === 0 ? (
-          <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 16, padding: '32px 20px', textAlign: 'center', boxShadow: 'var(--shadow-sm)' }}>
-            <div style={{ fontSize: 32, marginBottom: 10 }}>📋</div>
-            <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>No jobs yet</div>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>When customers book your service, they'll show up here.</div>
-          </div>
-        ) : (
-          <div className="pro-jobs-list">
-            {recentRequests.map(req => {
+          <div className="pro-jobs-list" style={{ padding: '0 24px' }}>
+            {ongoingRequests.map(req => {
               const statusStyle = getStatusStyle(req.status);
               const initials = (req.customer_name || 'C').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-              const isPending = req.status === 'pending' && req.offer_status === 'pending';
               const isPaid = req.payment_status === 'paid';
               return (
-                <div key={req.id} className={`pro-job-card ${req.status}`} onClick={() => navigate('/requests')} style={{ cursor: 'pointer' }}>
+                <div key={req.id} className={`pro-job-card ${req.status}`} onClick={() => navigate('/requests')} style={{ cursor: 'pointer', marginBottom: '12px' }}>
                   <div className="pro-job-left">
                     <div className="pro-job-avatar" style={{ background: statusStyle.bg, color: statusStyle.color }}>
                       {initials}
@@ -306,8 +482,75 @@ function Dashboard() {
               );
             })}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+
+
+      {/* ── MAP MODAL ── */}
+      {showMapModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', borderRadius: '24px', width: '100%', maxWidth: '500px', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.35)' }}>
+            <div style={{ padding: '20px', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>Select Work Area</h2>
+              <button onClick={() => setShowMapModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
+                <XCircle size={24} color="var(--text-secondary)" />
+              </button>
+            </div>
+            
+            <div style={{ padding: '20px' }}>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 16px', fontWeight: 500 }}>Tap on the map to set your center point, then adjust the radius.</p>
+              
+              <div style={{ height: '300px', borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-light)', marginBottom: '16px', position: 'relative', zIndex: 0 }}>
+                <MapContainer center={mapCenter} zoom={11} style={{ height: '100%', width: '100%' }}>
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  <LocationPicker onSelect={setMapCenter} />
+                  <Circle center={mapCenter} radius={mapRadius * 1000} pathOptions={{ color: 'var(--accent-primary)', fillColor: 'var(--accent-primary)', fillOpacity: 0.2 }} />
+                  <CircleMarker
+                    center={mapCenter}
+                    radius={7}
+                    pathOptions={{ color: '#F8FAFC', weight: 3, fillColor: '#0F172A', fillOpacity: 1 }}
+                  />
+                </MapContainer>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', padding: '10px 12px', borderRadius: '10px', background: 'var(--bg-surface-hover)', border: '1px solid var(--border-light)' }}>
+                <MapPin size={15} color="var(--accent-primary)" />
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  Center point: {mapCenter[0].toFixed(5)}, {mapCenter[1].toFixed(5)}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Working Radius</label>
+                  <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--accent-primary)' }}>{mapRadius} km</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="1" 
+                  max="50" 
+                  value={mapRadius} 
+                  onChange={(e) => setMapRadius(parseInt(e.target.value))}
+                  style={{ width: '100%', accentColor: 'var(--accent-primary)' }}
+                />
+              </div>
+
+              <button 
+                onClick={() => {
+                  const updated = { ...professional, work_radius: mapRadius, work_lat: mapCenter[0], work_lng: mapCenter[1] };
+                  localStorage.setItem("professional", JSON.stringify(updated));
+                  setShowMapModal(false);
+                  window.location.reload();
+                }}
+                style={{ width: '100%', background: 'var(--accent-gradient)', color: 'white', border: 'none', padding: '14px', borderRadius: '12px', fontWeight: 700, fontSize: '15px', marginTop: '24px', cursor: 'pointer', transition: 'all 0.15s ease' }}
+              >
+                Save Area
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
