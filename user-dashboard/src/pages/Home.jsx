@@ -1,11 +1,34 @@
 import { useEffect, useState, useRef } from 'react';
-import { ArrowRight, Award, BadgePercent, Bell, CheckCircle2, ChefHat, ChevronRight, MapPin, Navigation, Palette, Scissors, Search, ShieldCheck, Sparkles, Star, UserRoundCheck, Wrench, Zap, Wind, Hammer, Leaf, Shield, SlidersHorizontal } from 'lucide-react';
+import { ArrowRight, Bell, CheckCircle2, ChevronRight, MapPin, Palette, Search, Sparkles, Star, UserRoundCheck, Wrench, Zap, Wind, Hammer, Leaf, Shield, SlidersHorizontal } from 'lucide-react';
 import { API } from '../constants';
 import { useToast, Toast } from '../components/Toast';
+import { useTranslation } from 'react-i18next';
 import keralaAcRepair from '../assets/kerala/ac_repair.jpg';
 import keralaCleaning from '../assets/kerala/cleaning.jpg';
 import keralaPainting from '../assets/kerala/painting.jpg';
 import keralaPlumbing from '../assets/kerala/plumbing.jpg';
+
+// Category icon images (circular, from Services page)
+import plumbingIcon from '../assets/category-icons/plumbing.png';
+import electricalIcon from '../assets/category-icons/electrical.png';
+import acRepairIcon from '../assets/category-icons/ac_repair.png';
+import carpentryIcon from '../assets/category-icons/carpentry.png';
+import cleaningIcon from '../assets/category-icons/cleaning.png';
+import paintingIcon from '../assets/category-icons/painting.png';
+import mechanicIcon from '../assets/category-icons/mechanic.png';
+import cctvIcon from '../assets/category-icons/cctv.png';
+import applianceRepairIcon from '../assets/category-icons/appliance_repair.png';
+import beautyWellnessIcon from '../assets/category-icons/beauty_wellness.png';
+import tutoringIcon from '../assets/category-icons/tutoring.png';
+import photographyIcon from '../assets/category-icons/photography.png';
+import eventPlanningIcon from '../assets/category-icons/event_planning.png';
+import landscapingIcon from '../assets/category-icons/landscaping.png';
+import movingPackingIcon from '../assets/category-icons/moving_packing.png';
+import homeRenovationIcon from '../assets/category-icons/home_renovation.png';
+import itSupportIcon from '../assets/category-icons/it_support.png';
+import languageClassesIcon from '../assets/category-icons/language_classes.png';
+import petCareIcon from '../assets/category-icons/pet_care.png';
+import otherServicesIcon from '../assets/category-icons/other_services.png';
 
 function Home({ navigate, unreadCount = 0 }) {
   const [locationName, setLocationName] = useState('Detecting location...');
@@ -17,6 +40,7 @@ function Home({ navigate, unreadCount = 0 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
   const { toast, showToast } = useToast();
+  const { t, i18n } = useTranslation();
 
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
@@ -27,66 +51,68 @@ function Home({ navigate, unreadCount = 0 }) {
   const serviceCategoryItems = [
     {
       id: 'cleaning',
-      title: 'Cleaning',
+      title: t('service_items.cleaning'),
       icon: Sparkles,
       group: 'Personal Care',
       category: 'Cleaning',
     },
     {
       id: 'painting',
-      title: 'Painting',
+      title: t('service_items.painting'),
       icon: Palette,
       group: 'Home Repairs',
       category: 'Painting',
     },
     {
       id: 'plumbing',
-      title: 'Plumbing',
+      title: t('service_items.plumbing'),
       icon: Wrench,
       group: 'Home Repairs',
       category: 'Plumbing',
     },
     {
       id: 'electrician',
-      title: 'Electrician',
+      title: t('service_items.electrician'),
       icon: Zap,
       group: 'Home Repairs',
       category: 'Electrical',
     },
     {
       id: 'ac-repair',
-      title: 'AC & Appliance',
+      title: t('service_items.ac_repair'),
       icon: Wind,
       group: 'Home Repairs',
       category: 'AC & Appliance Repair',
     },
     {
       id: 'carpentry',
-      title: 'Carpentry',
+      title: t('service_items.carpentry'),
       icon: Hammer,
       group: 'Home Repairs',
       category: 'Carpentry',
     },
     {
       id: 'gardening',
-      title: 'Gardening',
+      title: t('service_items.gardening'),
       icon: Leaf,
       group: 'Personal Care',
       category: 'Gardening & Landscaping',
     },
     {
       id: 'security',
-      title: 'CCTV & Security',
+      title: t('service_items.security'),
       icon: Shield,
       group: 'Home Services',
       category: 'CCTV & Security',
     },
   ];
 
+  const serviceCategoryItems = browseCategories; // keep backward compat
+
   const popularServices = [
     {
       id: 'ac-1',
-      title: 'AC Repair & Service',
+      title: t('popular_services.ac_repair'),
       category: 'AC & Appliance Repair',
       group: 'Home Repairs',
       image: keralaAcRepair,
@@ -99,7 +125,7 @@ function Home({ navigate, unreadCount = 0 }) {
     },
     {
       id: 'clean-1',
-      title: 'Home Cleaning',
+      title: t('popular_services.home_cleaning'),
       category: 'Cleaning',
       group: 'Personal Care',
       image: keralaCleaning,
@@ -112,7 +138,7 @@ function Home({ navigate, unreadCount = 0 }) {
     },
     {
       id: 'cook-1',
-      title: 'Cooking & Meal Prep',
+      title: t('popular_services.cooking'),
       category: 'Cooking',
       group: 'Personal Care',
       image: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=600&auto=format&fit=crop&q=80',
@@ -125,7 +151,7 @@ function Home({ navigate, unreadCount = 0 }) {
     },
     {
       id: 'paint-1',
-      title: 'Interior Painting',
+      title: t('popular_services.interior_painting'),
       category: 'Painting',
       group: 'Home Repairs',
       image: keralaPainting,
@@ -138,7 +164,7 @@ function Home({ navigate, unreadCount = 0 }) {
     },
     {
       id: 'plumb-1',
-      title: 'Plumbing & Repairs',
+      title: t('popular_services.plumbing_repairs'),
       category: 'Plumbing',
       group: 'Home Repairs',
       image: keralaPlumbing,
@@ -155,7 +181,7 @@ function Home({ navigate, unreadCount = 0 }) {
     {
       id: 'pro-1',
       name: 'Sarah Jenkins',
-      title: 'Hair & Styling Specialist',
+      title: t('professionals.hair_specialist'),
       category: 'Hairdresser',
       group: 'Personal Care',
       rating: 4.9,
@@ -167,7 +193,7 @@ function Home({ navigate, unreadCount = 0 }) {
     {
       id: 'pro-2',
       name: 'Marcus Vance',
-      title: 'Master Electrician',
+      title: t('professionals.master_electrician'),
       category: 'Electrical',
       group: 'Home Repairs',
       rating: 5.0,
@@ -179,7 +205,7 @@ function Home({ navigate, unreadCount = 0 }) {
     {
       id: 'pro-3',
       name: 'Elena Gomez',
-      title: 'Deep Cleaning Expert',
+      title: t('professionals.deep_cleaning'),
       category: 'Cleaning',
       group: 'Personal Care',
       rating: 4.9,
@@ -191,7 +217,7 @@ function Home({ navigate, unreadCount = 0 }) {
     {
       id: 'pro-4',
       name: 'David Chen',
-      title: 'Plumbing Specialist',
+      title: t('professionals.plumbing_specialist'),
       category: 'Plumbing',
       group: 'Home Repairs',
       rating: 4.8,
@@ -236,11 +262,11 @@ function Home({ navigate, unreadCount = 0 }) {
   }, []);
 
   useEffect(() => {
-    fetch(`${API}/categories`)
+    fetch(`${API}/categories?lang=${i18n.language}`)
       .then(r => r.json())
       .then(data => setDbCategories(data))
       .catch(() => console.error('Failed to load categories'));
-  }, []);
+  }, [i18n.language]);
 
   useEffect(() => {
     if (isDragging) return;
@@ -346,7 +372,7 @@ function Home({ navigate, unreadCount = 0 }) {
           <Search size={16} className="home-search-icon" />
           <input
             className="home-search-input"
-            placeholder="Search for services..."
+            placeholder={t('home.search_placeholder')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
           />
@@ -410,10 +436,10 @@ function Home({ navigate, unreadCount = 0 }) {
         </div>
       </section>
 
-      {/* Service Categories Section */}
+      {/* Browse by Category — Horizontal Icon Strip */}
       <section className="home-featured-section home-order-categories">
         <div className="home-section-head">
-          <h2>Service Categories</h2>
+          <h2>{t('home.categories')}</h2>
           <button className="home-view-all" onClick={() => navigate('services')}>
             View all <ChevronRight size={15} />
           </button>
@@ -445,50 +471,39 @@ function Home({ navigate, unreadCount = 0 }) {
       {/* Popular Services Section */}
       <section className="home-featured-section home-order-popular">
         <div className="home-section-head">
-          <h2>Popular Services</h2>
+          <h2>{t('home.popular_services')}</h2>
           <button className="home-view-all" onClick={() => navigate('services')}>
-            View all <ChevronRight size={15} />
+            {t('home.view_all')} <ChevronRight size={15} />
           </button>
         </div>
-        <div className="home-popular-scroll">
-          {popularServices.map(service => (
-            <div
-              key={service.id}
-              className="home-popular-card"
-              onClick={() => navigate('services', service.group, service.category)}
+        <div className="home-cat-icon-grid">
+          {browseCategories.slice(0, 8).map(item => (
+            <button
+              key={item.id}
+              className="home-cat-icon-btn"
+              onClick={() => navigate('services', item.group, item.category)}
             >
-              <div className="home-popular-img-wrap">
-                <img src={service.image} alt={service.title} className="home-popular-img" />
+              <div className="home-cat-icon-circle">
+                <img
+                  src={item.icon}
+                  alt={item.label}
+                  className="home-cat-icon-img"
+                  loading="lazy"
+                />
               </div>
-              <div className="home-popular-body">
-                <div className="home-popular-rating">
-                  <Star size={13} className="home-popular-rating-star" />
-                  <span className="home-popular-rating-score">{service.rating}</span>
-                  <span className="home-popular-rating-count">({service.reviews} Reviews)</span>
-                </div>
-                <h3 className="home-popular-title">{service.title}</h3>
-                <div className="home-popular-price">{service.price}</div>
-                <div className="home-popular-footer">
-                  <div className="home-popular-avatar" style={{ background: service.avatarBg }}>
-                    {service.initials}
-                  </div>
-                  <span className="home-popular-provider-name">{service.provider}</span>
-                  <span className="home-popular-verified" title="Verified Provider">
-                    <CheckCircle2 size={15} />
-                  </span>
-                </div>
-              </div>
-            </div>
+              <span className="home-cat-icon-label">{item.label}</span>
+            </button>
           ))}
         </div>
       </section>
 
+
       {/* Top Professionals Section */}
       <section className="home-featured-section home-order-pros">
         <div className="home-section-head">
-          <h2>Top Professionals</h2>
+          <h2>{t('home.top_pros')}</h2>
           <button className="home-view-all" onClick={() => navigate('services')}>
-            View all <ChevronRight size={15} />
+            {t('home.view_all')} <ChevronRight size={15} />
           </button>
         </div>
         <div className="home-pros-scroll">
@@ -544,8 +559,8 @@ function Home({ navigate, unreadCount = 0 }) {
       <section className="home-how-it-works-section home-order-workflow">
         <div className="home-section-head" style={{ padding: 0 }}>
           <div>
-            <span className="home-section-kicker">SIMPLE & FAST</span>
-            <h2>How Our App Works</h2>
+            <span className="home-section-kicker">{t('home.simple_fast')}</span>
+            <h2>{t('home.how_it_works')}</h2>
           </div>
         </div>
 
@@ -557,9 +572,9 @@ function Home({ navigate, unreadCount = 0 }) {
               </div>
               <span className="home-step-number">01</span>
             </div>
-            <h3 className="home-step-title">Choose a Service</h3>
+            <h3 className="home-step-title">{t('home.step1')}</h3>
             <p className="home-step-desc">
-              Browse categories or search for the exact service you need in seconds.
+              {t('home.step1_desc')}
             </p>
           </div>
 
@@ -570,9 +585,9 @@ function Home({ navigate, unreadCount = 0 }) {
               </div>
               <span className="home-step-number">02</span>
             </div>
-            <h3 className="home-step-title">Book a Verified Pro</h3>
+            <h3 className="home-step-title">{t('home.step2')}</h3>
             <p className="home-step-desc">
-              Connect with background-checked, top-rated local professionals.
+              {t('home.step2_desc')}
             </p>
           </div>
 
@@ -583,9 +598,9 @@ function Home({ navigate, unreadCount = 0 }) {
               </div>
               <span className="home-step-number">03</span>
             </div>
-            <h3 className="home-step-title">Track & Enjoy</h3>
+            <h3 className="home-step-title">{t('home.step3')}</h3>
             <p className="home-step-desc">
-              Track work status in real time and enjoy guaranteed satisfaction.
+              {t('home.step3_desc')}
             </p>
           </div>
         </div>

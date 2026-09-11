@@ -4,6 +4,7 @@ import './App.css';
 import { Wrench, House, ClipboardList, UserRound } from 'lucide-react';
 import Home from './pages/Home';
 import Services from './pages/Services';
+import BrowseProfessionals from './pages/BrowseProfessionals';
 import MyRequests from './pages/MyRequests';
 import Auth from './pages/Auth';
 import Landing from './pages/Landing';
@@ -32,11 +33,26 @@ function App() {
   const [acceptedNotification, setAcceptedNotification] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const dismissedAcceptedIds = useRef(new Set());
+  const appContentRef = useRef(null);
+
+  // Helper: decode JWT expiry without a library
+  const isTokenExpired = (t) => {
+    try {
+      const payload = JSON.parse(atob(t.split('.')[1]));
+      return payload.exp * 1000 < Date.now();
+    } catch { return true; }
+  };
 
   useEffect(() => {
     const savedToken = localStorage.getItem('userToken');
-    const savedUser = localStorage.getItem('userData');
+    const savedUser  = localStorage.getItem('userData');
     if (savedToken && savedUser) {
+      if (isTokenExpired(savedToken)) {
+        // Token expired — clear storage and show landing
+        localStorage.removeItem('userToken');
+        localStorage.removeItem('userData');
+        return;
+      }
       setToken(savedToken);
       setUser(JSON.parse(savedUser));
       setStage('app');
@@ -66,11 +82,19 @@ function App() {
     localStorage.setItem('userData', JSON.stringify(updatedUser));
   };
 
+  const scrollAppToTop = () => {
+    appContentRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+  };
+
   const navigate = (target, group = null, category = null) => {
     setNavigationGroup(target === 'services' ? group : null);
-    setNavigationCategory(target === 'services' ? category : null);
+    setNavigationCategory(target === 'services' || target === 'professionals' ? category : null);
     setPage(target);
   };
+
+  useEffect(() => {
+    scrollAppToTop();
+  }, [page]);
 
   // Check backend notifications recorded in database
   const checkBackendNotifications = useCallback(async () => {
@@ -104,58 +128,84 @@ function App() {
     const activeToken = token || localStorage.getItem('userToken');
     if (!activeToken || stage !== 'app') return;
 
+    // Bail out early if token is already expired
+    if (isTokenExpired(activeToken)) {
+      handleLogout();
+      return;
+    }
+
     // Initial check on mounting/login
     checkBackendNotifications();
 
     let eventSource = null;
-    try {
-      eventSource = new EventSource(`${API}/notifications/stream?token=${activeToken}`);
+    let reconnectTimeout = null;
 
-      eventSource.addEventListener('requestAccepted', (e) => {
-        try {
-          const payload = JSON.parse(e.data);
-          const notif = payload.notification || payload;
-          if (notif && !dismissedAcceptedIds.current.has(notif.id)) {
-            setAcceptedNotification(notif);
+    const connect = () => {
+      try {
+        const currentToken = token || localStorage.getItem('userToken');
+        if (!currentToken || isTokenExpired(currentToken)) {
+          handleLogout();
+          return;
+        }
+
+        eventSource = new EventSource(`${API}/notifications/stream?token=${currentToken}`);
+
+        eventSource.addEventListener('requestAccepted', (e) => {
+          try {
+            const payload = JSON.parse(e.data);
+            const notif = payload.notification || payload;
+            if (notif && !dismissedAcceptedIds.current.has(notif.id)) {
+              setAcceptedNotification(notif);
+              setUnreadCount(prev => prev + 1);
+            }
+          } catch (err) {
+            console.error('Error handling requestAccepted SSE:', err);
+          }
+        });
+
+        eventSource.addEventListener('notification', (e) => {
+          try {
+            const notif = JSON.parse(e.data);
+            if (notif.type === 'request_accepted' && !dismissedAcceptedIds.current.has(notif.id)) {
+              setAcceptedNotification(notif);
+            }
             setUnreadCount(prev => prev + 1);
+          } catch (err) {
+            console.error('Error handling notification SSE:', err);
           }
-        } catch (err) {
-          console.error('Error handling requestAccepted SSE:', err);
-        }
-      });
+        });
 
-      eventSource.addEventListener('notification', (e) => {
-        try {
-          const notif = JSON.parse(e.data);
-          if (notif.type === 'request_accepted' && !dismissedAcceptedIds.current.has(notif.id)) {
-            setAcceptedNotification(notif);
-          }
-          setUnreadCount(prev => prev + 1);
-        } catch (err) {
-          console.error('Error handling notification SSE:', err);
-        }
-      });
+        eventSource.addEventListener('requestUpdate', () => {
+          checkBackendNotifications();
+        });
 
-      eventSource.addEventListener('requestUpdate', () => {
-        checkBackendNotifications();
-      });
-
-      eventSource.addEventListener('error', () => {
-        if (eventSource.readyState === EventSource.CLOSED) {
+        eventSource.onerror = () => {
           eventSource.close();
-        }
-      });
-    } catch (err) {
-      console.error('Failed to connect to notifications SSE:', err);
-    }
+          // Check if the token is still valid before reconnecting
+          const t = token || localStorage.getItem('userToken');
+          if (!t || isTokenExpired(t)) {
+            // Token expired — force logout
+            handleLogout();
+            return;
+          }
+          // Reconnect after 5 seconds
+          reconnectTimeout = setTimeout(connect, 5000);
+        };
+      } catch (err) {
+        console.error('Failed to connect to notifications SSE:', err);
+      }
+    };
 
+    connect();
     const interval = setInterval(checkBackendNotifications, 20000);
 
     return () => {
       if (eventSource) eventSource.close();
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
       clearInterval(interval);
     };
-  }, [stage, token, checkBackendNotifications]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, token]);
 
   // Actions on the Accepted Notification Modal
   const markNotificationAsReadInBackend = async (notificationId) => {
@@ -204,9 +254,10 @@ function App() {
 
   return (
     <div className="app-layout">
-      <div className="app-content">
+      <div className="app-content" ref={appContentRef}>
         {page === 'home'          && <Home navigate={navigate} unreadCount={unreadCount} />}
-        {page === 'services'      && <Services navigate={navigate} initialGroup={navigationGroup} initialCategory={navigationCategory} />}
+        {page === 'services'      && <Services navigate={navigate} initialGroup={navigationGroup} initialCategory={navigationCategory} user={user} unreadCount={unreadCount} />}
+        {page === 'professionals' && <BrowseProfessionals navigate={navigate} initialCategory={navigationCategory} />}
         {page === 'requests'      && <MyRequests navigate={navigate} />}
         {page === 'notifications' && <Notifications navigate={navigate} />}
         {page === 'profile'       && <Profile user={user} onUserUpdate={updateUser} onLogout={handleLogout} />}

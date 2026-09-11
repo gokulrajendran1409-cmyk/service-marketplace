@@ -38,9 +38,12 @@ exports.updateProfile = async (req, res) => {
 // GET /api/user/categories - list all service categories
 exports.getCategories = async (req, res) => {
     try {
-        const result = await pool.query(
-            'SELECT id, name, description FROM categories ORDER BY name ASC'
-        );
+        const { lang } = req.query;
+        let selectQuery = 'SELECT id, name, description FROM categories ORDER BY name ASC';
+        if (lang === 'ml') {
+            selectQuery = 'SELECT id, COALESCE(name_ml, name) AS name, COALESCE(description_ml, description) AS description FROM categories ORDER BY name ASC';
+        }
+        const result = await pool.query(selectQuery);
         res.json(result.rows);
     } catch (err) {
         console.error('getCategories error:', err);
@@ -50,8 +53,11 @@ exports.getCategories = async (req, res) => {
 
 exports.getSubcategories = async (req, res) => {
     try {
-        const { category } = req.query;
+        const { category, lang } = req.query;
         let query = 'SELECT id, category_id, category_name, name, image_url, price_estimate FROM subcategories';
+        if (lang === 'ml') {
+            query = 'SELECT id, category_id, COALESCE(category_name_ml, category_name) AS category_name, COALESCE(name_ml, name) AS name, image_url, price_estimate FROM subcategories';
+        }
         const params = [];
         if (category) {
             query += ' WHERE LOWER(category_name) = LOWER($1)';
@@ -77,15 +83,28 @@ exports.getProfessionals = async (req, res) => {
             where += ` AND p.category = $${params.length}`;
         }
         const query = `
-                 SELECT p.id, p.full_name, p.category, p.experience_years, p.bio, p.city, p.state,
-                     p.registered_latitude, p.registered_longitude,
-                     (SELECT COUNT(*)
-                        FROM service_offers so
-                        JOIN service_requests sr ON sr.id = so.request_id
-                       WHERE so.professional_id = p.id AND sr.status = 'completed') AS completed_requests
+            SELECT p.id, p.full_name, p.category, p.sub_category, p.experience_years, p.bio,
+                   p.city, p.state, p.transport_mode, p.verified_at,
+                   p.registered_latitude, p.registered_longitude,
+                   p.current_latitude, p.current_longitude,
+                   COALESCE(p.current_latitude, p.registered_latitude) AS effective_latitude,
+                   COALESCE(p.current_longitude, p.registered_longitude) AS effective_longitude,
+                   CASE WHEN p.profile_photo IS NOT NULL
+                        THEN '/uploads/' || p.profile_photo
+                        ELSE NULL END AS profile_photo,
+                   (SELECT COUNT(*)
+                      FROM service_offers so
+                      JOIN service_requests sr ON sr.id = so.request_id
+                     WHERE so.professional_id = p.id AND sr.status = 'completed') AS completed_requests,
+                   (SELECT ROUND(AVG(r.rating)::numeric, 1)
+                      FROM professional_reviews r
+                     WHERE r.professional_id = p.id) AS avg_rating,
+                   (SELECT COUNT(*)
+                      FROM professional_reviews r
+                     WHERE r.professional_id = p.id) AS review_count
             FROM professionals p
             ${where}
-            ORDER BY experience_years DESC
+            ORDER BY p.experience_years DESC, p.full_name ASC
         `;
         const result = await pool.query(query, params);
         res.json(result.rows);
@@ -199,8 +218,11 @@ exports.getMyRequests = async (req, res) => {
                         offer_summary.offer_count,
                         offer_summary.pending_offer_count,
                     p.full_name AS professional_name,
+                    p.category AS professional_category,
                     p.current_latitude AS professional_latitude,
                     p.current_longitude AS professional_longitude,
+                    (SELECT ROUND(AVG(pr.rating)::numeric, 1) FROM professional_reviews pr WHERE pr.professional_id = p.id) AS professional_avg_rating,
+                    (SELECT COUNT(*) FROM professional_reviews pr WHERE pr.professional_id = p.id) AS professional_review_count,
                     review.id AS review_id,
                     review.rating AS review_rating,
                     review.comment AS review_comment
@@ -281,6 +303,69 @@ exports.createReview = async (req, res) => {
     } catch (err) {
         console.error('createReview error:', err);
         res.status(500).json({ message: 'Failed to submit review' });
+    }
+};
+
+// GET /api/user/reviews?category=Plumbing - reviews for professionals in a category
+exports.getCategoryReviews = async (req, res) => {
+    try {
+        const { category } = req.query;
+        if (!category) {
+            return res.status(400).json({ message: 'Category is required' });
+        }
+
+        const [reviewsResult, breakdownResult, summaryResult] = await Promise.all([
+            pool.query(
+                `SELECT r.rating, r.comment, r.created_at,
+                        u.name AS customer_name,
+                        p.full_name AS professional_name
+                 FROM professional_reviews r
+                 JOIN professionals p ON p.id = r.professional_id
+                 JOIN users u ON u.id = r.customer_id
+                 WHERE p.category = $1 AND p.verification_status = 'verified'
+                 ORDER BY r.created_at DESC
+                 LIMIT 10`,
+                [category]
+            ),
+            pool.query(
+                `SELECT r.rating, COUNT(*)::int AS count
+                 FROM professional_reviews r
+                 JOIN professionals p ON p.id = r.professional_id
+                 WHERE p.category = $1 AND p.verification_status = 'verified'
+                 GROUP BY r.rating
+                 ORDER BY r.rating DESC`,
+                [category]
+            ),
+            pool.query(
+                `SELECT ROUND(AVG(r.rating)::numeric, 1) AS avg_rating,
+                        COUNT(*)::int AS total_reviews
+                 FROM professional_reviews r
+                 JOIN professionals p ON p.id = r.professional_id
+                 WHERE p.category = $1 AND p.verification_status = 'verified'`,
+                [category]
+            ),
+        ]);
+
+        const breakdown = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+        breakdownResult.rows.forEach(row => {
+            breakdown[row.rating] = row.count;
+        });
+        const total = Object.values(breakdown).reduce((sum, n) => sum + n, 0);
+        const percentages = {};
+        [5, 4, 3, 2, 1].forEach(star => {
+            percentages[star] = total > 0 ? Math.round((breakdown[star] / total) * 100) : 0;
+        });
+
+        res.json({
+            reviews: reviewsResult.rows,
+            avg_rating: summaryResult.rows[0]?.avg_rating || null,
+            total_reviews: summaryResult.rows[0]?.total_reviews || 0,
+            breakdown,
+            percentages,
+        });
+    } catch (err) {
+        console.error('getCategoryReviews error:', err);
+        res.status(500).json({ message: 'Failed to fetch reviews' });
     }
 };
 
