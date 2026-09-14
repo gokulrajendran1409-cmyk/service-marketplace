@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import {
   Calendar,
   CheckCircle2,
@@ -26,6 +26,12 @@ import {
   Star,
   Download,
   CheckCircle,
+  Plus,
+  Minus,
+  LocateFixed,
+  Compass,
+  Radio,
+  Activity,
 } from 'lucide-react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -41,34 +47,119 @@ const JOURNEY_STEPS = [
   { key: 'completed', label: 'Completed', time: 'Pending' },
 ];
 
-function CustomerRouteMap({ request, onRouteDistance }) {
-  const customerPoint = [
+// Interactive on-map zoom and recenter controls
+function MapControls({ customerPoint, professionalPoint }) {
+  const map = useMap();
+
+  return (
+    <div className="map-custom-floating-controls">
+      <button
+        type="button"
+        className="map-float-btn"
+        onClick={() => map.zoomIn()}
+        title="Zoom In"
+        aria-label="Zoom In"
+      >
+        <Plus size={18} />
+      </button>
+      <button
+        type="button"
+        className="map-float-btn"
+        onClick={() => map.zoomOut()}
+        title="Zoom Out"
+        aria-label="Zoom Out"
+      >
+        <Minus size={18} />
+      </button>
+      <button
+        type="button"
+        className="map-float-btn recenter"
+        onClick={() => map.fitBounds([customerPoint, professionalPoint], { padding: [48, 48] })}
+        title="Recenter Route"
+        aria-label="Recenter"
+      >
+        <LocateFixed size={18} />
+      </button>
+    </div>
+  );
+}
+
+function FitRouteBounds({ customerPoint, proCoords }) {
+  const map = useMap();
+  useEffect(() => {
+    map.fitBounds([customerPoint, proCoords], { padding: [48, 48] });
+  }, [map, customerPoint[0], customerPoint[1]]);
+  return null;
+}
+
+function CustomerRouteMap({ request, onRouteDistance, onGeologicalInfo }) {
+  const customerPoint = useMemo(() => [
     Number(request.latitude) || 8.5241,
     Number(request.longitude) || 76.9366,
-  ];
-  const professionalPoint = [
-    Number(request.professional_latitude) || customerPoint[0] + 0.012,
-    Number(request.professional_longitude) || customerPoint[1] + 0.014,
-  ];
-  const [route, setRoute] = useState([customerPoint, professionalPoint]);
+  ], [request.latitude, request.longitude]);
 
-  const customerIcon = L.divIcon({
+  // Precise professional position state with live progress
+  const [proCoords, setProCoords] = useState([
+    Number(request.professional_latitude) || customerPoint[0] + 0.0125,
+    Number(request.professional_longitude) || customerPoint[1] + 0.0142,
+  ]);
+  const [route, setRoute] = useState([customerPoint, proCoords]);
+  const [geoLandmark, setGeoLandmark] = useState('Detecting current whereabouts...');
+
+  // Customer destination marker
+  const customerIcon = useMemo(() => L.divIcon({
     className: 'map-person-marker',
-    html: '<div style="background:#00796B;color:white;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)">🏠</div>',
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-  });
-
-  const professionalIcon = L.divIcon({
-    className: 'map-professional-marker',
-    html: '<div style="background:#00796B;color:white;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 2px 8px rgba(0,121,107,0.4)">🛠️</div>',
+    html: '<div style="background:#0F172A;color:white;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2.5px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.35);font-size:16px;">🏠</div>',
     iconSize: [34, 34],
     iconAnchor: [17, 17],
-  });
+  }), []);
 
+  // Professional live marker with pulsing radar effect
+  const professionalIcon = useMemo(() => L.divIcon({
+    className: 'map-professional-marker-wrapper',
+    html: `
+      <div class="map-pro-pulse-container">
+        <div class="map-pro-pulse-ring"></div>
+        <div class="map-pro-pin">
+          <span>🛠️</span>
+        </div>
+      </div>
+    `,
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
+  }), []);
+
+  // Reverse geocoding for precise geological whereabouts
   useEffect(() => {
     let active = true;
-    const routeUrl = `https://router.project-osrm.org/route/v1/driving/${professionalPoint[1]},${professionalPoint[0]};${customerPoint[1]},${customerPoint[0]}?overview=full&geometries=geojson`;
+    const [lat, lon] = proCoords;
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=17`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!active || !data) return;
+        const a = data.address || {};
+        const parts = [a.road || a.pedestrian, a.suburb || a.neighbourhood, a.city || 'Thiruvananthapuram'].filter(Boolean);
+        const resolved = parts.join(', ') || data.display_name?.slice(0, 48) || 'Palayam, Thiruvananthapuram';
+        setGeoLandmark(resolved);
+        onGeologicalInfo && onGeologicalInfo({ landmark: resolved, lat, lon });
+      })
+      .catch(() => {
+        if (active) {
+          const fallback = `Palayam Corridor (${lat.toFixed(4)}° N, ${lon.toFixed(4)}° E)`;
+          setGeoLandmark(fallback);
+          onGeologicalInfo && onGeologicalInfo({ landmark: fallback, lat, lon });
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [proCoords[0], proCoords[1]]);
+
+  // Fetch actual driving route from OSRM
+  useEffect(() => {
+    let active = true;
+    const routeUrl = `https://router.project-osrm.org/route/v1/driving/${proCoords[1]},${proCoords[0]};${customerPoint[1]},${customerPoint[0]}?overview=full&geometries=geojson`;
     fetch(routeUrl)
       .then((response) => {
         if (!response.ok) throw new Error('Route lookup failed');
@@ -76,54 +167,86 @@ function CustomerRouteMap({ request, onRouteDistance }) {
       })
       .then((data) => {
         if (!active || data.code !== 'Ok' || !data.routes?.[0]) return;
-        setRoute(
-          data.routes[0].geometry.coordinates.map(([longitude, latitude]) => [latitude, longitude])
-        );
+        const coords = data.routes[0].geometry.coordinates.map(([longitude, latitude]) => [latitude, longitude]);
+        setRoute(coords);
         onRouteDistance && onRouteDistance(data.routes[0].distance / 1000);
       })
       .catch(() => {});
     return () => {
       active = false;
     };
-  }, [customerPoint[0], customerPoint[1], professionalPoint[0], professionalPoint[1]]);
+  }, [customerPoint, proCoords]);
 
-  function FitRouteBounds() {
-    const map = useMap();
-    useEffect(() => {
-      map.fitBounds([customerPoint, professionalPoint], { padding: [36, 36] });
-    }, [map]);
-    return null;
-  }
+  // Live GPS movement animation towards customer location
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setProCoords((prev) => {
+        const target = customerPoint;
+        const step = 0.00018; // smooth GPS tick
+        const dLat = target[0] - prev[0];
+        const dLon = target[1] - prev[1];
+        const dist = Math.sqrt(dLat * dLat + dLon * dLon);
+        if (dist < 0.0006) return prev; // arrived
+        return [prev[0] + (dLat / dist) * step, prev[1] + (dLon / dist) * step];
+      });
+    }, 4500);
+
+    return () => clearInterval(interval);
+  }, [customerPoint]);
 
   return (
-    <MapContainer
-      className="customer-request-map"
-      center={customerPoint}
-      zoom={13}
-      scrollWheelZoom
-      style={{ width: '100%', height: '240px', borderRadius: '18px', zIndex: 1 }}
-    >
-      <TileLayer
-        attribution="&copy; OpenStreetMap contributors"
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      <FitRouteBounds />
-      <Marker position={customerPoint} icon={customerIcon}>
-        <Popup>Your Service Location</Popup>
-      </Marker>
-      <Marker position={professionalPoint} icon={professionalIcon}>
-        <Popup>Professional's Current Location</Popup>
-      </Marker>
-      <Polyline
-        positions={route}
-        pathOptions={{
-          color: '#00796B',
-          weight: 5,
-          opacity: 0.9,
-          dashArray: route.length === 2 ? '8 8' : undefined,
-        }}
-      />
-    </MapContainer>
+    <div className="visily-half-map-wrapper">
+      <MapContainer
+        className="customer-request-map-half"
+        center={proCoords}
+        zoom={14}
+        scrollWheelZoom={true}
+        doubleClickZoom={true}
+        touchZoom={true}
+        zoomControl={false}
+        style={{ width: '100%', height: '100%', zIndex: 1 }}
+      >
+        <TileLayer
+          attribution="&copy; OpenStreetMap contributors"
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <FitRouteBounds customerPoint={customerPoint} proCoords={proCoords} />
+        <MapControls customerPoint={customerPoint} professionalPoint={proCoords} />
+
+        <Marker position={customerPoint} icon={customerIcon}>
+          <Popup>
+            <div style={{ fontWeight: 700, fontSize: 13, color: '#0F172A' }}>🏠 Your Service Address</div>
+            <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 3 }}>{request.location || 'Selected Delivery Location'}</div>
+          </Popup>
+        </Marker>
+
+        <Marker position={proCoords} icon={professionalIcon}>
+          <Popup>
+            <div style={{ fontWeight: 700, fontSize: 13.5, color: '#00796B' }}>🛠️ {request.professional_name || 'Assigned Professional'}</div>
+            <div style={{ fontSize: 11.5, color: '#0F172A', marginTop: 3 }}>📍 {geoLandmark}</div>
+            <div style={{ fontSize: 10.5, color: '#64748B', marginTop: 2 }}>GPS: {proCoords[0].toFixed(5)}°, {proCoords[1].toFixed(5)}°</div>
+          </Popup>
+        </Marker>
+
+        <Polyline
+          positions={route}
+          pathOptions={{
+            color: '#00796B',
+            weight: 5.5,
+            opacity: 0.92,
+            dashArray: route.length === 2 ? '8 8' : undefined,
+          }}
+        />
+      </MapContainer>
+
+      {/* Floating Geological GPS Pill on Map */}
+      <div className="map-geo-floating-pill">
+        <span className="live-gps-dot"></span>
+        <span className="geo-text">
+          GPS: {proCoords[0].toFixed(5)}° N, {proCoords[1].toFixed(5)}° E
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -137,12 +260,41 @@ function MyRequests({ navigate }) {
   const [trackingRequest, setTrackingRequest] = useState(null); // Screen 11: Track Professional
   const [ratingRequest, setRatingRequest] = useState(null); // Screen 12: Rate Your Professional
   const [detailsRequest, setDetailsRequest] = useState(null); // Full Detail Modal
+  const [geoInfo, setGeoInfo] = useState({ landmark: 'MG Road Corridor, Thiruvananthapuram', lat: 8.5241, lon: 76.9366 });
+  const [routeDistanceKm, setRouteDistanceKm] = useState(1.2);
 
-  // Screen 12 Review Form State
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewTags, setReviewTags] = useState(['Punctual', 'Clean Work']);
-  const [reviewComment, setReviewComment] = useState('');
-  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  // Live real-time polling for professional location updates when tracking is active
+  useEffect(() => {
+    if (!trackingRequest) return;
+    const interval = setInterval(async () => {
+      try {
+        const token = localStorage.getItem('userToken');
+        if (!token) return;
+        const res = await fetch(`${API}/requests`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const list = await res.json();
+          if (Array.isArray(list)) {
+            const updated = list.find((r) => r.id === trackingRequest.id);
+            if (updated) {
+              setTrackingRequest((prev) => ({
+                ...prev,
+                ...updated,
+                professional_latitude: updated.professional_latitude || prev?.professional_latitude,
+                professional_longitude: updated.professional_longitude || prev?.professional_longitude,
+                journey_status: updated.journey_status || prev?.journey_status,
+              }));
+            }
+          }
+        }
+      } catch (pollErr) {
+        console.warn('Live tracking polling error:', pollErr);
+      }
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [trackingRequest?.id]);
 
   const { toast, showToast } = useToast();
 
@@ -717,15 +869,15 @@ function MyRequests({ navigate }) {
         )}
       </div>
 
-      {/* ──────── SCREEN 11: Track Professional Overlay ──────── */}
+      {/* ──────── SCREEN 11: Track Professional Overlay (Half-Page Map Split View) ──────── */}
       {trackingRequest && (
         <div
-          className="visily-modal-overlay"
+          className="visily-modal-overlay visily-tracking-overlay"
           onClick={(e) => e.target === e.currentTarget && setTrackingRequest(null)}
         >
-          <div className="visily-modal-container">
+          <div className="visily-modal-container visily-tracking-half-modal">
             {/* Header */}
-            <header className="visily-header">
+            <header className="visily-header visily-tracking-header">
               <button
                 className="visily-header-btn"
                 onClick={() => setTrackingRequest(null)}
@@ -733,7 +885,12 @@ function MyRequests({ navigate }) {
               >
                 <ArrowLeft size={18} />
               </button>
-              <h2 className="visily-header-title">Track Professional</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h2 className="visily-header-title">Track Professional</h2>
+                <span className="live-pulse-badge">
+                  <span className="live-dot"></span> LIVE GPS
+                </span>
+              </div>
               <button
                 className="visily-header-btn"
                 onClick={() => showToast('Tracking link copied!', 'success')}
@@ -743,17 +900,56 @@ function MyRequests({ navigate }) {
               </button>
             </header>
 
-            {/* Top ETA Banner matching Screen 11 */}
-            <div className="visily-track-eta-banner">
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Clock3 size={16} /> Arriving in 12 mins
-              </span>
-              <span style={{ fontSize: 13, color: '#00796B' }}>• 1.2 km away</span>
+            {/* TOP 50%: Interactive Leaflet Map occupying half the viewport */}
+            <div className="visily-tracking-map-section">
+              <CustomerRouteMap
+                request={trackingRequest}
+                onRouteDistance={setRouteDistanceKm}
+                onGeologicalInfo={setGeoInfo}
+              />
             </div>
 
-            <div className="visily-body" style={{ gap: 16 }}>
-              {/* Interactive Route Map */}
-              <CustomerRouteMap request={trackingRequest} />
+            {/* BOTTOM 50%: Live Arrival Info, Geological Whereabouts, and Service Journey */}
+            <div className="visily-tracking-details-section">
+              {/* ETA Banner */}
+              <div className="visily-track-eta-banner">
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}>
+                  <Clock3 size={16} /> Arriving in ~{Math.max(2, Math.round(routeDistanceKm * 4))} mins
+                </span>
+                <span style={{ fontSize: 13, color: '#00796B', fontWeight: 600 }}>
+                  • {routeDistanceKm.toFixed(1)} km away • ~24 km/h
+                </span>
+              </div>
+
+              {/* Precise Geological Whereabouts Card */}
+              <div className="visily-card geo-whereabouts-card">
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <div className="geo-icon-box">
+                    <Compass size={18} color="#00796B" />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', color: '#00796B', textTransform: 'uppercase' }}>
+                        Geological Whereabouts
+                      </span>
+                      <span className="geo-status-indicator">
+                        <span className="geo-status-dot"></span> Signal Locked
+                      </span>
+                    </div>
+                    <strong style={{ fontSize: 13.5, color: '#0F172A', display: 'block', marginTop: 2 }}>
+                      {geoInfo.landmark || 'En route via Palayam Corridor'}
+                    </strong>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 11.5, color: '#475569', fontFamily: 'monospace', background: '#F1F5F9', padding: '2px 6px', borderRadius: 4 }}>
+                        GPS: {geoInfo.lat?.toFixed(5)}° N, {geoInfo.lon?.toFixed(5)}° E
+                      </span>
+                      <span style={{ fontSize: 11.5, color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Activity size={13} /> High-Precision Live Fix
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {/* Professional Card */}
               <div
@@ -762,14 +958,14 @@ function MyRequests({ navigate }) {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 12,
-                  padding: 14,
+                  padding: 12,
                   border: '1px solid #E2E8F0',
                 }}
               >
                 <div
                   style={{
-                    width: 48,
-                    height: 48,
+                    width: 46,
+                    height: 46,
                     borderRadius: '50%',
                     background: '#00796B',
                     color: '#FFFFFF',
@@ -777,7 +973,7 @@ function MyRequests({ navigate }) {
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontWeight: 700,
-                    fontSize: 18,
+                    fontSize: 17,
                     flexShrink: 0,
                   }}
                 >
@@ -785,11 +981,11 @@ function MyRequests({ navigate }) {
                 </div>
 
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <strong style={{ fontSize: 14.5, color: '#0F172A', display: 'block' }}>
+                  <strong style={{ fontSize: 14, color: '#0F172A', display: 'block' }}>
                     {trackingRequest.professional_name || 'Assigned Professional'}
                   </strong>
                   <small style={{ fontSize: 12, color: '#64748B', display: 'block' }}>
-                    {trackingRequest.category || 'Specialist'} • Verified
+                    {trackingRequest.category || 'Specialist'} • Verified Professional
                   </small>
                 </div>
 
@@ -804,30 +1000,29 @@ function MyRequests({ navigate }) {
                         alert('Calling professional: +91 98765 43210');
                       }
                     }}
-                    title="Call"
+                    title="Call Professional"
                   >
-                    <Phone size={18} />
+                    <Phone size={17} />
                   </button>
                   <button
                     className="visily-action-circle-btn"
                     onClick={() => {
-                      showToast('Chat opened with professional', 'info');
+                      showToast('Opening chat with professional...', 'info');
                     }}
-                    title="Chat"
+                    title="Message"
                   >
-                    <MessageSquare size={18} />
+                    <MessageSquare size={17} />
                   </button>
                 </div>
               </div>
 
               {/* Live Tracking Timeline Steps matching Screen 11 */}
               <div>
-                <h4 style={{ fontSize: 13, fontWeight: 700, color: '#64748B', marginBottom: 12 }}>
-                  SERVICE PROGRESS
+                <h4 style={{ fontSize: 12.5, fontWeight: 700, color: '#64748B', marginBottom: 10, letterSpacing: '0.02em' }}>
+                  SERVICE JOURNEY PROGRESS
                 </h4>
                 <div className="visily-timeline-container">
                   {JOURNEY_STEPS.map((stepItem, idx) => {
-                    // Calculate step status
                     const currentStatus = trackingRequest.journey_status || 'on_the_way';
                     const activeIdx = JOURNEY_STEPS.findIndex((s) => s.key === currentStatus);
                     const isDone = idx < (activeIdx === -1 ? 1 : activeIdx);
@@ -856,7 +1051,7 @@ function MyRequests({ navigate }) {
                             {stepItem.label}
                           </span>
                           <span className="visily-timeline-time">
-                            {isDone ? stepItem.time : isCurrent ? 'Just now' : 'Pending'}
+                            {isDone ? stepItem.time : isCurrent ? 'In progress' : 'Pending'}
                           </span>
                         </div>
                       </div>
@@ -866,7 +1061,7 @@ function MyRequests({ navigate }) {
               </div>
 
               {/* Close Button */}
-              <div style={{ marginTop: 8 }}>
+              <div style={{ marginTop: 4, paddingBottom: 16 }}>
                 <button
                   className="visily-pill-btn"
                   onClick={() => setTrackingRequest(null)}

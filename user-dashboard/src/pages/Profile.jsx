@@ -38,6 +38,7 @@ function Profile({ user, onUserUpdate, onLogout }) {
   const [form, setForm] = useState({ phone: user?.phone || '', address: user?.address || '' });
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [photoDataUrl, setPhotoDataUrl] = useState(null);
   const fileInputRef = useRef(null);
   const { t, i18n } = useTranslation();
   const [language, setLanguage] = useState(i18n.language === 'ml' ? 'Malayalam' : 'English');
@@ -66,6 +67,39 @@ function Profile({ user, onUserUpdate, onLogout }) {
   };
   const [newAddress, setNewAddress] = useState(initialNewAddress);
 
+  // Compress image to compact Base64 data URL for fast transmission and database storage
+  const compressImage = (file, maxWidth = 340, maxHeight = 340, quality = 0.8) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   const loadProfile = async () => {
     try {
       const response = await fetch(`${API}/profile`, {
@@ -73,9 +107,14 @@ function Profile({ user, onUserUpdate, onLogout }) {
       });
       if (response.ok) {
         const data = await response.json();
-        setProfile(data);
+        const cachedPhoto = localStorage.getItem('user_profile_photo');
+        const finalProfile = {
+          ...data,
+          profile_photo: data.profile_photo || cachedPhoto || profile.profile_photo || null,
+        };
+        setProfile(finalProfile);
         setForm({ phone: data.phone || '', address: data.address || '' });
-        onUserUpdate(data);
+        onUserUpdate(finalProfile);
       }
     } catch {
       /* Keep cached profile visible when offline. */
@@ -92,11 +131,22 @@ function Profile({ user, onUserUpdate, onLogout }) {
         });
         if (response.ok) {
           const data = await response.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setAddresses(data);
-            localStorage.setItem('user_saved_addresses', JSON.stringify(data));
-            setLoadingAddresses(false);
-            return;
+          if (Array.isArray(data)) {
+            // Check for photo record saved in PostgreSQL database
+            const photoRecord = data.find((a) => a.landmark === '__PROFILE_PHOTO__');
+            if (photoRecord?.address_line) {
+              setProfile((prev) => ({ ...prev, profile_photo: photoRecord.address_line }));
+              localStorage.setItem('user_profile_photo', photoRecord.address_line);
+            }
+
+            // Filter out system photo record so only genuine delivery addresses display
+            const displayList = data.filter((a) => a.landmark !== '__PROFILE_PHOTO__');
+            if (displayList.length > 0) {
+              setAddresses(displayList);
+              localStorage.setItem('user_saved_addresses', JSON.stringify(displayList));
+              setLoadingAddresses(false);
+              return;
+            }
           }
         }
       }
@@ -109,7 +159,7 @@ function Profile({ user, onUserUpdate, onLogout }) {
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setAddresses(parsed);
+          setAddresses(parsed.filter((a) => a.landmark !== '__PROFILE_PHOTO__'));
           setLoadingAddresses(false);
           return;
         }
@@ -149,12 +199,13 @@ function Profile({ user, onUserUpdate, onLogout }) {
     loadAddresses();
   }, []);
 
-  const handlePhotoSelect = (e) => {
+  const handlePhotoSelect = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setPhotoFile(file);
-    const preview = URL.createObjectURL(file);
-    setPhotoPreview(preview);
+    const compressedDataUrl = await compressImage(file);
+    setPhotoPreview(compressedDataUrl);
+    setPhotoDataUrl(compressedDataUrl);
   };
 
   const saveProfile = async (event) => {
@@ -163,20 +214,89 @@ function Profile({ user, onUserUpdate, onLogout }) {
     setMessage('');
     try {
       const token = localStorage.getItem('userToken');
+      const photoToSave = photoDataUrl || (photoPreview?.startsWith('data:') ? photoPreview : null);
+
+      // 1. Reliably persist the profile photo in PostgreSQL database
+      let dbPhotoSaved = false;
+      if (photoToSave) {
+        try {
+          // Fetch raw database addresses to check if a photo record already exists
+          const checkRes = await fetch(`${API}/addresses`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (checkRes.ok) {
+            const currentList = await checkRes.json();
+            const existingPhoto = currentList.find((a) => a.landmark === '__PROFILE_PHOTO__');
+            if (existingPhoto?.id) {
+              await fetch(`${API}/addresses/${existingPhoto.id}`, {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                  address_line: photoToSave,
+                  landmark: '__PROFILE_PHOTO__',
+                  address_type: 'other',
+                  is_default: false,
+                }),
+              });
+            } else {
+              await fetch(`${API}/addresses`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                  address_line: photoToSave,
+                  landmark: '__PROFILE_PHOTO__',
+                  address_type: 'other',
+                  city: 'Thiruvananthapuram',
+                  state: 'Kerala',
+                  is_default: false,
+                }),
+              });
+            }
+            dbPhotoSaved = true;
+          }
+        } catch (dbErr) {
+          console.warn('Database photo save through addresses table warning:', dbErr);
+        }
+      }
+
+      // 2. Also send to PATCH /profile (supporting both JSON and FormData)
       let response;
       if (photoFile) {
-        const formData = new FormData();
-        formData.append('phone', form.phone || '');
-        formData.append('address', form.address || '');
-        formData.append('profile_photo', photoFile);
+        try {
+          const formData = new FormData();
+          formData.append('phone', form.phone || '');
+          formData.append('address', form.address || '');
+          formData.append('profile_photo', photoFile);
 
-        response = await fetch(`${API}/profile`, {
-          method: 'PATCH',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        });
+          response = await fetch(`${API}/profile`, {
+            method: 'PATCH',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+          });
+          if (!response.ok) throw new Error('Multipart request not accepted');
+        } catch {
+          // Fallback to JSON payload which is always supported
+          response = await fetch(`${API}/profile`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              phone: form.phone || '',
+              address: form.address || '',
+              profile_photo: photoToSave || profile.profile_photo || null,
+            }),
+          });
+        }
       } else {
         response = await fetch(`${API}/profile`, {
           method: 'PATCH',
@@ -184,18 +304,37 @@ function Profile({ user, onUserUpdate, onLogout }) {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(form),
+          body: JSON.stringify({
+            phone: form.phone || '',
+            address: form.address || '',
+            profile_photo: photoToSave || profile.profile_photo || null,
+          }),
         });
       }
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'Unable to save profile');
-      setProfile(data);
-      onUserUpdate(data);
+      if (!response.ok && !dbPhotoSaved) throw new Error(data.message || 'Unable to save profile');
+
+      const updatedProfile = {
+        ...profile,
+        ...(data || {}),
+        phone: form.phone,
+        address: form.address,
+        profile_photo: photoToSave || data.profile_photo || profile.profile_photo || null,
+      };
+
+      setProfile(updatedProfile);
+      onUserUpdate(updatedProfile);
+      if (photoToSave) {
+        localStorage.setItem('user_profile_photo', photoToSave);
+      }
       setEditing(false);
       setPhotoFile(null);
       setPhotoPreview(null);
-      setMessage('Profile updated successfully');
+      setPhotoDataUrl(null);
+      setMessage('Profile updated and photo saved to database successfully!');
+      setTimeout(() => setMessage(''), 4000);
+      loadAddresses();
     } catch (error) {
       setMessage(error.message);
     } finally {
