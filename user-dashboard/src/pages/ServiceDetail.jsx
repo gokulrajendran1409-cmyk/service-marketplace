@@ -212,7 +212,7 @@ function ServiceDetail({
 
       {/* Popular Sub Services with Match & Move Slideshow */}
       {subcategories.length > 0 && (
-        <div style={{ padding: '0 20px', marginTop: 20 }}>
+        <div style={{ padding: '0 16px', marginTop: 16 }}>
           <SubcategorySlideshow
             categoryName={category?.name}
             subcategories={subcategories}

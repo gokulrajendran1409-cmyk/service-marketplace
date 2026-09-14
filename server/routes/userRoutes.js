@@ -35,7 +35,7 @@ router.get('/subcategories', getSubcategories);
 router.get('/professionals', getProfessionals);
 router.get('/reviews', getCategoryReviews);
 router.get('/profile', protectCustomer, getProfile);
-router.patch('/profile', protectCustomer, updateProfile);
+router.patch('/profile', protectCustomer, upload.single('profile_photo'), updateProfile);
 router.get('/addresses', protectCustomer, getUserAddresses);
 router.post('/addresses', protectCustomer, addUserAddress);
 router.patch('/addresses/:id', protectCustomer, updateUserAddress);

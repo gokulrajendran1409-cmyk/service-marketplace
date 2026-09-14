@@ -29,6 +29,7 @@ async function startServer() {
     try {
         await pool.query('ALTER TABLE users ALTER COLUMN phone DROP NOT NULL');
         await pool.query('ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL');
+        await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_photo TEXT');
     } catch (error) {
         console.error('OAuth user schema initialization failed:', error.message);
     }
