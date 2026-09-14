@@ -154,8 +154,6 @@ export const CLEANING_SUBCATEGORIES = [
   }
 ];
 
-export const API = `${import.meta.env.DEV
-  ? 'http://localhost:5000'
-  : 'https://service-marketplace-af7p.onrender.com'}/api/user`;
+export const API = `${import.meta.env.VITE_API_URL || 'https://service-marketplace-af7p.onrender.com'}/api/user`;
 
 

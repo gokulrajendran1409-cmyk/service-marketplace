@@ -1,46 +1,57 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 :root {
   /* ── Backgrounds ── */
-  --bg-base:          #F8F9FF;
+  --bg-base:          #F8FAFC;
   --bg-surface:       #FFFFFF;
-  --bg-surface-hover: #F0F1FF;
+  --bg-surface-hover: #F0FDF4;
 
   /* ── Text ── */
-  --text-primary:   #111827;
-  --text-secondary: #6B7280;
-  --text-muted:     #9CA3AF;
+  --text-primary:   #0F172A;
+  --text-secondary: #475569;
+  --text-muted:     #94A3B8;
 
   /* ── Borders ── */
-  --border-light: #E5E7EB;
-  --border-focus: rgba(99, 102, 241, 0.4);
+  --border-light: #E2E8F0;
+  --border-focus: rgba(0, 121, 107, 0.4);
 
-  /* ── Primary accent — Indigo ── */
-  --accent-primary:   #6366F1;
-  --accent-hover:     #4F46E5;
-  --accent-dark:      #4338CA;
-  --accent-light:     #EEF2FF;
-  --accent-gradient:  linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
-  --accent-glow:      rgba(99, 102, 241, 0.18);
+  /* ── Primary accent — Visily Teal ── */
+  --accent-primary:   #00796B;
+  --accent-hover:     #00695C;
+  --accent-dark:      #004D40;
+  --accent-light:     #E0F2F1;
+  --accent-tint:      #ECFDF5;
+  --accent-gradient:  linear-gradient(135deg, #00796B 0%, #004D40 100%);
+  --accent-glow:      rgba(0, 121, 107, 0.18);
 
-  /* ── Secondary — Violet ── */
-  --secondary:        #8B5CF6;
-  --secondary-light:  #F5F3FF;
+  /* ── Secondary / Status ── */
+  --secondary:        #0D9488;
+  --secondary-light:  #F0FDFA;
+
+  /* ── Status badges ── */
+  --status-in-progress-bg:   #FEF3C7;
+  --status-in-progress-text: #B45309;
+  --status-confirmed-bg:     #E0F2F1;
+  --status-confirmed-text:   #00796B;
+  --status-completed-bg:     #DCFCE7;
+  --status-completed-text:   #15803D;
+  --status-cancelled-bg:     #FEE2E2;
+  --status-cancelled-text:   #B91C1C;
 
   /* ── Success / Warning / Error ── */
-  --success:  #10B981;
-  --warning:  #F59E0B;
-  --error:    #EF4444;
+  --success:  #059669;
+  --warning:  #D97706;
+  --error:    #DC2626;
 
   /* ── Typography ── */
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
 
   /* ── Shadows ── */
   --shadow-sm:   0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md:   0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
   --shadow-lg:   0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
   --shadow-glow: 0 0 30px var(--accent-glow);
-  --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(99,102,241,0.07);
+  --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 *, *::before, *::after {
@@ -436,3 +447,1068 @@ h1, h2, h3, h4, h5, h6 {
   .booking-tab { padding: 8px 12px; font-size: 13px; }
   .bookings-cards-list { padding: 0 14px; }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   VISILY REFERENCE MULTISCREEN DESIGN SYSTEM (Teal & Mint)
+   ══════════════════════════════════════════════════════════════ */
+
+/* Stepper Component */
+.visily-stepper-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 12px 20px;
+  background: #FFFFFF;
+}
+.visily-stepper-track {
+  position: absolute;
+  top: 30px;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  background: #E2E8F0;
+  z-index: 1;
+}
+.visily-step-item {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 56px;
+  padding: 0;
+}
+.visily-step-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  background: #FFFFFF;
+  border: 1.5px solid #CBD5E1;
+  color: #64748B;
+  transition: all 0.25s ease;
+}
+.visily-step-circle.active {
+  background: #00796B;
+  border-color: #00796B;
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(0, 121, 107, 0.35);
+}
+.visily-step-circle.done {
+  background: #00796B;
+  border-color: #00796B;
+  color: #FFFFFF;
+}
+.visily-step-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #94A3B8;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+.visily-step-label.active {
+  color: #00796B;
+  font-weight: 700;
+}
+.visily-step-label.done {
+  color: #00796B;
+}
+
+/* Modal Overlay & Container */
+.visily-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  z-index: 1200;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+}
+@media (min-width: 640px) {
+  .visily-modal-overlay {
+    align-items: center;
+    padding: 20px;
+  }
+}
+.visily-modal-container {
+  width: 100%;
+  max-width: 460px;
+  max-height: 92vh;
+  background: #FFFFFF;
+  border-top-left-radius: 28px;
+  border-top-right-radius: 28px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.15);
+  animation: slideUpModal 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (min-width: 640px) {
+  .visily-modal-container {
+    border-radius: 28px;
+    max-height: 88vh;
+  }
+}
+@keyframes slideUpModal {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Visily Screen Header */
+.visily-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid #F1F5F9;
+  background: #FFFFFF;
+  flex-shrink: 0;
+}
+.visily-header-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.visily-header-btn:hover {
+  background: #E0F2F1;
+  color: #00796B;
+}
+.visily-header-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #0F172A;
+  letter-spacing: -0.02em;
+}
+
+/* Modal Body */
+.visily-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.visily-title-group {
+  margin-bottom: 4px;
+}
+.visily-screen-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0F172A;
+  margin-bottom: 4px;
+  letter-spacing: -0.02em;
+}
+.visily-screen-subtitle {
+  font-size: 13.5px;
+  color: #64748B;
+  line-height: 1.4;
+}
+
+/* Visily Cards */
+.visily-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 18px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+.visily-card.selected {
+  border-color: #00796B;
+  background: #F7FAF9;
+  box-shadow: 0 0 0 1px #00796B;
+}
+.visily-service-preview-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 18px;
+  padding: 16px;
+}
+.visily-icon-mint-box {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: #E0F2F1;
+  color: #00796B;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.visily-change-btn {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 700;
+  color: #00796B;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+.visily-change-btn:hover {
+  background: #E0F2F1;
+}
+
+/* Inputs & Form Elements */
+.visily-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.visily-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1E293B;
+}
+.visily-select {
+  width: 100%;
+  height: 48px;
+  border-radius: 14px;
+  border: 1.5px solid #E2E8F0;
+  background: #FFFFFF;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #0F172A;
+  outline: none;
+  transition: border-color 0.2s;
+  cursor: pointer;
+}
+.visily-select:focus {
+  border-color: #00796B;
+  box-shadow: 0 0 0 3px rgba(0, 121, 107, 0.12);
+}
+.visily-textarea-wrap {
+  position: relative;
+}
+.visily-textarea {
+  width: 100%;
+  min-height: 96px;
+  border-radius: 14px;
+  border: 1.5px solid #E2E8F0;
+  background: #FFFFFF;
+  padding: 12px 14px 28px;
+  font-size: 14px;
+  color: #0F172A;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.visily-textarea:focus {
+  border-color: #00796B;
+  box-shadow: 0 0 0 3px rgba(0, 121, 107, 0.12);
+}
+.visily-char-counter {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  font-size: 11px;
+  color: #94A3B8;
+  font-weight: 500;
+}
+
+/* Photo Upload Row */
+.visily-upload-grid {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.visily-photo-thumb {
+  width: 68px;
+  height: 68px;
+  border-radius: 14px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #E2E8F0;
+}
+.visily-photo-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.visily-photo-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.7);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+}
+.visily-upload-add-btn {
+  width: 68px;
+  height: 68px;
+  border-radius: 14px;
+  border: 2px dashed #00796B;
+  background: #E0F2F1;
+  color: #00796B;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.visily-upload-add-btn:hover {
+  background: #B2DFDB;
+}
+
+/* Pill Buttons */
+.visily-pill-btn {
+  width: 100%;
+  height: 52px;
+  border-radius: 26px;
+  background: #00796B;
+  color: #FFFFFF;
+  font-size: 15.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 121, 107, 0.3);
+  transition: all 0.2s ease;
+}
+.visily-pill-btn:hover:not(:disabled) {
+  background: #00695C;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 121, 107, 0.4);
+}
+.visily-pill-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+.visily-pill-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.visily-pill-btn-outline {
+  width: 100%;
+  height: 52px;
+  border-radius: 26px;
+  background: transparent;
+  color: #00796B;
+  font-size: 15.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1.5px solid #00796B;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.visily-pill-btn-outline:hover {
+  background: #E0F2F1;
+}
+
+/* Radio Cards (Address, Payment, Professional) */
+.visily-radio-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1.5px solid #E2E8F0;
+  background: #FFFFFF;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.visily-radio-card.active {
+  border-color: #00796B;
+  background: #F4FAF8;
+  box-shadow: 0 0 0 1px #00796B;
+}
+.visily-radio-circle {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid #CBD5E1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+.visily-radio-circle.active {
+  border-color: #00796B;
+  background: #00796B;
+}
+.visily-radio-circle-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #FFFFFF;
+}
+
+/* Date & Time Slot Grid */
+.visily-date-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.visily-date-card {
+  padding: 14px 8px;
+  border-radius: 14px;
+  border: 1.5px solid #E2E8F0;
+  background: #FFFFFF;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+.visily-date-card.active {
+  border-color: #00796B;
+  background: #E0F2F1;
+}
+.visily-date-card strong {
+  font-size: 14px;
+  color: #0F172A;
+}
+.visily-date-card.active strong {
+  color: #00796B;
+}
+.visily-date-card span {
+  font-size: 12px;
+  color: #64748B;
+}
+.visily-date-card.active span {
+  color: #00796B;
+  font-weight: 600;
+}
+
+/* English Calendar Component Styles */
+.visily-calendar-wrap {
+  margin-top: 12px;
+  padding: 14px;
+  background: #FFFFFF;
+  border-radius: 16px;
+  border: 1.5px solid #E2E8F0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.visily-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.visily-calendar-selectors {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.visily-calendar-select-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.visily-calendar-select-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.visily-calendar-select {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1.5px solid #CBD5E1;
+  background: #F8FAFC;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0F172A;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.visily-calendar-select:focus {
+  border-color: #00796B;
+  background: #FFFFFF;
+  box-shadow: 0 0 0 2px rgba(0, 121, 107, 0.15);
+}
+
+.visily-calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.visily-calendar-nav-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #E2E8F0;
+  background: #F8FAFC;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.visily-calendar-nav-btn:hover {
+  background: #E0F2F1;
+  color: #00796B;
+  border-color: #00796B;
+}
+
+.visily-calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #F1F5F9;
+  padding-bottom: 6px;
+}
+
+.visily-calendar-weekday {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.visily-calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.visily-calendar-day-empty {
+  aspect-ratio: 1;
+}
+
+.visily-calendar-day-btn {
+  aspect-ratio: 1;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1E293B;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.visily-calendar-day-btn:hover:not(:disabled):not(.selected) {
+  background: #F1F5F9;
+  color: #00796B;
+}
+
+.visily-calendar-day-btn.today:not(.selected) {
+  border-color: #00796B;
+  font-weight: 700;
+  color: #00796B;
+}
+
+.visily-calendar-day-btn.selected {
+  background: #00796B !important;
+  color: #FFFFFF !important;
+  font-weight: 800;
+  box-shadow: 0 3px 8px rgba(0, 121, 107, 0.35);
+}
+
+.visily-calendar-day-btn.disabled {
+  color: #CBD5E1;
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.visily-calendar-day-btn .today-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #00796B;
+  position: absolute;
+  bottom: 3px;
+}
+
+.visily-calendar-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #F1F5F9;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.visily-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.visily-slot-btn {
+  padding: 13px 10px;
+  border-radius: 14px;
+  border: 1.5px solid #E2E8F0;
+  background: #FFFFFF;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+}
+.visily-slot-btn.active {
+  background: #E0F2F1;
+  border-color: #00796B;
+  color: #00796B;
+  font-weight: 700;
+}
+.visily-slot-btn.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: #F8FAFC;
+  border-color: #E2E8F0;
+  color: #94A3B8;
+  pointer-events: none;
+}
+
+/* Checkbox Item */
+.visily-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #F8FAFC;
+  border-radius: 12px;
+  border: 1px solid #E2E8F0;
+  cursor: pointer;
+  user-select: none;
+}
+.visily-checkbox-box {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1.5px solid #94A3B8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #FFFFFF;
+  color: #FFFFFF;
+  transition: all 0.15s;
+}
+.visily-checkbox-box.checked {
+  background: #00796B;
+  border-color: #00796B;
+}
+
+/* Trust Banner */
+.visily-trust-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #E0F2F1;
+  border-radius: 14px;
+  border: 1px solid #B2DFDB;
+  color: #004D40;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+/* Professional Card in Booking Screen 5 */
+.visily-pro-list-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1.5px solid #E2E8F0;
+  background: #FFFFFF;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.visily-pro-list-card.active {
+  border-color: #00796B;
+  background: #F4FAF8;
+  box-shadow: 0 0 0 1px #00796B;
+}
+.visily-pro-avatar-wrap {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+}
+.visily-pro-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #E0F2F1;
+}
+.visily-pro-verified-tick {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #00796B;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid white;
+}
+.visily-pro-info-col {
+  flex: 1;
+  min-width: 0;
+}
+.visily-pro-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.visily-pro-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0F172A;
+}
+.visily-verified-chip {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #00796B;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.visily-pro-meta {
+  font-size: 12px;
+  color: #64748B;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.visily-pro-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.visily-pro-tag {
+  font-size: 11px;
+  font-weight: 600;
+  background: #E0F2F1;
+  color: #00796B;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+.visily-pro-price {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0F172A;
+  white-space: nowrap;
+}
+
+/* Pricing Breakdown (Screen 6) */
+.visily-cost-card {
+  background: #F8FAFC;
+  border-radius: 18px;
+  padding: 18px;
+  border: 1px solid #E2E8F0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.visily-cost-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13.5px;
+  color: #475569;
+}
+.visily-cost-row.total {
+  font-size: 17px;
+  font-weight: 800;
+  color: #00796B;
+  padding-top: 10px;
+  border-top: 1px dashed #CBD5E1;
+}
+
+/* Booking Confirmed Screen 9 */
+.visily-confirmed-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 30px 20px 20px;
+}
+.visily-confirmed-check-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #00796B;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 25px rgba(0, 121, 107, 0.35);
+  margin-bottom: 20px;
+}
+.visily-booking-id-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: #E0F2F1;
+  color: #00796B;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+/* Track Professional Screen 11 */
+.visily-track-eta-banner {
+  background: #E0F2F1;
+  border-bottom: 1px solid #B2DFDB;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #004D40;
+  font-weight: 700;
+  font-size: 14px;
+}
+.visily-timeline-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 10px 0;
+}
+.visily-timeline-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  position: relative;
+}
+.visily-timeline-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 24px;
+  left: 11px;
+  width: 2px;
+  bottom: -16px;
+  background: #E2E8F0;
+}
+.visily-timeline-item.done:not(:last-child)::after {
+  background: #00796B;
+}
+.visily-timeline-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #CBD5E1;
+  background: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  z-index: 2;
+  font-size: 11px;
+  color: #64748B;
+}
+.visily-timeline-dot.done {
+  background: #00796B;
+  border-color: #00796B;
+  color: #FFFFFF;
+}
+.visily-timeline-dot.current {
+  background: #00796B;
+  border-color: #00796B;
+  color: #FFFFFF;
+  box-shadow: 0 0 0 4px rgba(0, 121, 107, 0.2);
+}
+.visily-timeline-content {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.visily-timeline-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #1E293B;
+}
+.visily-timeline-time {
+  font-size: 11.5px;
+  color: #94A3B8;
+  font-weight: 500;
+}
+
+/* Action Icons (Phone, Chat) */
+.visily-action-circle-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #E0F2F1;
+  color: #00796B;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #B2DFDB;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.visily-action-circle-btn:hover {
+  background: #00796B;
+  color: #FFFFFF;
+}
+
+/* Rate Your Professional Screen 12 */
+.visily-star-picker {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+.visily-star-picker-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 38px;
+  color: #CBD5E1;
+  transition: all 0.15s;
+  padding: 4px;
+}
+.visily-star-picker-btn.active {
+  color: #F59E0B;
+  transform: scale(1.1);
+}
+.visily-tags-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+.visily-tag-chip {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1.5px solid #E2E8F0;
+  background: #FFFFFF;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.visily-tag-chip.active {
+  border-color: #00796B;
+  background: #E0F2F1;
+  color: #00796B;
+}
+
+/* Home Active Booking Banner */
+.home-active-tracker-card {
+  margin: 12px 16px 16px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #E0F2F1 0%, #ECFDF5 100%);
+  border: 1px solid #A7F3D0;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: 0 4px 12px rgba(0, 121, 107, 0.08);
+}
+.home-active-tracker-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.home-active-tracker-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #00796B;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+}
+.home-active-tracker-info h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #064E3B;
+  margin-bottom: 2px;
+}
+.home-active-tracker-info p {
+  font-size: 12px;
+  color: #047857;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.home-active-tracker-btn {
+  background: #00796B;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 2px 8px rgba(0, 121, 107, 0.3);
+}
+

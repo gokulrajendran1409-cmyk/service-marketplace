@@ -14,10 +14,9 @@ import {
   Users,
 } from 'lucide-react';
 import { API } from '../constants';
+import SubcategorySlideshow from '../components/SubcategorySlideshow';
 
-const SERVER_BASE = import.meta.env.DEV
-  ? 'http://localhost:5000'
-  : 'https://service-marketplace-af7p.onrender.com';
+const SERVER_BASE = import.meta.env.VITE_API_URL || 'https://service-marketplace-af7p.onrender.com';
 
 const resolvePhotoUrl = (path) => {
   if (!path) return null;
@@ -211,33 +210,15 @@ function ServiceDetail({
         </div>
       </div>
 
-      {/* Popular Sub Services */}
+      {/* Popular Sub Services with Match & Move Slideshow */}
       {subcategories.length > 0 && (
-        <section className="sd-section">
-          <div className="sd-section-head">
-            <h2>Popular Sub Services</h2>
-            {subcategories.length > 5 && (
-              <button type="button" className="sd-see-all" onClick={() => setShowAllSubcats(v => !v)}>
-                {showAllSubcats ? 'Show less' : 'See All'} <ChevronRight size={15} />
-              </button>
-            )}
-          </div>
-          <div className="sd-subcats-scroll">
-            {displayedSubcats.map(sub => (
-              <button
-                key={sub.id || sub.name}
-                type="button"
-                className="sd-subcat-card"
-                onClick={() => onSubcategoryClick?.(sub)}
-              >
-                <div className="sd-subcat-icon-wrap">
-                  <img src={sub.image_url} alt={sub.name} onError={(e) => { e.target.style.display = 'none'; }} />
-                </div>
-                <span className="sd-subcat-label">{sub.name}</span>
-              </button>
-            ))}
-          </div>
-        </section>
+        <div style={{ padding: '0 20px', marginTop: 20 }}>
+          <SubcategorySlideshow
+            categoryName={category?.name}
+            subcategories={subcategories}
+            onSelectSubcategory={onSubcategoryClick}
+          />
+        </div>
       )}
 
       {/* Top Rated Professionals */}

@@ -2,7 +2,23 @@ const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
 const router = express.Router();
-const { getProfile, updateProfile, getCategories, getSubcategories, getProfessionals, getCategoryReviews, createRequest, getMyRequests, streamNotifications, confirmPayment, createReview } = require('../controllers/userController');
+const {
+	getProfile,
+	updateProfile,
+	getUserAddresses,
+	addUserAddress,
+	updateUserAddress,
+	deleteUserAddress,
+	getCategories,
+	getSubcategories,
+	getProfessionals,
+	getCategoryReviews,
+	createRequest,
+	getMyRequests,
+	streamNotifications,
+	confirmPayment,
+	createReview
+} = require('../controllers/userController');
 const { protectCustomer } = require('../middleware/authMiddleware');
 
 if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
@@ -20,6 +36,10 @@ router.get('/professionals', getProfessionals);
 router.get('/reviews', getCategoryReviews);
 router.get('/profile', protectCustomer, getProfile);
 router.patch('/profile', protectCustomer, updateProfile);
+router.get('/addresses', protectCustomer, getUserAddresses);
+router.post('/addresses', protectCustomer, addUserAddress);
+router.patch('/addresses/:id', protectCustomer, updateUserAddress);
+router.delete('/addresses/:id', protectCustomer, deleteUserAddress);
 router.post('/requests', protectCustomer, upload.fields([
 	{ name: 'photos', maxCount: 5 },
 	{ name: 'video', maxCount: 1 },
