@@ -1,24 +1,31 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
   Bell,
   BriefcaseBusiness,
+  Car,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  Hammer,
+  Home,
   Link,
   MapPin,
+  Monitor,
   RefreshCw,
   Search,
   Sparkles,
   Star,
-  Tags
+  Tags,
+  Wrench
 } from 'lucide-react';
 import { categoryColors, categoryIcons, API } from '../constants';
 import { BookingModal } from '../components/BookingModal';
 import { useToast, Toast } from '../components/Toast';
 import { useTranslation } from 'react-i18next';
+import ServiceDetail from './ServiceDetail';
+import userAvatarImg from '../assets/category-icons/user_avatar.png';
 
 import keralaCarpentry from '../assets/kerala/carpentry.jpg';
 import keralaGardening from '../assets/kerala/gardening.jpg';
@@ -44,6 +51,26 @@ import electricalFallback from '../assets/service-icons/electrical.jpg';
 import paintingFallback from '../assets/service-icons/painting.jpg';
 import plumbingFallback from '../assets/service-icons/plumbing.jpg';
 
+import plumbingIcon from '../assets/category-icons/plumbing.png';
+import electricalIcon from '../assets/category-icons/electrical.png';
+import acRepairIcon from '../assets/category-icons/ac_repair.png';
+import carpentryIcon from '../assets/category-icons/carpentry.png';
+import cleaningIcon from '../assets/category-icons/cleaning.png';
+import paintingIcon from '../assets/category-icons/painting.png';
+import mechanicIcon from '../assets/category-icons/mechanic.png';
+import cctvIcon from '../assets/category-icons/cctv.png';
+import applianceRepairIcon from '../assets/category-icons/appliance_repair.png';
+import beautyWellnessIcon from '../assets/category-icons/beauty_wellness.png';
+import tutoringIcon from '../assets/category-icons/tutoring.png';
+import photographyIcon from '../assets/category-icons/photography.png';
+import eventPlanningIcon from '../assets/category-icons/event_planning.png';
+import landscapingIcon from '../assets/category-icons/landscaping.png';
+import movingPackingIcon from '../assets/category-icons/moving_packing.png';
+import homeRenovationIcon from '../assets/category-icons/home_renovation.png';
+import itSupportIcon from '../assets/category-icons/it_support.png';
+import languageClassesIcon from '../assets/category-icons/language_classes.png';
+import petCareIcon from '../assets/category-icons/pet_care.png';
+import otherServicesIcon from '../assets/category-icons/other_services.png';
 const scrollAppToTop = (behavior = 'smooth') => {
   document.querySelector('.app-content')?.scrollTo({ top: 0, behavior });
 };
@@ -96,26 +123,26 @@ const localCategoryFallbacks = {
 
 // 20 Exact Categories from design image with respective professional counts & icons
 const BROWSE_CATEGORIES = [
-  { id: 'plumbing', name: 'Plumbing', count: '124 Professionals', icon: plumbingIcon, dbCategory: 'Plumbing', keywords: ['plumber', 'pipe', 'leak', 'drain', 'water', 'tap', 'sink', 'toilet'] },
-  { id: 'electrical', name: 'Electrical', count: '98 Professionals', icon: electricalIcon, dbCategory: 'Electrical', keywords: ['electrician', 'wiring', 'switch', 'light', 'fan', 'fuse', 'power', 'socket'] },
-  { id: 'ac_repair', name: 'AC Repair', count: '76 Professionals', icon: acRepairIcon, dbCategory: 'AC & Appliance Repair', keywords: ['ac', 'air conditioner', 'cooling', 'hvac', 'gas refill', 'servicing'] },
-  { id: 'carpentry', name: 'Carpentry', count: '68 Professionals', icon: carpentryIcon, dbCategory: 'Carpentry', keywords: ['carpenter', 'wood', 'furniture', 'door', 'table', 'chair', 'cabinet'] },
-  { id: 'cleaning', name: 'Cleaning', count: '142 Professionals', icon: cleaningIcon, dbCategory: 'Cleaning', keywords: ['maid', 'cleaner', 'deep clean', 'sanitize', 'mop', 'housekeeping', 'dusting'] },
-  { id: 'painting', name: 'Painting', count: '58 Professionals', icon: paintingIcon, dbCategory: 'Painting', keywords: ['painter', 'wall', 'paint', 'whitewash', 'texture', 'interior', 'exterior'] },
-  { id: 'mechanic', name: 'Mechanic', count: '71 Professionals', icon: mechanicIcon, dbCategory: 'Vehicle Services', keywords: ['car', 'bike', 'motor', 'vehicle', 'repair', 'auto', 'breakdown', 'garage'] },
-  { id: 'cctv', name: 'CCTV Installation', count: '46 Professionals', icon: cctvIcon, dbCategory: 'CCTV & Security', keywords: ['cctv', 'camera', 'security', 'surveillance', 'monitoring', 'alarm'] },
-  { id: 'appliance_repair', name: 'Appliance Repair', count: '63 Professionals', icon: applianceRepairIcon, dbCategory: 'AC & Appliance Repair', keywords: ['fridge', 'refrigerator', 'washing machine', 'microwave', 'oven', 'tv', 'appliance'] },
-  { id: 'beauty_wellness', name: 'Beauty & Wellness', count: '52 Professionals', icon: beautyWellnessIcon, dbCategory: 'Personal Care', keywords: ['salon', 'spa', 'massage', 'haircut', 'facial', 'grooming', 'makeup', 'barber'] },
-  { id: 'tutoring', name: 'Tutoring', count: '38 Professionals', icon: tutoringIcon, dbCategory: 'Computer & Mobile Repair', keywords: ['tutor', 'teacher', 'maths', 'science', 'tuition', 'coaching', 'study'] },
-  { id: 'photography', name: 'Photography', count: '29 Professionals', icon: photographyIcon, dbCategory: 'Photography & Videography', keywords: ['photo', 'video', 'photographer', 'candid', 'wedding', 'event', 'shoot'] },
-  { id: 'event_planning', name: 'Event Planning', count: '21 Professionals', icon: eventPlanningIcon, dbCategory: 'Personal Care', keywords: ['event', 'party', 'birthday', 'wedding', 'planner', 'stage', 'catering'] },
-  { id: 'landscaping', name: 'Landscaping', count: '34 Professionals', icon: landscapingIcon, dbCategory: 'Gardening & Landscaping', keywords: ['garden', 'lawn', 'plants', 'trees', 'grass', 'irrigation', 'landscaping'] },
-  { id: 'moving_packing', name: 'Moving & Packing', count: '27 Professionals', icon: movingPackingIcon, dbCategory: 'Home Repair & Maintenance', keywords: ['packers', 'movers', 'shifting', 'relocation', 'transport', 'cargo'] },
-  { id: 'home_renovation', name: 'Home Renovation', count: '19 Professionals', icon: homeRenovationIcon, dbCategory: 'Home Repair & Maintenance', keywords: ['renovation', 'remodeling', 'tiles', 'masonry', 'contractor', 'upgrade'] },
-  { id: 'it_support', name: 'IT & Computer Support', count: '42 Professionals', icon: itSupportIcon, dbCategory: 'Computer & Mobile Repair', keywords: ['computer', 'laptop', 'wifi', 'networking', 'windows', 'mac', 'printer', 'it'] },
-  { id: 'language_classes', name: 'Language Classes', count: '16 Professionals', icon: languageClassesIcon, dbCategory: 'Computer & Mobile Repair', keywords: ['english', 'malayalam', 'hindi', 'french', 'german', 'ielts', 'learning'] },
-  { id: 'pet_care', name: 'Pet Care', count: '24 Professionals', icon: petCareIcon, dbCategory: 'Personal Care', keywords: ['dog', 'cat', 'pet', 'grooming', 'vet', 'walking', 'boarding'] },
-  { id: 'other_services', name: 'Other Services', count: '33 Professionals', icon: otherServicesIcon, dbCategory: 'Home Repair & Maintenance', keywords: ['other', 'misc', 'custom', 'handyman', 'general'] }
+  { id: 'plumbing', name: 'Plumbing', count: '124 Professionals', icon: plumbingIcon, dbCategory: 'Plumbing', group: 'Home Repairs', keywords: ['plumber', 'pipe', 'leak', 'drain', 'water', 'tap', 'sink', 'toilet'] },
+  { id: 'electrical', name: 'Electrical', count: '98 Professionals', icon: electricalIcon, dbCategory: 'Electrical', group: 'Home Repairs', keywords: ['electrician', 'wiring', 'switch', 'light', 'fan', 'fuse', 'power', 'socket'] },
+  { id: 'ac_repair', name: 'AC Repair', count: '76 Professionals', icon: acRepairIcon, dbCategory: 'AC & Appliance Repair', group: 'Home Repairs', keywords: ['ac', 'air conditioner', 'cooling', 'hvac', 'gas refill', 'servicing'] },
+  { id: 'carpentry', name: 'Carpentry', count: '68 Professionals', icon: carpentryIcon, dbCategory: 'Carpentry', group: 'Home Repairs', keywords: ['carpenter', 'wood', 'furniture', 'door', 'table', 'chair', 'cabinet'] },
+  { id: 'cleaning', name: 'Cleaning', count: '142 Professionals', icon: cleaningIcon, dbCategory: 'Cleaning', group: 'Home Services', keywords: ['maid', 'cleaner', 'deep clean', 'sanitize', 'mop', 'housekeeping', 'dusting'] },
+  { id: 'painting', name: 'Painting', count: '58 Professionals', icon: paintingIcon, dbCategory: 'Painting', group: 'Home Repairs', keywords: ['painter', 'wall', 'paint', 'whitewash', 'texture', 'interior', 'exterior'] },
+  { id: 'mechanic', name: 'Mechanic', count: '71 Professionals', icon: mechanicIcon, dbCategory: 'Vehicle Services', group: 'Vehicle Services', keywords: ['car', 'bike', 'motor', 'vehicle', 'repair', 'auto', 'breakdown', 'garage'] },
+  { id: 'cctv', name: 'CCTV Installation', count: '46 Professionals', icon: cctvIcon, dbCategory: 'CCTV & Security', group: 'Home Services', keywords: ['cctv', 'camera', 'security', 'surveillance', 'monitoring', 'alarm'] },
+  { id: 'appliance_repair', name: 'Appliance Repair', count: '63 Professionals', icon: applianceRepairIcon, dbCategory: 'AC & Appliance Repair', group: 'Home Repairs', keywords: ['fridge', 'refrigerator', 'washing machine', 'microwave', 'oven', 'tv', 'appliance'] },
+  { id: 'beauty_wellness', name: 'Beauty & Wellness', count: '52 Professionals', icon: beautyWellnessIcon, dbCategory: 'Personal Care', group: 'Personal Care', keywords: ['salon', 'spa', 'massage', 'haircut', 'facial', 'grooming', 'makeup', 'barber'] },
+  { id: 'tutoring', name: 'Tutoring', count: '38 Professionals', icon: tutoringIcon, dbCategory: 'Computer & Mobile Repair', group: 'Education', keywords: ['tutor', 'teacher', 'maths', 'science', 'tuition', 'coaching', 'study'] },
+  { id: 'photography', name: 'Photography', count: '29 Professionals', icon: photographyIcon, dbCategory: 'Photography & Videography', group: 'Personal Care', keywords: ['photo', 'video', 'photographer', 'candid', 'wedding', 'event', 'shoot'] },
+  { id: 'event_planning', name: 'Event Planning', count: '21 Professionals', icon: eventPlanningIcon, dbCategory: 'Personal Care', group: 'Personal Care', keywords: ['event', 'party', 'birthday', 'wedding', 'planner', 'stage', 'catering'] },
+  { id: 'landscaping', name: 'Landscaping', count: '34 Professionals', icon: landscapingIcon, dbCategory: 'Gardening & Landscaping', group: 'Home Services', keywords: ['garden', 'lawn', 'plants', 'trees', 'grass', 'irrigation', 'landscaping'] },
+  { id: 'moving_packing', name: 'Moving & Packing', count: '27 Professionals', icon: movingPackingIcon, dbCategory: 'Home Repair & Maintenance', group: 'Home Services', keywords: ['packers', 'movers', 'shifting', 'relocation', 'transport', 'cargo'] },
+  { id: 'home_renovation', name: 'Home Renovation', count: '19 Professionals', icon: homeRenovationIcon, dbCategory: 'Home Repair & Maintenance', group: 'Home Repairs', keywords: ['renovation', 'remodeling', 'tiles', 'masonry', 'contractor', 'upgrade'] },
+  { id: 'it_support', name: 'IT & Computer Support', count: '42 Professionals', icon: itSupportIcon, dbCategory: 'Computer & Mobile Repair', group: 'Education', keywords: ['computer', 'laptop', 'wifi', 'networking', 'windows', 'mac', 'printer', 'it'] },
+  { id: 'language_classes', name: 'Language Classes', count: '16 Professionals', icon: languageClassesIcon, dbCategory: 'Computer & Mobile Repair', group: 'Education', keywords: ['english', 'malayalam', 'hindi', 'french', 'german', 'ielts', 'learning'] },
+  { id: 'pet_care', name: 'Pet Care', count: '24 Professionals', icon: petCareIcon, dbCategory: 'Personal Care', group: 'Personal Care', keywords: ['dog', 'cat', 'pet', 'grooming', 'vet', 'walking', 'boarding'] },
+  { id: 'other_services', name: 'Other Services', count: '33 Professionals', icon: otherServicesIcon, dbCategory: 'Home Repair & Maintenance', group: 'Home Services', keywords: ['other', 'misc', 'custom', 'handyman', 'general'] }
 ];
 
 function Services({ navigate, initialGroup = null, initialCategory = null, user = null, unreadCount = 0 }) {
@@ -123,6 +150,7 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
   const [selected, setSelected] = useState(null);
   const [professionals, setProfessionals] = useState([]);
   const [loadingCats, setLoadingCats] = useState(true);
+  const [loadingSubcats, setLoadingSubcats] = useState(true);
   const [loadingPros, setLoadingPros] = useState(false);
   const [location, setLocation] = useState(null);
   const [locationName, setLocationName] = useState('Thiruvananthapuram');
@@ -135,6 +163,7 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
   const [selectedSubcat, setSelectedSubcat] = useState(null);
   const [subcatProTab, setSubcatProTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeGroup, setActiveGroup] = useState(initialGroup || 'all');
   const { toast, showToast } = useToast();
   const { t, i18n } = useTranslation();
   const nearbyLimitKm = 15;
@@ -299,8 +328,13 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
     professional => professional.distance_from_user != null && professional.distance_from_user <= nearbyLimitKm
   );
 
-  // Filter 20 cards based on user search query
+  // Filter cards based on activeGroup and search query
   const filteredBrowseCategories = BROWSE_CATEGORIES.filter(item => {
+    // 1. Filter by Active Group
+    if (activeGroup !== 'all' && item.group !== activeGroup) {
+      return false;
+    }
+    // 2. Filter by Search Query
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
     return (
@@ -354,10 +388,35 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
                 : `Choose a ${activeGroup.toLowerCase()} service and connect with a trusted professional.`}
             </p>
           </div>
-          {activeGroup !== 'all' && (
+          {activeGroup !== 'all' ? (
             <button className="show-all-services-btn" onClick={() => { setActiveGroup('all'); navigate && navigate('services'); }}>
               <Tags size={16} /> {t('services.show_all')}
             </button>
+          ) : (
+            <div className="browse-topbar-actions">
+              <button
+                type="button"
+                className="browse-bell-btn"
+                onClick={() => navigate('notifications')}
+                title="Notifications"
+              >
+                <Bell size={18} />
+                {unreadCount > 0 && <span className="browse-bell-badge" />}
+              </button>
+
+              <button
+                type="button"
+                className="browse-user-avatar-btn"
+                onClick={() => navigate('profile')}
+                title="My Profile"
+              >
+                <img
+                  src={user?.profile_photo || userAvatarImg}
+                  alt={user?.full_name || 'User Profile'}
+                  className="browse-user-avatar-img"
+                />
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -424,31 +483,6 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
               <Car size={15} />
               <span>{t('services.vehicle_services')}</span>
             </button>
-
-            <div className="browse-topbar-actions">
-              <button
-                type="button"
-                className="browse-bell-btn"
-                onClick={() => navigate('notifications')}
-                title="Notifications"
-              >
-                <Bell size={18} />
-                {unreadCount > 0 && <span className="browse-bell-badge" />}
-              </button>
-
-              <button
-                type="button"
-                className="browse-user-avatar-btn"
-                onClick={() => navigate('profile')}
-                title="My Profile"
-              >
-                <img
-                  src={user?.profile_photo || userAvatarImg}
-                  alt={user?.full_name || 'User Profile'}
-                  className="browse-user-avatar-img"
-                />
-              </button>
-            </div>
           </div>
 
           {/* Search Bar */}
@@ -458,8 +492,8 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
               <input
                 type="text"
                 placeholder={t('services.search_subcat')}
-                value={subcatSearch}
-                onChange={(e) => setSubcatSearch(e.target.value)}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
               {searchQuery && (
                 <button
@@ -473,6 +507,38 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
               )}
             </div>
           </div>
+
+          {/* Categories Grid */}
+          <div className="browse-category-grid">
+            {filteredBrowseCategories.length > 0 ? (
+              filteredBrowseCategories.map((item, idx) => {
+                return (
+                  <div key={idx} className="browse-category-card fade-up" onClick={() => setSelected(item)}>
+                    <div className="browse-card-icon-wrap" style={{ color: categoryColors[item.name] || 'var(--accent-primary)' }}>
+                      {typeof item.icon === 'string' ? (
+                        <img src={item.icon} alt={item.name} className="browse-card-icon-img" />
+                      ) : (
+                        item.icon ? React.createElement(item.icon, { size: 24 }) : <Tags size={24} />
+                      )}
+                    </div>
+                    <div className="browse-card-text">
+                      <h3 className="browse-card-title">{item.name}</h3>
+                      <p className="browse-card-count">{item.count}</p>
+                    </div>
+                    <ChevronRight size={16} className="browse-card-chevron" />
+                  </div>
+                );
+              })
+            ) : (
+              <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
+                <div style={{ fontSize: 40 }}>🔍</div>
+                <h3>No categories found</h3>
+                <p>Try adjusting your search terms</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Category Overview & Sub-Categories Visual Showcase */}
       {selected && !selectedSubcat && (
@@ -532,41 +598,55 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
                   </div>
                   <span className="subcat-count-pill">{catSubcats.length} Sub-Categories</span>
                 </div>
-                <div className="browse-card-text">
-                  <h3 className="browse-card-title">{item.name}</h3>
-                  <p className="browse-card-count">{item.count}</p>
+                <div className="browse-category-grid">
+                  {catSubcats.map((item, idx) => (
+                    <div key={idx} className="browse-category-card" onClick={() => setBooking({
+                      professional: null,
+                      category: selected.name,
+                      location,
+                      initialTitle: item.name,
+                      initialDescription: `I need assistance with ${item.name} (${item.price_estimate || 'Standard rate'}).`,
+                    })}>
+                      <div className="browse-card-text">
+                        <h3 className="browse-card-title">{item.name}</h3>
+                        <p className="browse-card-count">{item.count || 'Available'}</p>
+                      </div>
+                      <ChevronRight size={16} className="browse-card-chevron" />
+                    </div>
+                  ))}
                 </div>
-                <ChevronRight size={16} className="browse-card-chevron" />
               </div>
-            ))}
+            );
+          })()}
 
-          {/* General category pros (available below showcase) */}
           <div style={{ marginTop: 36 }}>
             <div className="professional-section-heading">
               <div>
                 <h3>{t('services.all_pros')}</h3>
                 <p>{t('services.browse_pros')}</p>
               </div>
-            )}
-          </div>
+            </div>
 
             {loadingPros ? (
               <div style={{ textAlign: 'center', padding: '40px' }}>
                 <RefreshCw className="spin" size={28} color="var(--text-muted)" />
               </div>
             ) : professionals.length === 0 ? (
-              <div className="empty-state">
-                <div style={{ fontSize: 40 }}>🔍</div>
-                <h3>{t('services.no_pros')}</h3>
-                <p>{t('services.no_pros_desc')}</p>
-              </div>
-              <div className="browse-promo-text">
-                <h4 className="browse-promo-title">Need a Service Today?</h4>
-                <p className="browse-promo-subtitle">
-                  Book in just a few taps and get your work done without any hassle.
-                </p>
-              </div>
-            </div>
+              <>
+                <div className="empty-state">
+                  <div style={{ fontSize: 40 }}>🔍</div>
+                  <h3>{t('services.no_pros')}</h3>
+                  <p>{t('services.no_pros_desc')}</p>
+                </div>
+                <div className="browse-promo-text">
+                  <h4 className="browse-promo-title">Need a Service Today?</h4>
+                  <p className="browse-promo-subtitle">
+                    Book in just a few taps and get your work done without any hassle.
+                  </p>
+                </div>
+              </>
+            ) : null}
+
             <button
               type="button"
               className="browse-promo-btn"

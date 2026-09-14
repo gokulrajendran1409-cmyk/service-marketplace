@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { ArrowRight, Bell, CheckCircle2, ChevronRight, MapPin, Palette, Search, Sparkles, Star, UserRoundCheck, Wrench, Zap, Wind, Hammer, Leaf, Shield, SlidersHorizontal } from 'lucide-react';
+import { ArrowRight, Bell, CheckCircle2, ChevronRight, MapPin, Palette, Search, Sparkles, Star, UserRoundCheck, Wrench, Zap, Wind, Hammer, Leaf, Shield, ShieldCheck, SlidersHorizontal, BadgePercent, CheckCircle, Award, Navigation } from 'lucide-react';
 import { API } from '../constants';
 import { useToast, Toast } from '../components/Toast';
 import { useTranslation } from 'react-i18next';
@@ -107,7 +107,30 @@ function Home({ navigate, unreadCount = 0 }) {
     },
   ];
 
-  const serviceCategoryItems = browseCategories; // keep backward compat
+  const browseCategories = [
+    { id: 'plumbing', label: 'Plumbing', icon: plumbingIcon, group: 'Home Repairs', category: 'Plumbing' },
+    { id: 'electrical', label: 'Electrical', icon: electricalIcon, group: 'Home Repairs', category: 'Electrical' },
+    { id: 'ac_repair', label: 'AC Repair', icon: acRepairIcon, group: 'Home Repairs', category: 'AC & Appliance Repair' },
+    { id: 'carpentry', label: 'Carpentry', icon: carpentryIcon, group: 'Home Repairs', category: 'Carpentry' },
+    { id: 'cleaning', label: 'Cleaning', icon: cleaningIcon, group: 'Personal Care', category: 'Cleaning' },
+    { id: 'painting', label: 'Painting', icon: paintingIcon, group: 'Home Repairs', category: 'Painting' },
+    { id: 'mechanic', label: 'Mechanic', icon: mechanicIcon, group: 'Vehicle Services', category: 'Vehicle Services' },
+    { id: 'cctv', label: 'CCTV Installation', icon: cctvIcon, group: 'Home Services', category: 'CCTV & Security' },
+    { id: 'appliance_repair', label: 'Appliance Repair', icon: applianceRepairIcon, group: 'Home Repairs', category: 'AC & Appliance Repair' },
+    { id: 'beauty_wellness', label: 'Beauty & Wellness', icon: beautyWellnessIcon, group: 'Personal Care', category: 'Personal Care' },
+    { id: 'tutoring', label: 'Tutoring', icon: tutoringIcon, group: 'Computer & Mobile Repair', category: 'Computer & Mobile Repair' },
+    { id: 'photography', label: 'Photography', icon: photographyIcon, group: 'Photography & Videography', category: 'Photography & Videography' },
+    { id: 'event_planning', label: 'Event Planning', icon: eventPlanningIcon, group: 'Personal Care', category: 'Personal Care' },
+    { id: 'landscaping', label: 'Landscaping', icon: landscapingIcon, group: 'Gardening & Landscaping', category: 'Gardening & Landscaping' },
+    { id: 'moving_packing', label: 'Moving & Packing', icon: movingPackingIcon, group: 'Home Repair & Maintenance', category: 'Home Repair & Maintenance' },
+    { id: 'home_renovation', label: 'Home Renovation', icon: homeRenovationIcon, group: 'Home Repair & Maintenance', category: 'Home Repair & Maintenance' },
+    { id: 'it_support', label: 'IT & Computer Support', icon: itSupportIcon, group: 'Computer & Mobile Repair', category: 'Computer & Mobile Repair' },
+    { id: 'language_classes', label: 'Language Classes', icon: languageClassesIcon, group: 'Computer & Mobile Repair', category: 'Computer & Mobile Repair' },
+    { id: 'pet_care', label: 'Pet Care', icon: petCareIcon, group: 'Personal Care', category: 'Personal Care' },
+    { id: 'other_services', label: 'Other Services', icon: otherServicesIcon, group: 'Home Repair & Maintenance', category: 'Home Repair & Maintenance' }
+  ];
+
+  // serviceCategoryItems is already defined above with translated data
 
   const popularServices = [
     {
