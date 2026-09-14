@@ -3,12 +3,33 @@ const { notifyPro } = require('../utils/proSseClients');
 const { broadcast } = require('../utils/sseClients');
 const { addCustomerClient, removeCustomerClient } = require('../utils/customerSseClients');
 
+let profilePhotoColumnEnsured = false;
+async function ensureProfilePhotoColumn() {
+    if (profilePhotoColumnEnsured) return;
+    try {
+        await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_photo TEXT');
+        profilePhotoColumnEnsured = true;
+    } catch (err) {
+        console.warn('Could not ensure profile_photo column:', err.message);
+    }
+}
+
 exports.getProfile = async (req, res) => {
     try {
-        const result = await pool.query(
-            'SELECT id, name, email, phone, address, profile_photo FROM users WHERE id = $1',
-            [req.user.id]
-        );
+        await ensureProfilePhotoColumn();
+        let result;
+        try {
+            result = await pool.query(
+                'SELECT id, name, email, phone, address, profile_photo FROM users WHERE id = $1',
+                [req.user.id]
+            );
+        } catch {
+            // Fallback if column still not recognized
+            result = await pool.query(
+                'SELECT id, name, email, phone, address FROM users WHERE id = $1',
+                [req.user.id]
+            );
+        }
         if (!result.rows[0]) return res.status(404).json({ message: 'Profile not found' });
         res.json(result.rows[0]);
     } catch (err) {
@@ -19,19 +40,30 @@ exports.getProfile = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
     try {
-        const { phone, address } = req.body;
+        await ensureProfilePhotoColumn();
+        const { phone, address } = req.body || {};
         let profile_photo = req.body?.profile_photo || null;
         if (req.file) {
             profile_photo = `/uploads/${req.file.filename}`;
         }
 
         // Fetch current user data to avoid wiping existing values if omitted
-        const currentRes = await pool.query(
-            'SELECT phone, address, profile_photo FROM users WHERE id = $1',
-            [req.user.id]
-        );
-        if (!currentRes.rows[0]) return res.status(404).json({ message: 'Profile not found' });
-        const current = currentRes.rows[0];
+        let current = {};
+        try {
+            const currentRes = await pool.query(
+                'SELECT phone, address, profile_photo FROM users WHERE id = $1',
+                [req.user.id]
+            );
+            if (!currentRes.rows[0]) return res.status(404).json({ message: 'Profile not found' });
+            current = currentRes.rows[0];
+        } catch {
+            const currentRes = await pool.query(
+                'SELECT phone, address FROM users WHERE id = $1',
+                [req.user.id]
+            );
+            if (!currentRes.rows[0]) return res.status(404).json({ message: 'Profile not found' });
+            current = currentRes.rows[0];
+        }
 
         const updatedPhone = (phone !== undefined && phone !== null && String(phone).trim() !== '') 
             ? String(phone).trim() 
@@ -41,13 +73,22 @@ exports.updateProfile = async (req, res) => {
             : current.address;
         const updatedPhoto = profile_photo !== null 
             ? profile_photo 
-            : current.profile_photo;
+            : (current.profile_photo || null);
 
-        const result = await pool.query(
-            `UPDATE users SET phone = $1, address = $2, profile_photo = $3
-             WHERE id = $4 RETURNING id, name, email, phone, address, profile_photo`,
-            [updatedPhone, updatedAddress, updatedPhoto, req.user.id]
-        );
+        let result;
+        try {
+            result = await pool.query(
+                `UPDATE users SET phone = $1, address = $2, profile_photo = $3
+                 WHERE id = $4 RETURNING id, name, email, phone, address, profile_photo`,
+                [updatedPhone, updatedAddress, updatedPhoto, req.user.id]
+            );
+        } catch {
+            result = await pool.query(
+                `UPDATE users SET phone = $1, address = $2
+                 WHERE id = $3 RETURNING id, name, email, phone, address`,
+                [updatedPhone, updatedAddress, req.user.id]
+            );
+        }
         res.json(result.rows[0]);
     } catch (err) {
         console.error('updateProfile error:', err);
@@ -406,6 +447,8 @@ exports.getMyRequests = async (req, res) => {
                         offer_summary.pending_offer_count,
                     p.full_name AS professional_name,
                     p.category AS professional_category,
+                    p.profile_photo AS professional_profile_photo,
+                    prof_user.phone AS professional_phone,
                     p.current_latitude AS professional_latitude,
                     p.current_longitude AS professional_longitude,
                     (SELECT ROUND(AVG(pr.rating)::numeric, 1) FROM professional_reviews pr WHERE pr.professional_id = p.id) AS professional_avg_rating,
@@ -429,6 +472,7 @@ exports.getMyRequests = async (req, res) => {
                           LIMIT 1
                       ) selected_offer ON true
                      LEFT JOIN professionals p ON p.id = selected_offer.professional_id
+                     LEFT JOIN users prof_user ON prof_user.id = p.user_id
                      LEFT JOIN LATERAL (
                          SELECT id, rating, comment
                          FROM professional_reviews

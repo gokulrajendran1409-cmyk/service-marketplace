@@ -438,54 +438,9 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
         </button>
       </div>
 
-      {/* Category Group Selector Tabs */}
+      {/* Search Bar & Categories Showcase */}
       {!selected && (
-        <div className="services-group-tabs-scroll">
-          <div className="services-group-tabs">
-            <button 
-              className={`services-group-tab ${activeGroup === 'all' ? 'active' : ''}`}
-              onClick={() => setActiveGroup('all')}
-            >
-              <Tags size={15} />
-              <span>{t('services.all_services')}</span>
-            </button>
-            <button 
-              className={`services-group-tab ${activeGroup === 'Home Repairs' ? 'active' : ''}`}
-              onClick={() => setActiveGroup('Home Repairs')}
-            >
-              <Wrench size={15} />
-              <span>{t('services.home_repairs')}</span>
-            </button>
-            <button 
-              className={`services-group-tab ${activeGroup === 'Personal Care' ? 'active' : ''}`}
-              onClick={() => setActiveGroup('Personal Care')}
-            >
-              <Sparkles size={15} />
-              <span>{t('services.personal_care')}</span>
-            </button>
-            <button 
-              className={`services-group-tab ${activeGroup === 'Home Services' ? 'active' : ''}`}
-              onClick={() => setActiveGroup('Home Services')}
-            >
-              <Home size={15} />
-              <span>{t('services.home_services')}</span>
-            </button>
-            <button 
-              className={`services-group-tab ${activeGroup === 'Education' ? 'active' : ''}`}
-              onClick={() => setActiveGroup('Education')}
-            >
-              <Monitor size={15} />
-              <span>{t('services.education')}</span>
-            </button>
-            <button 
-              className={`services-group-tab ${activeGroup === 'Vehicle Services' ? 'active' : ''}`}
-              onClick={() => setActiveGroup('Vehicle Services')}
-            >
-              <Car size={15} />
-              <span>{t('services.vehicle_services')}</span>
-            </button>
-          </div>
-
+        <div className="services-main-browse-wrap">
           {/* Search Bar */}
           <div className="browse-search-wrap">
             <div className="browse-search-bar">
