@@ -26,11 +26,9 @@ import mechanicIcon from '../assets/category-icons/mechanic.png';
 import paintingIcon from '../assets/category-icons/painting.png';
 import beautyWellnessIcon from '../assets/category-icons/beauty_wellness.png';
 
-const SERVER_BASE = import.meta.env.DEV
-  ? 'http://localhost:5000'
-  : 'https://service-marketplace-af7p.onrender.com';
+const SERVER_BASE = import.meta.env.VITE_API_URL || 'https://service-marketplace-af7p.onrender.com';
 
-const TEAL = '#0d9488';
+const TEAL = '#00796B';
 
 const CATEGORY_META = {
   Plumbing: { label: 'Plumber', icon: plumbingIcon },

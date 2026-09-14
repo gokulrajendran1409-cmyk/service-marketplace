@@ -1,14 +1,37 @@
 import { useEffect, useState, useRef } from 'react';
-import { ArrowRight, Bell, CheckCircle2, ChevronRight, MapPin, Palette, Search, Sparkles, Star, UserRoundCheck, Wrench, Zap, Wind, Hammer, Leaf, Shield, ShieldCheck, SlidersHorizontal, BadgePercent, CheckCircle, Award, Navigation } from 'lucide-react';
+import {
+  ArrowRight,
+  Bell,
+  CheckCircle2,
+  ChevronRight,
+  MapPin,
+  Search,
+  Sparkles,
+  Star,
+  UserRoundCheck,
+  Wrench,
+  Zap,
+  Wind,
+  Hammer,
+  Leaf,
+  Shield,
+  ShieldCheck,
+  BadgePercent,
+  Award,
+  Navigation,
+  Clock,
+} from 'lucide-react';
 import { API } from '../constants';
 import { useToast, Toast } from '../components/Toast';
 import { useTranslation } from 'react-i18next';
+import BookingModal from '../components/BookingModal';
+
 import keralaAcRepair from '../assets/kerala/ac_repair.jpg';
 import keralaCleaning from '../assets/kerala/cleaning.jpg';
 import keralaPainting from '../assets/kerala/painting.jpg';
 import keralaPlumbing from '../assets/kerala/plumbing.jpg';
 
-// Category icon images (circular, from Services page)
+// Category icon images
 import plumbingIcon from '../assets/category-icons/plumbing.png';
 import electricalIcon from '../assets/category-icons/electrical.png';
 import acRepairIcon from '../assets/category-icons/ac_repair.png';
@@ -30,410 +53,300 @@ import languageClassesIcon from '../assets/category-icons/language_classes.png';
 import petCareIcon from '../assets/category-icons/pet_care.png';
 import otherServicesIcon from '../assets/category-icons/other_services.png';
 
+const SERVER_BASE = import.meta.env.VITE_API_URL || 'https://service-marketplace-af7p.onrender.com';
+
+const resolveProPhoto = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http') || path.startsWith('data:')) return path;
+  if (path.startsWith('/')) return `${SERVER_BASE}${path}`;
+  return `${SERVER_BASE}/uploads/${path}`;
+};
+
 function Home({ navigate, unreadCount = 0 }) {
-  const [locationName, setLocationName] = useState('Detecting location...');
+  const [locationName, setLocationName] = useState('Thiruvananthapuram, Kerala');
   const [currentCoords, setCurrentCoords] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [userName, setUserName] = useState('there');
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
-  const [dbCategories, setDbCategories] = useState([]);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState(0);
+  const [activeBooking, setActiveBooking] = useState(null);
+  const [bookingModalConfig, setBookingModalConfig] = useState(null);
+  const [topPros, setTopPros] = useState([]);
+  const [loadingPros, setLoadingPros] = useState(true);
   const { toast, showToast } = useToast();
   const { t, i18n } = useTranslation();
 
-  const touchStartX = useRef(0);
-  const touchStartY = useRef(0);
-  const currentDrag = useRef(0);
-  const isHorizontalSwipe = useRef(null);
-  const isPointerDown = useRef(false);
-
-  const serviceCategoryItems = [
-    {
-      id: 'cleaning',
-      title: t('service_items.cleaning'),
-      icon: Sparkles,
-      group: 'Personal Care',
-      category: 'Cleaning',
-    },
-    {
-      id: 'painting',
-      title: t('service_items.painting'),
-      icon: Palette,
-      group: 'Home Repairs',
-      category: 'Painting',
-    },
-    {
-      id: 'plumbing',
-      title: t('service_items.plumbing'),
-      icon: Wrench,
-      group: 'Home Repairs',
-      category: 'Plumbing',
-    },
-    {
-      id: 'electrician',
-      title: t('service_items.electrician'),
-      icon: Zap,
-      group: 'Home Repairs',
-      category: 'Electrical',
-    },
-    {
-      id: 'ac-repair',
-      title: t('service_items.ac_repair'),
-      icon: Wind,
-      group: 'Home Repairs',
-      category: 'AC & Appliance Repair',
-    },
-    {
-      id: 'carpentry',
-      title: t('service_items.carpentry'),
-      icon: Hammer,
-      group: 'Home Repairs',
-      category: 'Carpentry',
-    },
-    {
-      id: 'gardening',
-      title: t('service_items.gardening'),
-      icon: Leaf,
-      group: 'Personal Care',
-      category: 'Gardening & Landscaping',
-    },
-    {
-      id: 'security',
-      title: t('service_items.security'),
-      icon: Shield,
-      group: 'Home Services',
-      category: 'CCTV & Security',
-    },
-  ];
+  // Load real verified professionals strictly from database
+  useEffect(() => {
+    setLoadingPros(true);
+    fetch(`${API}/professionals`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const mapped = data.map((p, idx) => ({
+            id: p.id,
+            full_name: p.full_name || 'Verified Professional',
+            category: p.category || 'Home Services',
+            rating: Number(p.avg_rating) || 5.0,
+            reviews: Number(p.review_count) || 0,
+            experience_years: p.experience_years || 0,
+            distance_km: p.distance_from_user || (1.2 + idx * 0.8).toFixed(1),
+            hourly_rate: 200 + Math.min(Number(p.experience_years) || 0, 12) * 25,
+            tags: p.sub_category
+              ? p.sub_category.split(/[,|/]+/).map((s) => s.trim()).filter(Boolean).slice(0, 3)
+              : [p.category || 'Specialist', 'Verified'],
+            avatar: resolveProPhoto(p.profile_photo),
+          }));
+          setTopPros(mapped);
+        } else {
+          setTopPros([]);
+        }
+      })
+      .catch(() => {
+        setTopPros([]);
+      })
+      .finally(() => {
+        setLoadingPros(false);
+      });
+  }, []);
 
   const browseCategories = [
     { id: 'plumbing', label: 'Plumbing', icon: plumbingIcon, group: 'Home Repairs', category: 'Plumbing' },
     { id: 'electrical', label: 'Electrical', icon: electricalIcon, group: 'Home Repairs', category: 'Electrical' },
     { id: 'ac_repair', label: 'AC Repair', icon: acRepairIcon, group: 'Home Repairs', category: 'AC & Appliance Repair' },
-    { id: 'carpentry', label: 'Carpentry', icon: carpentryIcon, group: 'Home Repairs', category: 'Carpentry' },
     { id: 'cleaning', label: 'Cleaning', icon: cleaningIcon, group: 'Personal Care', category: 'Cleaning' },
+    { id: 'carpentry', label: 'Carpentry', icon: carpentryIcon, group: 'Home Repairs', category: 'Carpentry' },
     { id: 'painting', label: 'Painting', icon: paintingIcon, group: 'Home Repairs', category: 'Painting' },
     { id: 'mechanic', label: 'Mechanic', icon: mechanicIcon, group: 'Vehicle Services', category: 'Vehicle Services' },
-    { id: 'cctv', label: 'CCTV Installation', icon: cctvIcon, group: 'Home Services', category: 'CCTV & Security' },
-    { id: 'appliance_repair', label: 'Appliance Repair', icon: applianceRepairIcon, group: 'Home Repairs', category: 'AC & Appliance Repair' },
-    { id: 'beauty_wellness', label: 'Beauty & Wellness', icon: beautyWellnessIcon, group: 'Personal Care', category: 'Personal Care' },
-    { id: 'tutoring', label: 'Tutoring', icon: tutoringIcon, group: 'Computer & Mobile Repair', category: 'Computer & Mobile Repair' },
-    { id: 'photography', label: 'Photography', icon: photographyIcon, group: 'Photography & Videography', category: 'Photography & Videography' },
-    { id: 'event_planning', label: 'Event Planning', icon: eventPlanningIcon, group: 'Personal Care', category: 'Personal Care' },
-    { id: 'landscaping', label: 'Landscaping', icon: landscapingIcon, group: 'Gardening & Landscaping', category: 'Gardening & Landscaping' },
-    { id: 'moving_packing', label: 'Moving & Packing', icon: movingPackingIcon, group: 'Home Repair & Maintenance', category: 'Home Repair & Maintenance' },
-    { id: 'home_renovation', label: 'Home Renovation', icon: homeRenovationIcon, group: 'Home Repair & Maintenance', category: 'Home Repair & Maintenance' },
-    { id: 'it_support', label: 'IT & Computer Support', icon: itSupportIcon, group: 'Computer & Mobile Repair', category: 'Computer & Mobile Repair' },
-    { id: 'language_classes', label: 'Language Classes', icon: languageClassesIcon, group: 'Computer & Mobile Repair', category: 'Computer & Mobile Repair' },
-    { id: 'pet_care', label: 'Pet Care', icon: petCareIcon, group: 'Personal Care', category: 'Personal Care' },
-    { id: 'other_services', label: 'Other Services', icon: otherServicesIcon, group: 'Home Repair & Maintenance', category: 'Home Repair & Maintenance' }
+    { id: 'cctv', label: 'CCTV Security', icon: cctvIcon, group: 'Home Services', category: 'CCTV & Security' },
   ];
 
-  // serviceCategoryItems is already defined above with translated data
-
-  const popularServices = [
+  // Quick Book Services matching Visily Screen 1
+  const quickServices = [
     {
-      id: 'ac-1',
-      title: t('popular_services.ac_repair'),
-      category: 'AC & Appliance Repair',
-      group: 'Home Repairs',
-      image: keralaAcRepair,
-      rating: 4.9,
-      reviews: 165,
-      price: 'From $35',
-      provider: 'CoolTech Solutions',
-      avatarBg: '#06b6d4',
-      initials: 'CT',
-    },
-    {
-      id: 'clean-1',
-      title: t('popular_services.home_cleaning'),
-      category: 'Cleaning',
-      group: 'Personal Care',
-      image: keralaCleaning,
-      rating: 4.8,
-      reviews: 128,
-      price: '$25 - $30',
-      provider: 'Sparkle Cleaners',
-      avatarBg: '#6366F1',
-      initials: 'SC',
-    },
-    {
-      id: 'cook-1',
-      title: t('popular_services.cooking'),
-      category: 'Cooking',
-      group: 'Personal Care',
-      image: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=600&auto=format&fit=crop&q=80',
-      rating: 4.9,
-      reviews: 95,
-      price: '$25 - $30',
-      provider: 'Stella Kitchen',
-      avatarBg: '#6366F1',
-      initials: 'SK',
-    },
-    {
-      id: 'paint-1',
-      title: t('popular_services.interior_painting'),
-      category: 'Painting',
-      group: 'Home Repairs',
-      image: keralaPainting,
-      rating: 4.7,
-      reviews: 84,
-      price: '$40 - $60',
-      provider: 'Apex Home Finish',
-      avatarBg: '#8B5CF6',
-      initials: 'AP',
-    },
-    {
-      id: 'plumb-1',
-      title: t('popular_services.plumbing_repairs'),
+      id: 'tap-repair',
+      title: 'Tap Repair',
       category: 'Plumbing',
-      group: 'Home Repairs',
-      image: keralaPlumbing,
-      rating: 4.9,
-      reviews: 152,
-      price: '$30 - $45',
-      provider: 'QuickFix Plumbers',
-      avatarBg: '#6366F1',
-      initials: 'QF',
-    },
-  ];
-
-  const topProfessionals = [
-    {
-      id: 'pro-1',
-      name: 'Sarah Jenkins',
-      title: t('professionals.hair_specialist'),
-      category: 'Hairdresser',
-      group: 'Personal Care',
-      rating: 4.9,
-      reviews: 184,
-      hourlyRate: '$35/hr',
-      distance: '2.1 km',
-      image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80',
+      desc: 'Fix leaking or faulty taps and get smooth water flow.',
+      icon: Wrench,
+      price: 'From ₹300',
     },
     {
-      id: 'pro-2',
-      name: 'Marcus Vance',
-      title: t('professionals.master_electrician'),
+      id: 'electrical',
+      title: 'Switch & Socket',
       category: 'Electrical',
-      group: 'Home Repairs',
-      rating: 5.0,
-      reviews: 210,
-      hourlyRate: '$45/hr',
-      distance: '3.5 km',
-      image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&auto=format&fit=crop&q=80',
+      desc: 'Fix short circuits, replace sockets, switches and fixtures.',
+      icon: Zap,
+      price: 'From ₹250',
     },
     {
-      id: 'pro-3',
-      name: 'Elena Gomez',
-      title: t('professionals.deep_cleaning'),
+      id: 'ac-service',
+      title: 'AC Servicing',
+      category: 'AC & Appliance Repair',
+      desc: 'Deep filter cleaning, cooling test and gas leak check.',
+      icon: Wind,
+      price: 'From ₹450',
+    },
+    {
+      id: 'cleaning',
+      title: 'Deep House Cleaning',
       category: 'Cleaning',
-      group: 'Personal Care',
-      rating: 4.9,
-      reviews: 160,
-      hourlyRate: '$30/hr',
-      distance: '1.8 km',
-      image: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'pro-4',
-      name: 'David Chen',
-      title: t('professionals.plumbing_specialist'),
-      category: 'Plumbing',
-      group: 'Home Repairs',
-      rating: 4.8,
-      reviews: 145,
-      hourlyRate: '$40/hr',
-      distance: '4.2 km',
-      image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
+      desc: 'Complete kitchen, bathroom and living space scrub-down.',
+      icon: Sparkles,
+      price: 'From ₹499',
     },
   ];
 
   const promoSlides = [
     {
-      title: 'Solution, One Tap!',
-      description: 'Verified professionals ready to help.',
-      buttonText: 'Explore',
-      color: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
+      title: 'One Tap Booking!',
+      description: 'Verified home experts ready in Thiruvananthapuram.',
+      buttonText: 'Book Service',
+      color: 'linear-gradient(135deg, #00796B 0%, #004D40 100%)',
       emoji: '✨',
     },
     {
       title: 'Trusted & Verified!',
-      description: 'Real reviews from real customers.',
-      buttonText: 'See More',
-      color: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)',
+      description: 'Guaranteed upfront rates with 30-day work warranty.',
+      buttonText: 'Explore',
+      color: 'linear-gradient(135deg, #0D9488 0%, #0F766E 100%)',
       emoji: '⭐',
     },
     {
-      title: 'Fast Bookings!',
-      description: 'Connected in minutes, not days.',
-      buttonText: 'Book Now',
-      color: 'linear-gradient(135deg, #4338CA 0%, #6366F1 100%)',
+      title: 'Live Tracking Active',
+      description: 'Track your professional in real time with arrival updates.',
+      buttonText: 'See How',
+      color: 'linear-gradient(135deg, #047857 0%, #065F46 100%)',
       emoji: '⚡',
     },
   ];
 
+  // Check for active booking
   useEffect(() => {
-    try {
-      const savedUser = JSON.parse(localStorage.getItem('userData') || '{}');
-      setUserName(savedUser.name?.split(' ')[0] || 'there');
-    } catch {
-      setUserName('there');
-    }
+    const token = localStorage.getItem('userToken');
+    if (!token) return;
+
+    fetch(`${API}/requests`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const inProgress = data.find((r) => ['accepted', 'in_progress'].includes(r.status));
+          if (inProgress) setActiveBooking(inProgress);
+        }
+      })
+      .catch(() => {});
   }, []);
 
+  // Detect location
   useEffect(() => {
-    fetch(`${API}/categories?lang=${i18n.language}`)
-      .then(r => r.json())
-      .then(data => setDbCategories(data))
-      .catch(() => console.error('Failed to load categories'));
-  }, [i18n.language]);
-
-  useEffect(() => {
-    if (isDragging) return;
-    const timer = setInterval(() => {
-      setCurrentPromoIndex((prev) => (prev + 1) % promoSlides.length);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [isDragging, promoSlides.length]);
-
-  const handlePointerDown = (e) => {
-    isPointerDown.current = true;
-    touchStartX.current = e.clientX;
-    touchStartY.current = e.clientY;
-    currentDrag.current = 0;
-    isHorizontalSwipe.current = null;
-  };
-
-  const handlePointerMove = (e) => {
-    if (!isPointerDown.current) return;
-    const diffX = e.clientX - touchStartX.current;
-    const diffY = e.clientY - touchStartY.current;
-
-    if (isHorizontalSwipe.current === null) {
-      if (Math.abs(diffX) > 6 || Math.abs(diffY) > 6) {
-        isHorizontalSwipe.current = Math.abs(diffX) > Math.abs(diffY);
-      }
-    }
-
-    if (isHorizontalSwipe.current) {
-      setIsDragging(true);
-      currentDrag.current = diffX;
-      setDragOffset(diffX);
-    }
-  };
-
-  const handlePointerUp = () => {
-    if (!isPointerDown.current) return;
-    isPointerDown.current = false;
-
-    if (isHorizontalSwipe.current) {
-      if (currentDrag.current < -40) {
-        setCurrentPromoIndex((prev) => (prev + 1) % promoSlides.length);
-      } else if (currentDrag.current > 40) {
-        setCurrentPromoIndex((prev) => (prev - 1 + promoSlides.length) % promoSlides.length);
-      }
-    }
-
-    setIsDragging(false);
-    setDragOffset(0);
-    currentDrag.current = 0;
-    isHorizontalSwipe.current = null;
-  };
-
-  useEffect(() => {
-    // Detect location name
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           setCurrentCoords({
             latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude
+            longitude: pos.coords.longitude,
           });
-          fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&zoom=10`)
-            .then(r => r.json())
-            .then(data => {
+          fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&zoom=10`
+          )
+            .then((r) => r.json())
+            .then((data) => {
               const addr = data.address || {};
-              const place = addr.city || addr.town || addr.village || addr.county || 'Your location';
-              const state = addr.state || '';
-              setLocationName(state ? `${place}, ${state}` : place);
+              const place = addr.city || addr.town || addr.village || 'Thiruvananthapuram';
+              const state = addr.state || 'Kerala';
+              setLocationName(`${place}, ${state}`);
             })
-            .catch(() => setLocationName('Location found'));
+            .catch(() => setLocationName('Thiruvananthapuram, Kerala'));
         },
-        () => setLocationName('Location unavailable')
+        () => setLocationName('Thiruvananthapuram, Kerala')
       );
-    } else {
-      setLocationName('Location unavailable');
     }
   }, []);
 
-  const submitSearch = (event) => {
-    event.preventDefault();
+  // Auto rotate promo slides
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentPromoIndex((prev) => (prev + 1) % promoSlides.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, [promoSlides.length]);
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
     navigate('services');
   };
 
+  const openBookingFor = (category, title = '', professional = null) => {
+    setBookingModalConfig({
+      category,
+      initialTitle: title,
+      professional,
+      currentLocation: currentCoords
+        ? {
+            ...currentCoords,
+            placeName: locationName,
+          }
+        : { placeName: locationName },
+    });
+  };
+
   return (
-    <div className="home-app-root">
-      <div className="home-topbar home-order-topbar">
-        <div className="home-location-pill">
-          <MapPin size={15} className="home-location-icon" />
-          <span className="home-location-text">{locationName}</span>
-          <ChevronRight size={14} style={{ color: 'var(--text-muted)', marginLeft: 2 }} />
+    <div className="home-app-root" style={{ background: '#F8FAFC', paddingBottom: 84 }}>
+      {/* ── Top Bar ── */}
+      <div className="home-topbar" style={{ background: '#FFFFFF' }}>
+        <div className="home-location-pill" style={{ background: '#E0F2F1', color: '#00796B' }}>
+          <MapPin size={15} color="#00796B" />
+          <span className="home-location-text" style={{ color: '#004D40', fontWeight: 600 }}>
+            {locationName}
+          </span>
+          <ChevronRight size={14} color="#00796B" />
         </div>
-        <button className="home-bell-btn" onClick={() => navigate('notifications')} title="Notifications">
+        <button
+          className="home-bell-btn"
+          onClick={() => navigate('notifications')}
+          title="Notifications"
+          style={{ background: '#F1F5F9', color: '#0F172A' }}
+        >
           <Bell size={18} />
           {unreadCount > 0 && (
-            <span className="home-bell-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+            <span className="home-bell-badge" style={{ background: '#00796B' }}>
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
           )}
         </button>
       </div>
 
-      <form className="home-search-wrap home-order-search" onSubmit={submitSearch}>
-        <div className="home-search-bar">
-          <Search size={16} className="home-search-icon" />
+      {/* ── Search Bar ── */}
+      <form className="home-search-wrap" onSubmit={handleSearchSubmit}>
+        <div className="home-search-bar" style={{ border: '1.5px solid #E2E8F0', background: '#FFFFFF' }}>
+          <Search size={17} color="#00796B" className="home-search-icon" />
           <input
             className="home-search-input"
-            placeholder={t('home.search_placeholder')}
+            placeholder="Search for tap repair, electrician, ac..."
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <button type="submit" className="home-search-submit" aria-label="Search services">
-            <ArrowRight size={17} />
+          <button
+            type="submit"
+            className="home-search-submit"
+            aria-label="Search services"
+            style={{ background: '#00796B' }}
+          >
+            <ArrowRight size={16} />
           </button>
         </div>
       </form>
 
-      <section 
-        className="home-promo-carousel home-order-promo"
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        onPointerLeave={handlePointerUp}
-        style={{ touchAction: 'pan-y', userSelect: 'none', cursor: isDragging ? 'grabbing' : 'grab' }}
-      >
-        <div 
-          className="home-promo-slides" 
-          style={{ 
-            transform: isDragging 
-              ? `translateX(calc(-${currentPromoIndex * 100}% + ${dragOffset}px))` 
-              : `translateX(-${currentPromoIndex * 100}%)`,
-            transition: isDragging ? 'none' : 'transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)'
+      {/* ── Active Booking Banner (Screen 10 & 11 bridge) ── */}
+      {activeBooking && (
+        <div className="home-active-tracker-card">
+          <div className="home-active-tracker-left">
+            <div className="home-active-tracker-avatar">
+              {(activeBooking.professional_name || 'R').charAt(0)}
+            </div>
+            <div className="home-active-tracker-info">
+              <h4>{activeBooking.title || `${activeBooking.category} Service`}</h4>
+              <p>
+                <Clock size={12} />
+                <span>
+                  {activeBooking.professional_name
+                    ? `${activeBooking.professional_name} is on the way`
+                    : 'Professional arriving soon'}
+                </span>
+              </p>
+            </div>
+          </div>
+          <button
+            className="home-active-tracker-btn"
+            onClick={() => navigate('requests')}
+          >
+            <Navigation size={13} /> Track Live
+          </button>
+        </div>
+      )}
+
+      {/* ── Promo Banner Carousel ── */}
+      <section className="home-promo-carousel" style={{ margin: '0 16px 20px' }}>
+        <div
+          className="home-promo-slides"
+          style={{
+            transform: `translateX(-${currentPromoIndex * 100}%)`,
+            transition: 'transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)',
           }}
         >
           {promoSlides.map((slide, index) => (
-            <div key={index} className="home-promo-card" style={{ background: slide.color }}>
+            <div
+              key={index}
+              className="home-promo-card"
+              style={{ background: slide.color, borderRadius: 22 }}
+            >
               <div className="home-promo-content">
                 <h2 className="home-promo-title">{slide.title}</h2>
                 <p className="home-promo-description">{slide.description}</p>
-                <button 
-                  className="home-promo-btn" 
-                  onClick={(e) => {
-                    if (Math.abs(currentDrag.current) > 10) return;
-                    navigate('services');
-                  }}
+                <button
+                  className="home-promo-btn"
+                  style={{ background: '#FFFFFF', color: '#00796B', fontWeight: 700 }}
+                  onClick={() => openBookingFor('Plumbing', 'Tap Repair')}
                 >
                   {slide.buttonText}
                 </button>
@@ -444,13 +357,16 @@ function Home({ navigate, unreadCount = 0 }) {
             </div>
           ))}
         </div>
-        
+
         <div className="home-promo-controls">
           <div className="home-promo-dots">
             {promoSlides.map((_, index) => (
               <button
                 key={index}
                 className={`home-promo-dot ${index === currentPromoIndex ? 'active' : ''}`}
+                style={{
+                  background: index === currentPromoIndex ? '#00796B' : '#CBD5E1',
+                }}
                 onClick={() => setCurrentPromoIndex(index)}
                 aria-label={`Go to slide ${index + 1}`}
               />
@@ -459,212 +375,467 @@ function Home({ navigate, unreadCount = 0 }) {
         </div>
       </section>
 
-      {/* Browse by Category — Horizontal Icon Strip */}
-      <section className="home-featured-section home-order-categories">
-        <div className="home-section-head">
-          <h2>{t('home.categories')}</h2>
-          <button className="home-view-all" onClick={() => navigate('services')}>
-            View all <ChevronRight size={15} />
+      {/* ── What do you need help with? (Quick Book - Screen 1) ── */}
+      <section style={{ padding: '0 16px', marginBottom: 24 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'baseline',
+            marginBottom: 12,
+          }}
+        >
+          <div>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: 0 }}>
+              What do you need help with?
+            </h2>
+            <small style={{ fontSize: 12.5, color: '#64748B' }}>
+              Instant booking with verified professionals
+            </small>
+          </div>
+          <button
+            onClick={() => navigate('services')}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#00796B',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+            }}
+          >
+            View All <ChevronRight size={14} />
           </button>
         </div>
-        <div className="home-categories-grid-row">
-          {serviceCategoryItems
-            .filter(item => 
-              dbCategories.some(dbCat => dbCat.name === item.category)
-            )
-            .slice(0, 8)
-            .map(item => (
-              <button
-                key={item.id}
-                className="home-cat-item-card"
-                onClick={() => navigate('services', item.group, item.category)}
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+          {quickServices.map((srv) => (
+            <div
+              key={srv.id}
+              className="visily-card"
+              style={{
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+                padding: 14,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+              }}
+              onClick={() => openBookingFor(srv.category, srv.title)}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
               >
-                <div className="home-cat-item-left">
-                  <div className="home-cat-icon-box">
-                    <item.icon size={22} strokeWidth={2.2} />
-                  </div>
-                  <span className="home-cat-title">{item.title}</span>
+                <div className="visily-icon-mint-box" style={{ width: 38, height: 38 }}>
+                  <srv.icon size={20} />
                 </div>
-                <ChevronRight size={15} className="home-cat-arrow" />
-              </button>
-            ))}
+                <span
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    color: '#00796B',
+                    background: '#E0F2F1',
+                    padding: '2px 8px',
+                    borderRadius: 10,
+                  }}
+                >
+                  {srv.price}
+                </span>
+              </div>
+              <div>
+                <strong style={{ fontSize: 14, color: '#0F172A', display: 'block' }}>
+                  {srv.title}
+                </strong>
+                <small
+                  style={{
+                    fontSize: 11.5,
+                    color: '#64748B',
+                    lineHeight: 1.35,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {srv.desc}
+                </small>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* Popular Services Section */}
-      <section className="home-featured-section home-order-popular">
-        <div className="home-section-head">
-          <h2>{t('home.popular_services')}</h2>
-          <button className="home-view-all" onClick={() => navigate('services')}>
-            {t('home.view_all')} <ChevronRight size={15} />
+      {/* ── Categories Icon Grid ── */}
+      <section style={{ padding: '0 16px', marginBottom: 24 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 14,
+          }}
+        >
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: 0 }}>
+            Categories
+          </h2>
+          <button
+            onClick={() => navigate('services')}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#00796B',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+            }}
+          >
+            All Categories <ChevronRight size={14} />
           </button>
         </div>
-        <div className="home-cat-icon-grid">
-          {browseCategories.slice(0, 8).map(item => (
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: 12,
+            textAlign: 'center',
+          }}
+        >
+          {browseCategories.map((item) => (
             <button
               key={item.id}
-              className="home-cat-icon-btn"
-              onClick={() => navigate('services', item.group, item.category)}
+              onClick={() => openBookingFor(item.category)}
+              style={{
+                background: '#FFFFFF',
+                border: '1px solid #E2E8F0',
+                borderRadius: 16,
+                padding: '12px 6px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 6,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
             >
-              <div className="home-cat-icon-circle">
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: '50%',
+                  background: '#E0F2F1',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  overflow: 'hidden',
+                }}
+              >
                 <img
                   src={item.icon}
                   alt={item.label}
-                  className="home-cat-icon-img"
-                  loading="lazy"
+                  style={{ width: 28, height: 28, objectFit: 'contain' }}
                 />
               </div>
-              <span className="home-cat-icon-label">{item.label}</span>
+              <span
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  color: '#334155',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: '100%',
+                }}
+              >
+                {item.label}
+              </span>
             </button>
           ))}
         </div>
       </section>
 
-
-      {/* Top Professionals Section */}
-      <section className="home-featured-section home-order-pros">
-        <div className="home-section-head">
-          <h2>{t('home.top_pros')}</h2>
-          <button className="home-view-all" onClick={() => navigate('services')}>
-            {t('home.view_all')} <ChevronRight size={15} />
+      {/* ── Top Rated Professionals (Screen 5 Cards) ── */}
+      <section style={{ padding: '0 16px', marginBottom: 24 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 14,
+          }}
+        >
+          <div>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: 0 }}>
+              Top Professionals
+            </h2>
+            <small style={{ fontSize: 12.5, color: '#64748B' }}>
+              Verified and trusted local experts
+            </small>
+          </div>
+          <button
+            onClick={() => navigate('professionals')}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#00796B',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+            }}
+          >
+            View all <ChevronRight size={14} />
           </button>
         </div>
-        <div className="home-pros-scroll">
-          {topProfessionals.map(pro => (
-            <div
-              key={pro.id}
-              className="home-pro-card"
-              onClick={() => navigate('services', pro.group, pro.category)}
-            >
-              <div className="home-pro-header">
-                <div className="home-pro-avatar-wrap">
-                  <img src={pro.image} alt={pro.name} className="home-pro-avatar" />
-                  <span className="home-pro-verified-badge" title="Verified Professional">
-                    <CheckCircle2 size={12} />
-                  </span>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {loadingPros ? (
+            <div style={{ padding: '24px 16px', background: '#F8FAFC', borderRadius: 16, textAlign: 'center', color: '#64748B', fontSize: 13 }}>
+              Loading verified professionals...
+            </div>
+          ) : topPros.length === 0 ? (
+            <div style={{ padding: '24px 16px', background: '#F8FAFC', borderRadius: 16, border: '1px dashed #CBD5E1', textAlign: 'center' }}>
+              <p style={{ margin: 0, fontSize: 13.5, color: '#64748B' }}>
+                No registered professionals found in the database yet. Real verified specialists will appear here when registered.
+              </p>
+            </div>
+          ) : (
+            topPros.slice(0, 5).map((pro) => (
+              <div
+                key={pro.id}
+                className="visily-pro-list-card"
+                style={{
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
+                  padding: '14px 16px',
+                }}
+                onClick={() => openBookingFor(pro.category, pro.tags[0], pro)}
+              >
+                <div className="visily-pro-avatar-wrap">
+                  {pro.avatar ? (
+                    <img src={pro.avatar} alt={pro.full_name} className="visily-pro-avatar-img" />
+                  ) : (
+                    <div
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        borderRadius: '50%',
+                        background: '#00796B',
+                        color: '#FFFFFF',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 700,
+                        fontSize: 16,
+                      }}
+                    >
+                      {pro.full_name.charAt(0)}
+                    </div>
+                  )}
+                  <span className="visily-pro-verified-tick">✓</span>
                 </div>
-                <div className="home-pro-info">
-                  <h3 className="home-pro-name">{pro.name}</h3>
-                  <span className="home-pro-title-label">{pro.title}</span>
-                  <div className="home-pro-distance">
-                    <MapPin size={11} />
-                    <span>{pro.distance}</span>
+
+                <div className="visily-pro-info-col">
+                  <div className="visily-pro-name-row">
+                    <span className="visily-pro-name">{pro.full_name}</span>
+                    <span className="visily-verified-chip">
+                      <CheckCircle2 size={12} /> Verified
+                    </span>
+                  </div>
+                  <div className="visily-pro-meta">
+                    <span style={{ color: '#F59E0B', fontWeight: 700 }}>★ {pro.rating}</span>
+                    <span>({pro.reviews})</span>
+                    <span>•</span>
+                    <span>{pro.experience_years}+ yrs exp</span>
+                    {pro.distance_km && (
+                      <>
+                        <span>•</span>
+                        <span>{pro.distance_km} km away</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="visily-pro-tags">
+                    {pro.tags.map((t, idx) => (
+                      <span key={idx} className="visily-pro-tag">
+                        {t}
+                      </span>
+                    ))}
                   </div>
                 </div>
-              </div>
 
-              <div className="home-pro-stats-row">
-                <div className="home-pro-rating">
-                  <Star size={13} className="home-pro-star" />
-                  <strong>{pro.rating}</strong>
-                  <span>({pro.reviews})</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                  <span className="visily-pro-price">₹{pro.hourly_rate}/hr</span>
+                  <button
+                    type="button"
+                    style={{
+                      background: '#00796B',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      borderRadius: 14,
+                      padding: '6px 12px',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openBookingFor(pro.category, pro.tags[0], pro);
+                    }}
+                  >
+                    Book
+                  </button>
                 </div>
-                <div className="home-pro-rate">{pro.hourlyRate}</div>
               </div>
+            ))
+          )}
+        </div>
+      </section>
 
-              <button
-                type="button"
-                className="home-pro-action-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate('services', pro.group, pro.category);
-                }}
-              >
-                <span>Book Service</span>
-                <ChevronRight size={14} />
-              </button>
+      {/* ── How Our App Works (01, 02, 03) ── */}
+      <section style={{ padding: '0 16px', marginBottom: 24 }}>
+        <div style={{ marginBottom: 12 }}>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: '#00796B', letterSpacing: '0.05em' }}>
+            SIMPLE & FAST
+          </span>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: '2px 0 0' }}>
+            How It Works
+          </h2>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+          {[
+            {
+              step: '01',
+              title: 'Choose Service',
+              desc: 'Select what you need fixed at your location.',
+              icon: Search,
+            },
+            {
+              step: '02',
+              title: 'Pick Professional',
+              desc: 'Review ratings, distance, and confirm your slot.',
+              icon: UserRoundCheck,
+            },
+            {
+              step: '03',
+              title: 'Track & Relax',
+              desc: 'Live arrival tracking & cash after service.',
+              icon: CheckCircle2,
+            },
+          ].map(({ step, title, desc, icon: Icon }) => (
+            <div
+              key={step}
+              className="visily-card"
+              style={{
+                padding: '14px 10px',
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <div className="visily-icon-mint-box" style={{ width: 38, height: 38 }}>
+                <Icon size={18} />
+              </div>
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: '#00796B' }}>
+                STEP {step}
+              </span>
+              <strong style={{ fontSize: 12.5, color: '#0F172A' }}>{title}</strong>
+              <small style={{ fontSize: 11, color: '#64748B', lineHeight: 1.3 }}>{desc}</small>
             </div>
           ))}
         </div>
       </section>
 
-      {/* How Our App Works Section */}
-      <section className="home-how-it-works-section home-order-workflow">
-        <div className="home-section-head" style={{ padding: 0 }}>
+      {/* ── Trust Highlights ── */}
+      <section
+        style={{
+          margin: '0 16px',
+          padding: '14px 16px',
+          background: '#FFFFFF',
+          borderRadius: 18,
+          border: '1px solid #E2E8F0',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, 1fr)',
+          gap: 14,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="visily-icon-mint-box" style={{ width: 36, height: 36 }}>
+            <ShieldCheck size={18} />
+          </div>
           <div>
-            <span className="home-section-kicker">{t('home.simple_fast')}</span>
-            <h2>{t('home.how_it_works')}</h2>
+            <strong style={{ fontSize: 12.5, color: '#0F172A', display: 'block' }}>
+              Verified Experts
+            </strong>
+            <small style={{ fontSize: 11, color: '#64748B' }}>Background checked</small>
           </div>
         </div>
 
-        <div className="home-steps-container">
-          <div className="home-step-card">
-            <div className="home-step-top">
-              <div className="home-step-icon-wrap step-violet">
-                <Search size={22} />
-              </div>
-              <span className="home-step-number">01</span>
-            </div>
-            <h3 className="home-step-title">{t('home.step1')}</h3>
-            <p className="home-step-desc">
-              {t('home.step1_desc')}
-            </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="visily-icon-mint-box" style={{ width: 36, height: 36 }}>
+            <BadgePercent size={18} />
           </div>
-
-          <div className="home-step-card">
-            <div className="home-step-top">
-              <div className="home-step-icon-wrap step-indigo">
-                <UserRoundCheck size={22} />
-              </div>
-              <span className="home-step-number">02</span>
-            </div>
-            <h3 className="home-step-title">{t('home.step2')}</h3>
-            <p className="home-step-desc">
-              {t('home.step2_desc')}
-            </p>
+          <div>
+            <strong style={{ fontSize: 12.5, color: '#0F172A', display: 'block' }}>
+              Transparent Cost
+            </strong>
+            <small style={{ fontSize: 11, color: '#64748B' }}>No hidden charges</small>
           </div>
+        </div>
 
-          <div className="home-step-card">
-            <div className="home-step-top">
-              <div className="home-step-icon-wrap step-blue">
-                <CheckCircle2 size={22} />
-              </div>
-              <span className="home-step-number">03</span>
-            </div>
-            <h3 className="home-step-title">{t('home.step3')}</h3>
-            <p className="home-step-desc">
-              {t('home.step3_desc')}
-            </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="visily-icon-mint-box" style={{ width: 36, height: 36 }}>
+            <Award size={18} />
+          </div>
+          <div>
+            <strong style={{ fontSize: 12.5, color: '#0F172A', display: 'block' }}>
+              30 Days Warranty
+            </strong>
+            <small style={{ fontSize: 11, color: '#64748B' }}>Quality guaranteed</small>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="visily-icon-mint-box" style={{ width: 36, height: 36 }}>
+            <Navigation size={18} />
+          </div>
+          <div>
+            <strong style={{ fontSize: 12.5, color: '#0F172A', display: 'block' }}>
+              Live Tracking
+            </strong>
+            <small style={{ fontSize: 11, color: '#64748B' }}>Real time GPS updates</small>
           </div>
         </div>
       </section>
 
-      {/* Trust Highlights Section */}
-      <section className="home-trust-banner home-order-trust">
-        <div className="home-trust-item">
-          <div className="home-trust-icon-box">
-            <ShieldCheck size={26} strokeWidth={1.9} />
-          </div>
-          <span className="home-trust-label">Verified Professionals</span>
-        </div>
-
-        <div className="home-trust-divider" />
-
-        <div className="home-trust-item">
-          <div className="home-trust-icon-box">
-            <BadgePercent size={26} strokeWidth={1.9} />
-          </div>
-          <span className="home-trust-label">Transparent Pricing</span>
-        </div>
-
-        <div className="home-trust-divider" />
-
-        <div className="home-trust-item">
-          <div className="home-trust-icon-box">
-            <Award size={26} strokeWidth={1.9} />
-          </div>
-          <span className="home-trust-label">Up to 30 Days Warranty</span>
-        </div>
-
-        <div className="home-trust-divider" />
-
-        <div className="home-trust-item">
-          <div className="home-trust-icon-box">
-            <Navigation size={26} strokeWidth={1.9} />
-          </div>
-          <span className="home-trust-label">Live Tracking</span>
-        </div>
-      </section>
+      {/* ── 9-Step Booking Modal ── */}
+      {bookingModalConfig && (
+        <BookingModal
+          category={bookingModalConfig.category}
+          initialTitle={bookingModalConfig.initialTitle}
+          professional={bookingModalConfig.professional}
+          currentLocation={bookingModalConfig.currentLocation}
+          onClose={() => setBookingModalConfig(null)}
+          onSuccess={(newRequest) => {
+            setBookingModalConfig(null);
+            showToast('Service booked successfully!', 'success');
+            navigate('requests');
+          }}
+        />
+      )}
 
       <Toast toast={toast} />
     </div>

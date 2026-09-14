@@ -25,6 +25,7 @@ import { BookingModal } from '../components/BookingModal';
 import { useToast, Toast } from '../components/Toast';
 import { useTranslation } from 'react-i18next';
 import ServiceDetail from './ServiceDetail';
+import SubcategorySlideshow from '../components/SubcategorySlideshow';
 import userAvatarImg from '../assets/category-icons/user_avatar.png';
 
 import keralaCarpentry from '../assets/kerala/carpentry.jpg';
@@ -579,7 +580,7 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
             </button>
           </div>
 
-          {/* Sub-Categories Visual Showcase */}
+          {/* Sub-Categories Visual Showcase with Match & Move 5-Picture Slideshow */}
           {(() => {
             const catSubcats = subcategories.filter(
               s => s.category_name?.toLowerCase() === selected.name?.toLowerCase()
@@ -587,35 +588,17 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
             if (catSubcats.length === 0) return null;
 
             return (
-              <div className="cat-subcategories-section fade-up">
-                <div className="cat-subcategories-header">
-                  <div>
-                    <span className="subcat-section-tag">{t('services.popular_services')}</span>
-                    <h3 className="subcat-section-title">{t('services.select_specific')}</h3>
-                    <p className="subcat-section-subtitle">
-                      {t('services.visual_guide')}
-                    </p>
-                  </div>
-                  <span className="subcat-count-pill">{catSubcats.length} Sub-Categories</span>
-                </div>
-                <div className="browse-category-grid">
-                  {catSubcats.map((item, idx) => (
-                    <div key={idx} className="browse-category-card" onClick={() => setBooking({
-                      professional: null,
-                      category: selected.name,
-                      location,
-                      initialTitle: item.name,
-                      initialDescription: `I need assistance with ${item.name} (${item.price_estimate || 'Standard rate'}).`,
-                    })}>
-                      <div className="browse-card-text">
-                        <h3 className="browse-card-title">{item.name}</h3>
-                        <p className="browse-card-count">{item.count || 'Available'}</p>
-                      </div>
-                      <ChevronRight size={16} className="browse-card-chevron" />
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <SubcategorySlideshow
+                categoryName={selected.name}
+                subcategories={catSubcats}
+                onSelectSubcategory={(item) => setBooking({
+                  professional: null,
+                  category: selected.name,
+                  location,
+                  initialTitle: item.name,
+                  initialDescription: `I need assistance with ${item.name} (${item.price_estimate || 'Standard rate'}).`,
+                })}
+              />
             );
           })()}
 

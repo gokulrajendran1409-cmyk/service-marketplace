@@ -35,6 +35,167 @@ exports.updateProfile = async (req, res) => {
     }
 };
 
+// GET /api/user/addresses - list all saved addresses for current user
+exports.getUserAddresses = async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT id, user_id, address_type, address_line, landmark, city, state, pincode, latitude, longitude, is_default, created_at
+             FROM user_addresses
+             WHERE user_id = $1
+             ORDER BY is_default DESC, id DESC`,
+            [req.user.id]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('getUserAddresses error:', err);
+        res.status(500).json({ message: 'Failed to fetch addresses' });
+    }
+};
+
+// POST /api/user/addresses - add new address for current user (home, work, other)
+exports.addUserAddress = async (req, res) => {
+    try {
+        const {
+            address_type = 'home',
+            address_line,
+            landmark,
+            city = 'Thiruvananthapuram',
+            state = 'Kerala',
+            pincode,
+            latitude,
+            longitude,
+            is_default = false
+        } = req.body;
+
+        if (!address_line?.trim()) {
+            return res.status(400).json({ message: 'Address line is required' });
+        }
+
+        const validTypes = ['home', 'work', 'other'];
+        const normalizedType = validTypes.includes(address_type?.toLowerCase()?.trim())
+            ? address_type.toLowerCase().trim()
+            : 'other';
+
+        // If this address is set to default, clear default flag for user's other addresses
+        if (is_default) {
+            await pool.query(
+                'UPDATE user_addresses SET is_default = FALSE WHERE user_id = $1',
+                [req.user.id]
+            );
+        }
+
+        const result = await pool.query(
+            `INSERT INTO user_addresses (
+                user_id, address_type, address_line, landmark, city, state, pincode, latitude, longitude, is_default
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            RETURNING *`,
+            [
+                req.user.id,
+                normalizedType,
+                address_line.trim(),
+                landmark?.trim() || null,
+                city?.trim() || 'Thiruvananthapuram',
+                state?.trim() || 'Kerala',
+                pincode?.trim() || null,
+                latitude ? parseFloat(latitude) : null,
+                longitude ? parseFloat(longitude) : null,
+                Boolean(is_default)
+            ]
+        );
+
+        // Also update users.address with latest address
+        await pool.query(
+            'UPDATE users SET address = $1 WHERE id = $2',
+            [address_line.trim(), req.user.id]
+        );
+
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        console.error('addUserAddress error:', err);
+        res.status(500).json({ message: 'Failed to save address' });
+    }
+};
+
+// PATCH /api/user/addresses/:id - update existing address or set as default
+exports.updateUserAddress = async (req, res) => {
+    try {
+        const addressId = req.params.id;
+        const {
+            address_type,
+            address_line,
+            landmark,
+            city,
+            state,
+            pincode,
+            latitude,
+            longitude,
+            is_default
+        } = req.body;
+
+        if (is_default) {
+            await pool.query(
+                'UPDATE user_addresses SET is_default = FALSE WHERE user_id = $1',
+                [req.user.id]
+            );
+        }
+
+        const result = await pool.query(
+            `UPDATE user_addresses SET
+                address_type = COALESCE($1, address_type),
+                address_line = COALESCE($2, address_line),
+                landmark = COALESCE($3, landmark),
+                city = COALESCE($4, city),
+                state = COALESCE($5, state),
+                pincode = COALESCE($6, pincode),
+                latitude = COALESCE($7, latitude),
+                longitude = COALESCE($8, longitude),
+                is_default = COALESCE($9, is_default)
+             WHERE id = $10 AND user_id = $11
+             RETURNING *`,
+            [
+                address_type?.toLowerCase()?.trim() || null,
+                address_line?.trim() || null,
+                landmark !== undefined ? (landmark?.trim() || null) : null,
+                city?.trim() || null,
+                state?.trim() || null,
+                pincode?.trim() || null,
+                latitude !== undefined ? parseFloat(latitude) : null,
+                longitude !== undefined ? parseFloat(longitude) : null,
+                is_default !== undefined ? Boolean(is_default) : null,
+                addressId,
+                req.user.id
+            ]
+        );
+
+        if (!result.rows[0]) {
+            return res.status(404).json({ message: 'Address not found or unauthorized' });
+        }
+
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('updateUserAddress error:', err);
+        res.status(500).json({ message: 'Failed to update address' });
+    }
+};
+
+// DELETE /api/user/addresses/:id - remove saved address
+exports.deleteUserAddress = async (req, res) => {
+    try {
+        const addressId = req.params.id;
+        const result = await pool.query(
+            'DELETE FROM user_addresses WHERE id = $1 AND user_id = $2 RETURNING id',
+            [addressId, req.user.id]
+        );
+        if (!result.rows[0]) {
+            return res.status(404).json({ message: 'Address not found or unauthorized' });
+        }
+        res.json({ message: 'Address deleted successfully', id: addressId });
+    } catch (err) {
+        console.error('deleteUserAddress error:', err);
+        res.status(500).json({ message: 'Failed to delete address' });
+    }
+};
+
 // GET /api/user/categories - list all service categories
 exports.getCategories = async (req, res) => {
     try {
@@ -187,12 +348,18 @@ exports.createRequest = async (req, res) => {
                 request_id: request.id,
                 customer_name: req.user.name || 'A customer',
                 title: request.title,
+                category: request.category || category,
+                requested_at: request.requested_at,
+                location: request.location,
                 timestamp: new Date().toISOString()
             }));
             broadcast('service_request_created', {
                 id: request.id,
                 professional_count: nearbyProfessionals.length,
                 status: request.status,
+                category: request.category || category,
+                requested_at: request.requested_at,
+                location: request.location,
                 timestamp: new Date().toISOString()
             });
 
