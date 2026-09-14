@@ -339,7 +339,20 @@ exports.getProfessionals = async (req, res) => {
 // POST /api/user/requests - create a new service request
 exports.createRequest = async (req, res) => {
     try {
-        const { title, description, requested_at, location, latitude, longitude, professional_id, category } = req.body;
+        const {
+            title,
+            description,
+            requested_at,
+            location,
+            latitude,
+            longitude,
+            professional_id,
+            category,
+            payment_status,
+            payment_method,
+            transaction_id,
+            wage
+        } = req.body;
         const photos = (req.files?.photos || []).map(file => `/uploads/${file.filename}`);
         const video = req.files?.video?.[0] ? `/uploads/${req.files.video[0].filename}` : null;
         const voice = req.files?.voice?.[0] ? `/uploads/${req.files.voice[0].filename}` : null;
@@ -355,6 +368,10 @@ exports.createRequest = async (req, res) => {
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
+
+            await client.query('ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50)');
+            await client.query('ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS transaction_id VARCHAR(100)');
+
             const professionals = await client.query(
                                 `SELECT p.id, p.full_name, p.registered_latitude, p.registered_longitude
                                  FROM professionals p
@@ -391,9 +408,26 @@ exports.createRequest = async (req, res) => {
             }
 
             const result = await client.query(
-                `INSERT INTO service_requests (customer_id, title, description, requested_at, location, latitude, longitude, photo_urls, video_url, voice_url, status)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending') RETURNING *`,
-                [customerId, title, description || null, requested_at, location, Number.isFinite(Number(latitude)) ? latitude : null, Number.isFinite(Number(longitude)) ? longitude : null, photos, video, voice]
+                `INSERT INTO service_requests (
+                    customer_id, title, description, requested_at, location, latitude, longitude,
+                    photo_urls, video_url, voice_url, status, payment_status, payment_method, transaction_id, wage
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', $11, $12, $13, $14) RETURNING *`,
+                [
+                    customerId,
+                    title,
+                    description || null,
+                    requested_at,
+                    location,
+                    Number.isFinite(Number(latitude)) ? latitude : null,
+                    Number.isFinite(Number(longitude)) ? longitude : null,
+                    photos,
+                    video,
+                    voice,
+                    payment_status || 'pending',
+                    payment_method || 'cash',
+                    transaction_id || null,
+                    wage ? Number(wage) : null
+                ]
             );
             const request = result.rows[0];
             for (const professional of nearbyProfessionals) {
@@ -662,4 +696,89 @@ exports.confirmPayment = async (req, res) => {
         console.error('confirmPayment error:', err);
         res.status(500).json({ message: 'Failed to confirm payment' });
     }
+};
+
+// GET /api/user/notifications - Real-time notification list for customer
+exports.getNotifications = async (req, res) => {
+    try {
+        const customerId = req.user.id;
+        const result = await pool.query(
+            `SELECT sr.id as request_id, sr.title, sr.status, sr.journey_status, sr.created_at, sr.updated_at, sr.otp,
+                    p.full_name as professional_name, prof_user.phone as professional_phone, p.category as professional_category, p.profile_photo as professional_photo
+             FROM service_requests sr
+             LEFT JOIN LATERAL (
+                 SELECT professional_id FROM service_offers WHERE request_id = sr.id AND status = 'accepted' LIMIT 1
+             ) so ON true
+             LEFT JOIN professionals p ON p.id = so.professional_id
+             LEFT JOIN users prof_user ON prof_user.id = p.user_id
+             WHERE sr.customer_id = $1
+             ORDER BY sr.updated_at DESC
+             LIMIT 30`,
+            [customerId]
+        );
+
+        const notifications = [];
+        for (const row of result.rows) {
+            if (row.status === 'completed' || row.journey_status === 'completed') {
+                notifications.push({
+                    id: `notif_${row.request_id}_completed`,
+                    type: 'task_completed',
+                    request_id: row.request_id,
+                    title: 'Task Completed! 🎉',
+                    message: `${row.professional_name || 'Specialist'} has completed "${row.title}". Tap to view invoice & rate your experience.`,
+                    timestamp: row.updated_at || row.created_at,
+                    is_read: false,
+                    metadata: {
+                        requestId: row.request_id,
+                        professionalName: row.professional_name,
+                        serviceTitle: row.title,
+                    }
+                });
+            } else if (['accepted', 'in_progress'].includes(row.status)) {
+                notifications.push({
+                    id: `notif_${row.request_id}_accepted`,
+                    type: 'request_accepted',
+                    request_id: row.request_id,
+                    title: 'Service Accepted! 🛠️',
+                    message: `${row.professional_name || 'A specialist'} has accepted your "${row.title}" request! Arrival OTP: ${row.otp || '****'}`,
+                    timestamp: row.updated_at || row.created_at,
+                    is_read: false,
+                    metadata: {
+                        requestId: row.request_id,
+                        professionalName: row.professional_name,
+                        professionalPhone: row.professional_phone,
+                        professionalCategory: row.professional_category,
+                        serviceTitle: row.title,
+                        otp: row.otp
+                    }
+                });
+            } else if (row.status === 'pending') {
+                notifications.push({
+                    id: `notif_${row.request_id}_pending`,
+                    type: 'booking_created',
+                    request_id: row.request_id,
+                    title: 'Booking Placed 📋',
+                    message: `Your booking for "${row.title}" is being matched with certified specialists nearby.`,
+                    timestamp: row.created_at,
+                    is_read: true,
+                    metadata: {
+                        requestId: row.request_id,
+                        serviceTitle: row.title
+                    }
+                });
+            }
+        }
+
+        res.json({
+            notifications,
+            unreadCount: notifications.filter(n => !n.is_read).length
+        });
+    } catch (err) {
+        console.error('getNotifications error:', err);
+        res.status(500).json({ message: 'Failed to fetch notifications' });
+    }
+};
+
+exports.markNotificationRead = async (req, res) => {
+    res.json({ success: true });
 };

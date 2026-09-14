@@ -17,7 +17,9 @@ const {
 	getMyRequests,
 	streamNotifications,
 	confirmPayment,
-	createReview
+	createReview,
+	getNotifications,
+	markNotificationRead
 } = require('../controllers/userController');
 const { protectCustomer } = require('../middleware/authMiddleware');
 
@@ -48,6 +50,8 @@ router.post('/requests', protectCustomer, upload.fields([
 router.get('/requests', protectCustomer, getMyRequests);
 router.post('/requests/:id/confirm-payment', protectCustomer, confirmPayment);
 router.post('/requests/:id/review', protectCustomer, createReview);
+router.get('/notifications', protectCustomer, getNotifications);
+router.patch('/notifications/:id/read', protectCustomer, markNotificationRead);
 router.get('/notifications/stream', protectCustomer, streamNotifications);
 
 module.exports = router;
