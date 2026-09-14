@@ -447,6 +447,8 @@ exports.getMyRequests = async (req, res) => {
                         offer_summary.pending_offer_count,
                     p.full_name AS professional_name,
                     p.category AS professional_category,
+                    p.profile_photo AS professional_profile_photo,
+                    prof_user.phone AS professional_phone,
                     p.current_latitude AS professional_latitude,
                     p.current_longitude AS professional_longitude,
                     (SELECT ROUND(AVG(pr.rating)::numeric, 1) FROM professional_reviews pr WHERE pr.professional_id = p.id) AS professional_avg_rating,
@@ -470,6 +472,7 @@ exports.getMyRequests = async (req, res) => {
                           LIMIT 1
                       ) selected_offer ON true
                      LEFT JOIN professionals p ON p.id = selected_offer.professional_id
+                     LEFT JOIN users prof_user ON prof_user.id = p.user_id
                      LEFT JOIN LATERAL (
                          SELECT id, rating, comment
                          FROM professional_reviews

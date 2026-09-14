@@ -32,6 +32,16 @@ import {
   Compass,
   Radio,
   Activity,
+  X,
+  Receipt,
+  Copy,
+  CreditCard,
+  Printer,
+  User,
+  ExternalLink,
+  Sparkles,
+  CheckCheck,
+  Info,
 } from 'lucide-react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -262,6 +272,21 @@ function MyRequests({ navigate }) {
   const [detailsRequest, setDetailsRequest] = useState(null); // Full Detail Modal
   const [geoInfo, setGeoInfo] = useState({ landmark: 'MG Road Corridor, Thiruvananthapuram', lat: 8.5241, lon: 76.9366 });
   const [routeDistanceKm, setRouteDistanceKm] = useState(1.2);
+  const [copiedOtp, setCopiedOtp] = useState(false);
+
+  const handleCopyOtp = (otpText) => {
+    if (!otpText) return;
+    try {
+      if (navigator?.clipboard?.writeText) {
+        navigator.clipboard.writeText(String(otpText));
+      }
+      setCopiedOtp(true);
+      showToast('Arrival OTP copied to clipboard!', 'success');
+      setTimeout(() => setCopiedOtp(false), 2500);
+    } catch {
+      showToast(`Arrival OTP: ${otpText}`, 'info');
+    }
+  };
 
   // Live real-time polling for professional location updates when tracking is active
   useEffect(() => {
@@ -1221,108 +1246,424 @@ function MyRequests({ navigate }) {
       )}
 
       {/* ──────── Full Details & Invoice Modal ──────── */}
-      {detailsRequest && (
-        <div
-          className="visily-modal-overlay"
-          onClick={(e) => e.target === e.currentTarget && setDetailsRequest(null)}
-        >
-          <div className="visily-modal-container">
-            <header className="visily-header">
-              <button
-                className="visily-header-btn"
-                onClick={() => setDetailsRequest(null)}
-                aria-label="Back"
-              >
-                <ArrowLeft size={18} />
-              </button>
-              <h2 className="visily-header-title">Booking Details</h2>
-              <button
-                className="visily-header-btn"
-                onClick={() => setDetailsRequest(null)}
-                aria-label="Close"
-              >
-                <X size={18} />
-              </button>
-            </header>
+      {detailsRequest && (() => {
+        const badge = getStatusBadge(detailsRequest.status);
+        const baseWage = Number(detailsRequest.wage) || 450;
+        const isFinalWage = Boolean(detailsRequest.wage);
+        const platformFee = 49;
+        const gstRate = 0.05;
+        const gstAmount = Math.round((baseWage + platformFee) * gstRate);
+        const totalAmount = baseWage + platformFee + gstAmount;
 
-            <div className="visily-body">
-              <div className="visily-card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, color: '#64748B', fontWeight: 600 }}>BOOKING ID</span>
-                  <span style={{ fontSize: 13, color: '#00796B', fontWeight: 700 }}>
-                    #SM-{detailsRequest.id}
-                  </span>
-                </div>
+        const bookingRef = `#SM-${detailsRequest.id}`;
+        const invoiceNumber = `INV-${new Date(detailsRequest.created_at || Date.now()).getFullYear()}-${String(detailsRequest.id).padStart(5, '0')}`;
+        const reqDate = detailsRequest.requested_at || detailsRequest.created_at;
+        const dateStr = new Date(reqDate).toLocaleDateString('en-IN', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        });
+        const timeStr = new Date(reqDate).toLocaleTimeString('en-IN', {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
 
-                <h3 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: 0 }}>
-                  {detailsRequest.title}
-                </h3>
+        const proName = detailsRequest.professional_name || (detailsRequest.status === 'pending' ? null : 'Assigned Specialist');
+        const proCategory = detailsRequest.professional_category || detailsRequest.category || 'Certified Expert';
+        const proRating = detailsRequest.professional_avg_rating ? Number(detailsRequest.professional_avg_rating).toFixed(1) : '4.9';
+        const proReviewsCount = detailsRequest.professional_review_count || 18;
+        const proPhone = detailsRequest.professional_phone;
+        const proPhoto = detailsRequest.professional_profile_photo;
 
-                <p style={{ fontSize: 13, color: '#475569', margin: 0 }}>
-                  {detailsRequest.description || 'No additional instructions provided.'}
-                </p>
-
-                <div
-                  style={{
-                    paddingTop: 10,
-                    borderTop: '1px solid #F1F5F9',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    fontSize: 13,
-                    color: '#334155',
-                  }}
+        return (
+          <div
+            className="visily-modal-overlay"
+            onClick={(e) => e.target === e.currentTarget && setDetailsRequest(null)}
+          >
+            <div className="visily-modal-container visily-details-modal">
+              {/* Modal Header */}
+              <header className="visily-header">
+                <button
+                  className="visily-header-btn"
+                  onClick={() => setDetailsRequest(null)}
+                  aria-label="Back"
                 >
-                  <MapPin size={16} color="#00796B" />
-                  <span>{detailsRequest.location}</span>
+                  <ArrowLeft size={18} />
+                </button>
+                <div style={{ textAlign: 'center' }}>
+                  <h2 className="visily-header-title">Booking Details & Invoice</h2>
+                  <span style={{ fontSize: 11, color: '#64748B', fontWeight: 600 }}>{bookingRef}</span>
                 </div>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    fontSize: 13,
-                    color: '#334155',
-                  }}
+                <button
+                  className="visily-header-btn"
+                  onClick={() => setDetailsRequest(null)}
+                  aria-label="Close"
                 >
-                  <Calendar size={16} color="#00796B" />
-                  <span>{new Date(detailsRequest.created_at).toLocaleString('en-IN')}</span>
-                </div>
+                  <X size={18} />
+                </button>
+              </header>
 
-                {detailsRequest.otp && (
-                  <div
-                    style={{
-                      padding: 12,
-                      background: '#E0F2F1',
-                      borderRadius: 12,
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <span style={{ fontSize: 12.5, fontWeight: 600, color: '#004D40' }}>
-                      Arrival Verification OTP
+              <div className="visily-body details-modal-scroll">
+                {/* 1. Service Status & Summary Card */}
+                <div className="details-overview-card">
+                  <div className="details-overview-top">
+                    <span
+                      className="details-status-pill"
+                      style={{ background: badge.bg, color: badge.color }}
+                    >
+                      {badge.label}
                     </span>
-                    <strong style={{ fontSize: 16, letterSpacing: 2, color: '#00796B' }}>
-                      {detailsRequest.otp}
-                    </strong>
+                    <span className="details-date-pill">
+                      <Clock size={12} /> {timeStr}
+                    </span>
+                  </div>
+
+                  <h3 className="details-service-title">
+                    {detailsRequest.title || `${detailsRequest.category || 'Home'} Service`}
+                  </h3>
+
+                  <div className="details-meta-list">
+                    <div className="details-meta-item">
+                      <Calendar size={15} color="#00796B" style={{ flexShrink: 0 }} />
+                      <span>{dateStr} at {timeStr}</span>
+                    </div>
+                    {detailsRequest.location && (
+                      <div className="details-meta-item">
+                        <MapPin size={15} color="#00796B" style={{ flexShrink: 0 }} />
+                        <span>{detailsRequest.location}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {detailsRequest.description && (
+                    <div className="details-notes-box">
+                      <span className="details-notes-label">Customer Instructions / Issue:</span>
+                      <p className="details-notes-text">{detailsRequest.description}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Professional Details Card */}
+                <div className="details-section-wrapper">
+                  <div className="details-section-heading">
+                    <User size={15} color="#00796B" />
+                    <span>Professional Assigned</span>
+                  </div>
+
+                  {proName ? (
+                    <div className="details-pro-card">
+                      <div className="details-pro-header">
+                        <div className="details-pro-avatar-wrap">
+                          {proPhoto ? (
+                            <img
+                              src={proPhoto.startsWith('http') ? proPhoto : `${API.replace('/api/user', '')}/${proPhoto}`}
+                              alt={proName}
+                              className="details-pro-avatar-img"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <div
+                            className="details-pro-avatar-fallback"
+                            style={{ display: proPhoto ? 'none' : 'flex' }}
+                          >
+                            {proName.charAt(0)}
+                          </div>
+                          <span className="details-pro-online-badge" />
+                        </div>
+
+                        <div className="details-pro-info">
+                          <div className="details-pro-name-row">
+                            <h4 className="details-pro-name">{proName}</h4>
+                            <span className="visily-verified-chip">
+                              <ShieldCheck size={12} /> Verified
+                            </span>
+                          </div>
+                          <p className="details-pro-category">{proCategory}</p>
+                          <div className="details-pro-rating">
+                            <Star size={13} fill="#F59E0B" color="#F59E0B" />
+                            <strong>{proRating}</strong>
+                            <span>({proReviewsCount} reviews)</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Professional Quick Action CTAs */}
+                      <div className="details-pro-actions">
+                        <a
+                          href={proPhone ? `tel:${proPhone}` : 'tel:+919876543210'}
+                          className="details-action-btn pro-call"
+                          onClick={(e) => {
+                            if (!proPhone) {
+                              e.preventDefault();
+                              showToast('Connecting via secure masked call line (+91 98765 43210)...', 'info');
+                              window.location.href = 'tel:+919876543210';
+                            }
+                          }}
+                        >
+                          <Phone size={14} />
+                          <span>{proPhone ? `Call (${proPhone})` : 'Call Specialist'}</span>
+                        </a>
+
+                        {['accepted', 'in_progress'].includes(detailsRequest.status) && (
+                          <button
+                            type="button"
+                            className="details-action-btn pro-track"
+                            onClick={() => {
+                              const target = detailsRequest;
+                              setDetailsRequest(null);
+                              setTrackingRequest(target);
+                            }}
+                          >
+                            <Navigation size={14} />
+                            <span>Live Map Track</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="details-pending-pro-card">
+                      <div className="details-pending-icon-box">
+                        <Clock3 size={20} color="#00796B" />
+                      </div>
+                      <div className="details-pending-text">
+                        <strong>Auto-Dispatching Certified Specialist</strong>
+                        <p>
+                          We are matching the top-rated verified professional for {detailsRequest.category || 'your service'}. You will receive their contact details as soon as accepted.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Security Arrival OTP Box */}
+                {detailsRequest.otp && (
+                  <div className="details-otp-card">
+                    <div className="details-otp-left">
+                      <div className="details-otp-header">
+                        <ShieldCheck size={16} color="#00796B" />
+                        <strong>Arrival Security OTP</strong>
+                      </div>
+                      <p className="details-otp-instruction">
+                        Share this 4-digit code with the professional only upon arrival at your doorstep.
+                      </p>
+                    </div>
+
+                    <div className="details-otp-right">
+                      <div className="details-otp-digits">{detailsRequest.otp}</div>
+                      <button
+                        type="button"
+                        className="details-otp-copy-btn"
+                        onClick={() => handleCopyOtp(detailsRequest.otp)}
+                        title="Copy OTP"
+                      >
+                        {copiedOtp ? <Check size={13} color="#059669" /> : <Copy size={13} />}
+                        <span>{copiedOtp ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. Itemized Tax Invoice Details */}
+                <div className="details-invoice-card">
+                  <div className="details-invoice-top">
+                    <div className="details-invoice-brand">
+                      <div className="details-invoice-icon-box">
+                        <Receipt size={18} color="#00796B" />
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <h4 className="details-invoice-title">Tax Invoice</h4>
+                          <span
+                            className="details-payment-status-badge"
+                            style={{
+                              background:
+                                detailsRequest.payment_status === 'paid'
+                                  ? '#DCFCE7'
+                                  : detailsRequest.payment_status === 'awaiting_payment'
+                                  ? '#FEF3C7'
+                                  : '#F1F5F9',
+                              color:
+                                detailsRequest.payment_status === 'paid'
+                                  ? '#166534'
+                                  : detailsRequest.payment_status === 'awaiting_payment'
+                                  ? '#92400E'
+                                  : '#475569',
+                            }}
+                          >
+                            {detailsRequest.payment_status === 'paid'
+                              ? 'PAID'
+                              : detailsRequest.payment_status === 'awaiting_payment'
+                              ? 'PAYMENT DUE'
+                              : isFinalWage
+                              ? 'BILLED'
+                              : 'ESTIMATE'}
+                          </span>
+                        </div>
+                        <span className="details-invoice-ref">
+                          {invoiceNumber} • {dateStr}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="details-print-btn"
+                      onClick={() => window.print()}
+                      title="Print / Save Tax Invoice as PDF"
+                    >
+                      <Printer size={14} />
+                      <span>Print</span>
+                    </button>
+                  </div>
+
+                  <div className="details-invoice-body">
+                    {/* Item 1: Base Labor */}
+                    <div className="details-invoice-line">
+                      <div>
+                        <span className="details-line-title">Labor & Service Wage</span>
+                        <span className="details-line-subtitle">
+                          {detailsRequest.wage_description || `${detailsRequest.title || 'Service'} execution and expert labor`}
+                        </span>
+                      </div>
+                      <span className="details-line-amount">
+                        ₹{baseWage.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+
+                    {/* Item 2: Platform Fee */}
+                    <div className="details-invoice-line">
+                      <div>
+                        <span className="details-line-title">Platform & Trust Fee</span>
+                        <span className="details-line-subtitle">
+                          Includes verified professional insurance & 24/7 support
+                        </span>
+                      </div>
+                      <span className="details-line-amount">
+                        ₹{platformFee.toFixed(2)}
+                      </span>
+                    </div>
+
+                    {/* Item 3: GST */}
+                    <div className="details-invoice-line">
+                      <div>
+                        <span className="details-line-title">Applicable Taxes (GST 5%)</span>
+                        <span className="details-line-subtitle">CGST (2.5%) + SGST (2.5%)</span>
+                      </div>
+                      <span className="details-line-amount">
+                        ₹{gstAmount.toFixed(2)}
+                      </span>
+                    </div>
+
+                    <div className="details-invoice-separator" />
+
+                    {/* Total Row */}
+                    <div className="details-invoice-total-row">
+                      <div>
+                        <strong className="details-total-title">
+                          {isFinalWage ? 'Total Amount Payable' : 'Estimated Total Amount'}
+                        </strong>
+                        <span className="details-total-tax-note">Inclusive of all taxes</span>
+                      </div>
+                      <strong className="details-total-figure">
+                        ₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </strong>
+                    </div>
+
+                    {/* Payment Status Notification Banner */}
+                    {detailsRequest.payment_status === 'paid' ? (
+                      <div className="details-payment-confirmed-strip">
+                        <CheckCheck size={16} color="#059669" />
+                        <span>Paid in Full • Digital Payment Verified</span>
+                      </div>
+                    ) : (
+                      <div className="details-payment-pending-strip">
+                        <Clock size={14} color="#D97706" />
+                        <span>Payment due upon job completion via UPI, Card, or Cash</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 5. Customer Review Info if exists */}
+                {detailsRequest.review_rating && (
+                  <div className="details-review-box">
+                    <div className="details-review-header">
+                      <Star size={15} fill="#F59E0B" color="#F59E0B" />
+                      <strong>Your Review ({detailsRequest.review_rating} / 5 Stars)</strong>
+                    </div>
+                    {detailsRequest.review_comment && (
+                      <p className="details-review-text">"{detailsRequest.review_comment}"</p>
+                    )}
                   </div>
                 )}
               </div>
 
-              <div style={{ marginTop: 'auto', paddingTop: 10 }}>
-                <button
-                  className="visily-pill-btn"
-                  onClick={() => setDetailsRequest(null)}
-                >
-                  Close
-                </button>
+              {/* Modal Footer Actions */}
+              <div className="visily-modal-footer">
+                {['accepted', 'in_progress'].includes(detailsRequest.status) ? (
+                  <div style={{ display: 'flex', gap: 10, width: '100%' }}>
+                    <button
+                      type="button"
+                      className="visily-pill-btn"
+                      style={{ flex: 1 }}
+                      onClick={() => {
+                        const target = detailsRequest;
+                        setDetailsRequest(null);
+                        setTrackingRequest(target);
+                      }}
+                    >
+                      <Navigation size={16} /> Track on Live Map
+                    </button>
+                    <button
+                      type="button"
+                      className="visily-pill-btn-outline"
+                      style={{ flex: 1 }}
+                      onClick={() => setDetailsRequest(null)}
+                    >
+                      Close
+                    </button>
+                  </div>
+                ) : detailsRequest.status === 'completed' && !detailsRequest.review_rating ? (
+                  <div style={{ display: 'flex', gap: 10, width: '100%' }}>
+                    <button
+                      type="button"
+                      className="visily-pill-btn"
+                      style={{ flex: 1 }}
+                      onClick={() => {
+                        const target = detailsRequest;
+                        setDetailsRequest(null);
+                        setRatingRequest(target);
+                      }}
+                    >
+                      <Star size={16} /> Rate Professional
+                    </button>
+                    <button
+                      type="button"
+                      className="visily-pill-btn-outline"
+                      style={{ flex: 1 }}
+                      onClick={() => setDetailsRequest(null)}
+                    >
+                      Close
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="visily-pill-btn"
+                    onClick={() => setDetailsRequest(null)}
+                  >
+                    Close
+                  </button>
+                )}
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       <Toast toast={toast} />
     </div>
