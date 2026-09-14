@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   Check,
   Edit3,
@@ -17,14 +17,28 @@ import {
   Star,
   CheckCircle2,
   AlertCircle,
+  Camera,
+  Upload,
 } from 'lucide-react';
 import { API } from '../constants';
 import { useTranslation } from 'react-i18next';
+
+const SERVER_BASE = import.meta.env.VITE_API_URL || 'https://service-marketplace-af7p.onrender.com';
+
+const resolvePhotoUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http') || path.startsWith('data:')) return path;
+  if (path.startsWith('/')) return `${SERVER_BASE}${path}`;
+  return `${SERVER_BASE}/uploads/${path}`;
+};
 
 function Profile({ user, onUserUpdate, onLogout }) {
   const [profile, setProfile] = useState(user || {});
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ phone: user?.phone || '', address: user?.address || '' });
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const fileInputRef = useRef(null);
   const { t, i18n } = useTranslation();
   const [language, setLanguage] = useState(i18n.language === 'ml' ? 'Malayalam' : 'English');
   const [saving, setSaving] = useState(false);
@@ -135,24 +149,52 @@ function Profile({ user, onUserUpdate, onLogout }) {
     loadAddresses();
   }, []);
 
+  const handlePhotoSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoFile(file);
+    const preview = URL.createObjectURL(file);
+    setPhotoPreview(preview);
+  };
+
   const saveProfile = async (event) => {
     event.preventDefault();
     setSaving(true);
     setMessage('');
     try {
-      const response = await fetch(`${API}/profile`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('userToken')}`,
-        },
-        body: JSON.stringify(form),
-      });
+      const token = localStorage.getItem('userToken');
+      let response;
+      if (photoFile) {
+        const formData = new FormData();
+        formData.append('phone', form.phone || '');
+        formData.append('address', form.address || '');
+        formData.append('profile_photo', photoFile);
+
+        response = await fetch(`${API}/profile`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
+      } else {
+        response = await fetch(`${API}/profile`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(form),
+        });
+      }
+
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Unable to save profile');
       setProfile(data);
       onUserUpdate(data);
       setEditing(false);
+      setPhotoFile(null);
+      setPhotoPreview(null);
       setMessage('Profile updated successfully');
     } catch (error) {
       setMessage(error.message);
@@ -344,21 +386,90 @@ function Profile({ user, onUserUpdate, onLogout }) {
         </button>
       </div>
 
-      {/* Identity Card */}
+      {/* Identity Card with Photo Upload */}
       <section className="profile-identity-card">
-        <div className="profile-page-avatar">
-          {profile.photo_url ? (
-            <img src={profile.photo_url} alt={profile.name} />
+        <div
+          className="profile-page-avatar"
+          style={{ position: 'relative', cursor: editing ? 'pointer' : 'default', overflow: 'hidden' }}
+          onClick={() => editing && fileInputRef.current?.click()}
+          title={editing ? 'Click to change profile photo' : ''}
+        >
+          {photoPreview ? (
+            <img src={photoPreview} alt="New Preview" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+          ) : (profile.profile_photo || profile.photo_url) ? (
+            <img src={resolvePhotoUrl(profile.profile_photo || profile.photo_url)} alt={profile.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
           ) : (
             <UserRound size={36} />
           )}
+
+          {editing && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                borderRadius: '50%',
+                background: 'rgba(15, 23, 42, 0.55)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#FFFFFF',
+                gap: 2,
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <Camera size={20} />
+              <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.04em' }}>CHANGE</span>
+            </div>
+          )}
         </div>
-        <div>
+
+        <input
+          type="file"
+          ref={fileInputRef}
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={handlePhotoSelect}
+        />
+
+        <div style={{ flex: 1 }}>
           <h2>{profile.name || 'Customer'}</h2>
           <p>{profile.email || 'Email not available'}</p>
-          <span className="profile-member-label">
-            <Check size={13} /> {t('profile.customer_account')}
-          </span>
+          {editing ? (
+            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <button
+                type="button"
+                className="profile-photo-upload-btn"
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 14px',
+                  borderRadius: 14,
+                  border: '1px solid #00796B',
+                  background: '#E0F2F1',
+                  color: '#00796B',
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  width: 'fit-content',
+                }}
+              >
+                <Camera size={14} />
+                {photoFile ? 'Choose Different Photo' : 'Upload Profile Photo'}
+              </button>
+              {photoFile && (
+                <span style={{ fontSize: 11.5, color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Check size={13} /> Selected: {photoFile.name.length > 20 ? photoFile.name.slice(0, 18) + '...' : photoFile.name}
+                </span>
+              )}
+            </div>
+          ) : (
+            <span className="profile-member-label">
+              <Check size={13} /> {t('profile.customer_account')}
+            </span>
+          )}
         </div>
       </section>
 

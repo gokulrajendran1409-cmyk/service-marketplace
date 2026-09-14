@@ -6,7 +6,7 @@ const { addCustomerClient, removeCustomerClient } = require('../utils/customerSs
 exports.getProfile = async (req, res) => {
     try {
         const result = await pool.query(
-            'SELECT id, name, email, phone, address FROM users WHERE id = $1',
+            'SELECT id, name, email, phone, address, profile_photo FROM users WHERE id = $1',
             [req.user.id]
         );
         if (!result.rows[0]) return res.status(404).json({ message: 'Profile not found' });
@@ -20,14 +20,34 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
     try {
         const { phone, address } = req.body;
-        if (!phone?.trim()) return res.status(400).json({ message: 'Phone number is required' });
+        let profile_photo = req.body?.profile_photo || null;
+        if (req.file) {
+            profile_photo = `/uploads/${req.file.filename}`;
+        }
+
+        // Fetch current user data to avoid wiping existing values if omitted
+        const currentRes = await pool.query(
+            'SELECT phone, address, profile_photo FROM users WHERE id = $1',
+            [req.user.id]
+        );
+        if (!currentRes.rows[0]) return res.status(404).json({ message: 'Profile not found' });
+        const current = currentRes.rows[0];
+
+        const updatedPhone = (phone !== undefined && phone !== null && String(phone).trim() !== '') 
+            ? String(phone).trim() 
+            : current.phone;
+        const updatedAddress = address !== undefined 
+            ? (String(address).trim() || null) 
+            : current.address;
+        const updatedPhoto = profile_photo !== null 
+            ? profile_photo 
+            : current.profile_photo;
 
         const result = await pool.query(
-            `UPDATE users SET phone = $1, address = $2
-             WHERE id = $3 RETURNING id, name, email, phone, address`,
-            [phone.trim(), address?.trim() || null, req.user.id]
+            `UPDATE users SET phone = $1, address = $2, profile_photo = $3
+             WHERE id = $4 RETURNING id, name, email, phone, address, profile_photo`,
+            [updatedPhone, updatedAddress, updatedPhoto, req.user.id]
         );
-        if (!result.rows[0]) return res.status(404).json({ message: 'Profile not found' });
         res.json(result.rows[0]);
     } catch (err) {
         console.error('updateProfile error:', err);

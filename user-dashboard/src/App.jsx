@@ -14,11 +14,10 @@ import ServiceAcceptedModal from './components/ServiceAcceptedModal';
 import { API } from './constants';
 
 const PAGES = [
-  { id: 'home',          label: 'Home',        icon: House },
-  { id: 'services',      label: 'Search',      icon: Search },
-  { id: 'requests',      label: 'My Bookings', icon: ClipboardList },
-  { id: 'notifications', label: 'Messages',    icon: MessageSquare },
-  { id: 'profile',       label: 'Profile',     icon: UserRound },
+  { id: 'home',     label: 'Home',        icon: House },
+  { id: 'services', label: 'Search',      icon: Search },
+  { id: 'requests', label: 'My Bookings', icon: ClipboardList },
+  { id: 'profile',  label: 'Profile',     icon: UserRound },
 ];
 
 // stage: 'landing' | 'auth' | 'app'
