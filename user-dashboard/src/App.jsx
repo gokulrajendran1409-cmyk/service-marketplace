@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import './index.css';
 import './App.css';
-import { House, Search, ClipboardList, MessageSquare, UserRound } from 'lucide-react';
+import { House, LayoutGrid, ClipboardList, MessageSquare, UserRound } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import Home from './pages/Home';
 import Services from './pages/Services';
 import BrowseProfessionals from './pages/BrowseProfessionals';
@@ -16,13 +17,14 @@ import { API } from './constants';
 
 const PAGES = [
   { id: 'home',     label: 'Home',        icon: House },
-  { id: 'services', label: 'Search',      icon: Search },
+  { id: 'services', label: 'Services',    icon: LayoutGrid },
   { id: 'requests', label: 'My Bookings', icon: ClipboardList },
   { id: 'profile',  label: 'Profile',     icon: UserRound },
 ];
 
 // stage: 'landing' | 'auth' | 'app'
 function App() {
+  const { t } = useTranslation();
   const [stage, setStage] = useState('landing');
   const [page, setPage] = useState('home');
   const [user, setUser] = useState(null);
@@ -381,11 +383,11 @@ function App() {
           <button
             key={id}
             className={`bottom-nav-item ${page === id ? 'active' : ''}`}
-            onClick={() => setPage(id)}
+            onClick={() => navigate(id)}
           >
             <span className="bottom-nav-pill">
-              <Icon size={20} className="bottom-nav-icon" />
-              {page === id && <span className="bottom-nav-label">{label}</span>}
+              <Icon size={22} className="bottom-nav-icon" />
+              <span className="bottom-nav-label">{t(`nav.${id}`, { defaultValue: label })}</span>
             </span>
           </button>
         ))}

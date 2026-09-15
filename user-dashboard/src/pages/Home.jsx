@@ -1,37 +1,35 @@
 import { useEffect, useState, useRef } from 'react';
 import {
-  ArrowRight,
   Bell,
-  CheckCircle2,
   ChevronRight,
   MapPin,
   Search,
-  Sparkles,
   Star,
-  UserRoundCheck,
+  Heart,
+  ArrowRight,
+  CalendarCheck,
+  CheckCircle2,
   Wrench,
   Zap,
   Wind,
   Hammer,
-  Leaf,
-  Shield,
-  ShieldCheck,
-  BadgePercent,
-  Award,
+  Sparkles,
+  Brush,
+  Car,
+  Camera,
+  Cpu,
+  MoreHorizontal,
   Navigation,
   Clock,
+  UserRound,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { API } from '../constants';
 import { useToast, Toast } from '../components/Toast';
-import { useTranslation } from 'react-i18next';
 import BookingModal from '../components/BookingModal';
 
-import keralaAcRepair from '../assets/kerala/ac_repair.jpg';
-import keralaCleaning from '../assets/kerala/cleaning.jpg';
-import keralaPainting from '../assets/kerala/painting.jpg';
-import keralaPlumbing from '../assets/kerala/plumbing.jpg';
+import heroBg from '../assets/hero_worker.jpg';
 
-// Category icon images
 import plumbingIcon from '../assets/category-icons/plumbing.png';
 import electricalIcon from '../assets/category-icons/electrical.png';
 import acRepairIcon from '../assets/category-icons/ac_repair.png';
@@ -41,16 +39,6 @@ import paintingIcon from '../assets/category-icons/painting.png';
 import mechanicIcon from '../assets/category-icons/mechanic.png';
 import cctvIcon from '../assets/category-icons/cctv.png';
 import applianceRepairIcon from '../assets/category-icons/appliance_repair.png';
-import beautyWellnessIcon from '../assets/category-icons/beauty_wellness.png';
-import tutoringIcon from '../assets/category-icons/tutoring.png';
-import photographyIcon from '../assets/category-icons/photography.png';
-import eventPlanningIcon from '../assets/category-icons/event_planning.png';
-import landscapingIcon from '../assets/category-icons/landscaping.png';
-import movingPackingIcon from '../assets/category-icons/moving_packing.png';
-import homeRenovationIcon from '../assets/category-icons/home_renovation.png';
-import itSupportIcon from '../assets/category-icons/it_support.png';
-import languageClassesIcon from '../assets/category-icons/language_classes.png';
-import petCareIcon from '../assets/category-icons/pet_care.png';
 import otherServicesIcon from '../assets/category-icons/other_services.png';
 
 const SERVER_BASE = import.meta.env.VITE_API_URL || 'https://service-marketplace-af7p.onrender.com';
@@ -62,136 +50,80 @@ const resolveProPhoto = (path) => {
   return `${SERVER_BASE}/uploads/${path}`;
 };
 
+const CATEGORIES = [
+  { id: 'plumbing',   label: 'Plumbing',       icon: plumbingIcon,      bg: '#E8E7F8', color: '#625DB5', category: 'Plumbing' },
+  { id: 'electrical', label: 'Electrical',     icon: electricalIcon,    bg: '#FEF3C7', color: '#B45309', category: 'Electrical' },
+  { id: 'ac_repair',  label: 'AC Repair',      icon: acRepairIcon,      bg: '#D0E5F3', color: '#2F80C0', category: 'AC & Appliance Repair' },
+  { id: 'carpentry',  label: 'Carpentry',      icon: carpentryIcon,     bg: '#F3D4E0', color: '#C0527A', category: 'Carpentry' },
+  { id: 'cleaning',   label: 'Cleaning',       icon: cleaningIcon,      bg: '#BFE8CC', color: '#4FA66A', category: 'Cleaning' },
+  { id: 'painting',   label: 'Painting',       icon: paintingIcon,      bg: '#FFE9D0', color: '#D97706', category: 'Painting' },
+  { id: 'mechanic',   label: 'Mechanic',       icon: mechanicIcon,      bg: '#E2E8F0', color: '#475569', category: 'Vehicle Services' },
+  { id: 'cctv',       label: 'CCTV',           icon: cctvIcon,          bg: '#F0EFFD', color: '#5B56B3', category: 'CCTV & Security' },
+  { id: 'appliance',  label: 'Appliance',      icon: applianceRepairIcon, bg: '#FEE2E2', color: '#B91C1C', category: 'AC & Appliance Repair' },
+  { id: 'more',       label: 'More',           icon: otherServicesIcon, bg: '#F7F7F7', color: '#777777', category: null },
+];
+
+const HERO_SLIDES = [
+  {
+    pill: 'Trusted Professionals',
+    title: 'Find the Right\nService, Right\nNear You',
+    sub: 'Verified professionals, fair prices and quality service — all in one place.',
+    btn: 'Explore Services',
+  },
+  {
+    pill: '30-Day Warranty',
+    title: 'Quality Work,\nGuaranteed\nEvery Time',
+    sub: 'All services come with a satisfaction guarantee and upfront pricing.',
+    btn: 'Book Now',
+  },
+  {
+    pill: 'Live Tracking',
+    title: 'Real-Time Updates\nFrom Your\nProfessional',
+    sub: 'Track your expert in real time and know exactly when they arrive.',
+    btn: 'See How It Works',
+  },
+];
+
+const SAMPLE_PROS = [
+  { id: 1, full_name: 'Ramesh Kumar',   category: 'Plumbing',            hourly_rate: 300, distance_km: 1.2, rating: 4.9, reviews: 142, avatar: null, fav: false },
+  { id: 2, full_name: 'Arun S',         category: 'Electrical',          hourly_rate: 350, distance_km: 2.1, rating: 4.8, reviews: 98,  avatar: null, fav: false },
+  { id: 3, full_name: 'Anjali S',       category: 'Cleaning Specialist', hourly_rate: 250, distance_km: 2.5, rating: 4.9, reviews: 213, avatar: null, fav: false },
+  { id: 4, full_name: 'Vijay M',        category: 'AC Repair',           hourly_rate: 400, distance_km: 3.0, rating: 4.7, reviews: 76,  avatar: null, fav: false },
+];
+
+const AVATAR_COLORS = ['#625DB5', '#4FA66A', '#D97706', '#2F80C0', '#C0527A'];
+
 function Home({ navigate, unreadCount = 0 }) {
-  const [locationName, setLocationName] = useState('Thiruvananthapuram, Kerala');
+  const [locationName, setLocationName] = useState('Thiruvananthapuram');
   const [currentCoords, setCurrentCoords] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
-  const [activeBooking, setActiveBooking] = useState(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
   const [bookingModalConfig, setBookingModalConfig] = useState(null);
-  const [topPros, setTopPros] = useState([]);
-  const [loadingPros, setLoadingPros] = useState(true);
+  const [topPros, setTopPros] = useState(SAMPLE_PROS);
+  const [favs, setFavs] = useState({});
+  const [activeBooking, setActiveBooking] = useState(null);
   const { toast, showToast } = useToast();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
+  const user = (() => { try { return JSON.parse(localStorage.getItem('userData') || '{}'); } catch { return {}; } })();
 
-  // Load real verified professionals strictly from database
+  // Fetch real professionals
   useEffect(() => {
-    setLoadingPros(true);
     fetch(`${API}/professionals`)
-      .then((res) => (res.ok ? res.json() : []))
+      .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (Array.isArray(data)) {
+        if (Array.isArray(data) && data.length > 0) {
           const mapped = data.map((p, idx) => ({
             id: p.id,
             full_name: p.full_name || 'Verified Professional',
             category: p.category || 'Home Services',
-            rating: Number(p.avg_rating) || 5.0,
+            rating: Number(p.avg_rating) || 4.8,
             reviews: Number(p.review_count) || 0,
-            experience_years: p.experience_years || 0,
-            distance_km: p.distance_from_user || (1.2 + idx * 0.8).toFixed(1),
             hourly_rate: 200 + Math.min(Number(p.experience_years) || 0, 12) * 25,
-            tags: p.sub_category
-              ? p.sub_category.split(/[,|/]+/).map((s) => s.trim()).filter(Boolean).slice(0, 3)
-              : [p.category || 'Specialist', 'Verified'],
+            distance_km: p.distance_from_user || (1.2 + idx * 0.8).toFixed(1),
             avatar: resolveProPhoto(p.profile_photo),
+            fav: false,
           }));
           setTopPros(mapped);
-        } else {
-          setTopPros([]);
-        }
-      })
-      .catch(() => {
-        setTopPros([]);
-      })
-      .finally(() => {
-        setLoadingPros(false);
-      });
-  }, []);
-
-  const browseCategories = [
-    { id: 'plumbing', label: 'Plumbing', icon: plumbingIcon, group: 'Home Repairs', category: 'Plumbing' },
-    { id: 'electrical', label: 'Electrical', icon: electricalIcon, group: 'Home Repairs', category: 'Electrical' },
-    { id: 'ac_repair', label: 'AC Repair', icon: acRepairIcon, group: 'Home Repairs', category: 'AC & Appliance Repair' },
-    { id: 'cleaning', label: 'Cleaning', icon: cleaningIcon, group: 'Personal Care', category: 'Cleaning' },
-    { id: 'carpentry', label: 'Carpentry', icon: carpentryIcon, group: 'Home Repairs', category: 'Carpentry' },
-    { id: 'painting', label: 'Painting', icon: paintingIcon, group: 'Home Repairs', category: 'Painting' },
-    { id: 'mechanic', label: 'Mechanic', icon: mechanicIcon, group: 'Vehicle Services', category: 'Vehicle Services' },
-    { id: 'cctv', label: 'CCTV Security', icon: cctvIcon, group: 'Home Services', category: 'CCTV & Security' },
-  ];
-
-  // Quick Book Services matching Visily Screen 1
-  const quickServices = [
-    {
-      id: 'tap-repair',
-      title: 'Tap Repair',
-      category: 'Plumbing',
-      desc: 'Fix leaking or faulty taps and get smooth water flow.',
-      icon: Wrench,
-      price: 'From ₹300',
-    },
-    {
-      id: 'electrical',
-      title: 'Switch & Socket',
-      category: 'Electrical',
-      desc: 'Fix short circuits, replace sockets, switches and fixtures.',
-      icon: Zap,
-      price: 'From ₹250',
-    },
-    {
-      id: 'ac-service',
-      title: 'AC Servicing',
-      category: 'AC & Appliance Repair',
-      desc: 'Deep filter cleaning, cooling test and gas leak check.',
-      icon: Wind,
-      price: 'From ₹450',
-    },
-    {
-      id: 'cleaning',
-      title: 'Deep House Cleaning',
-      category: 'Cleaning',
-      desc: 'Complete kitchen, bathroom and living space scrub-down.',
-      icon: Sparkles,
-      price: 'From ₹499',
-    },
-  ];
-
-  const promoSlides = [
-    {
-      title: 'One Tap Booking!',
-      description: 'Verified home experts ready in Thiruvananthapuram.',
-      buttonText: 'Book Service',
-      color: 'linear-gradient(135deg, #00796B 0%, #004D40 100%)',
-      emoji: '✨',
-    },
-    {
-      title: 'Trusted & Verified!',
-      description: 'Guaranteed upfront rates with 30-day work warranty.',
-      buttonText: 'Explore',
-      color: 'linear-gradient(135deg, #0D9488 0%, #0F766E 100%)',
-      emoji: '⭐',
-    },
-    {
-      title: 'Live Tracking Active',
-      description: 'Track your professional in real time with arrival updates.',
-      buttonText: 'See How',
-      color: 'linear-gradient(135deg, #047857 0%, #065F46 100%)',
-      emoji: '⚡',
-    },
-  ];
-
-  // Check for active booking
-  useEffect(() => {
-    const token = localStorage.getItem('userToken');
-    if (!token) return;
-
-    fetch(`${API}/requests`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => {
-        if (Array.isArray(data)) {
-          const inProgress = data.find((r) => ['accepted', 'in_progress'].includes(r.status));
-          if (inProgress) setActiveBooking(inProgress);
         }
       })
       .catch(() => {});
@@ -202,634 +134,271 @@ function Home({ navigate, unreadCount = 0 }) {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          setCurrentCoords({
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-          });
-          fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&zoom=10`
-          )
+          setCurrentCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+          fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&zoom=10`)
             .then((r) => r.json())
-            .then((data) => {
-              const addr = data.address || {};
-              const place = addr.city || addr.town || addr.village || 'Thiruvananthapuram';
-              const state = addr.state || 'Kerala';
-              setLocationName(`${place}, ${state}`);
+            .then((d) => {
+              const a = d.address || {};
+              setLocationName(a.city || a.town || a.village || 'Thiruvananthapuram');
             })
-            .catch(() => setLocationName('Thiruvananthapuram, Kerala'));
+            .catch(() => {});
         },
-        () => setLocationName('Thiruvananthapuram, Kerala')
+        () => {}
       );
     }
   }, []);
 
-  // Auto rotate promo slides
+  // Check active booking
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentPromoIndex((prev) => (prev + 1) % promoSlides.length);
-    }, 4500);
-    return () => clearInterval(timer);
-  }, [promoSlides.length]);
+    const token = localStorage.getItem('userToken');
+    if (!token) return;
+    fetch(`${API}/requests`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const active = data.find((r) => ['accepted', 'in_progress'].includes(r.status));
+          if (active) setActiveBooking(active);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    navigate('services');
-  };
+  // Auto-advance hero slides
+  useEffect(() => {
+    const t = setInterval(() => setCurrentSlide((p) => (p + 1) % HERO_SLIDES.length), 5000);
+    return () => clearInterval(t);
+  }, []);
 
-  const openBookingFor = (category, title = '', professional = null) => {
+  const openBookingFor = (category, title = '') => {
     setBookingModalConfig({
       category,
       initialTitle: title,
-      professional,
-      currentLocation: currentCoords
-        ? {
-            ...currentCoords,
-            placeName: locationName,
-          }
-        : { placeName: locationName },
+      currentLocation: currentCoords ? { ...currentCoords, placeName: locationName } : { placeName: locationName },
     });
   };
 
+  const toggleFav = (id) => setFavs((p) => ({ ...p, [id]: !p[id] }));
+
+  const avatarInitial = (name) => (name || 'P').charAt(0).toUpperCase();
+
   return (
-    <div className="home-app-root" style={{ background: '#F8FAFC', paddingBottom: 84 }}>
-      {/* ── Top Bar ── */}
-      <div className="home-topbar" style={{ background: '#FFFFFF' }}>
-        <div className="home-location-pill" style={{ background: '#E0F2F1', color: '#00796B' }}>
-          <MapPin size={15} color="#00796B" />
-          <span className="home-location-text" style={{ color: '#004D40', fontWeight: 600 }}>
-            {locationName}
-          </span>
-          <ChevronRight size={14} color="#00796B" />
-        </div>
-        <button
-          className="home-bell-btn"
-          onClick={() => navigate('notifications')}
-          title="Notifications"
-          style={{ background: '#F1F5F9', color: '#0F172A' }}
-        >
-          <Bell size={18} />
-          {unreadCount > 0 && (
-            <span className="home-bell-badge" style={{ background: '#00796B' }}>
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </span>
-          )}
-        </button>
-      </div>
+    <div className="hn-root">
 
-      {/* ── Search Bar ── */}
-      <form className="home-search-wrap" onSubmit={handleSearchSubmit}>
-        <div className="home-search-bar" style={{ border: '1.5px solid #E2E8F0', background: '#FFFFFF' }}>
-          <Search size={17} color="#00796B" className="home-search-icon" />
-          <input
-            className="home-search-input"
-            placeholder="Search for tap repair, electrician, ac..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          <button
-            type="submit"
-            className="home-search-submit"
-            aria-label="Search services"
-            style={{ background: '#00796B' }}
-          >
-            <ArrowRight size={16} />
-          </button>
-        </div>
-      </form>
-
-      {/* ── Active Booking Banner (Screen 10 & 11 bridge) ── */}
+      {/* ── Active booking banner ── */}
       {activeBooking && (
-        <div className="home-active-tracker-card">
-          <div className="home-active-tracker-left">
-            <div className="home-active-tracker-avatar">
-              {(activeBooking.professional_name || 'R').charAt(0)}
-            </div>
-            <div className="home-active-tracker-info">
-              <h4>{activeBooking.title || `${activeBooking.category} Service`}</h4>
-              <p>
-                <Clock size={12} />
-                <span>
-                  {activeBooking.professional_name
-                    ? `${activeBooking.professional_name} is on the way`
-                    : 'Professional arriving soon'}
-                </span>
-              </p>
-            </div>
-          </div>
-          <button
-            className="home-active-tracker-btn"
-            onClick={() => navigate('requests')}
-          >
-            <Navigation size={13} /> Track Live
-          </button>
+        <div className="hn-active-banner" onClick={() => navigate('requests')}>
+          <Navigation size={14} />
+          <span>{activeBooking.professional_name || 'Professional'} is on the way</span>
+          <span className="hn-active-banner-cta">Track Live →</span>
         </div>
       )}
 
-      {/* ── Promo Banner Carousel ── */}
-      <section className="home-promo-carousel" style={{ margin: '0 16px 20px' }}>
-        <div
-          className="home-promo-slides"
-          style={{
-            transform: `translateX(-${currentPromoIndex * 100}%)`,
-            transition: 'transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)',
-          }}
-        >
-          {promoSlides.map((slide, index) => (
-            <div
-              key={index}
-              className="home-promo-card"
-              style={{ background: slide.color, borderRadius: 22 }}
-            >
-              <div className="home-promo-content">
-                <h2 className="home-promo-title">{slide.title}</h2>
-                <p className="home-promo-description">{slide.description}</p>
+      {/* ══════════════════════════
+          TOP HEADER
+      ══════════════════════════ */}
+      <header className="hn-header">
+        <div className="hn-header-left">
+          <div className="hn-location-row">
+            <MapPin size={14} className="hn-location-pin" />
+            <span className="hn-location-city">{locationName}</span>
+            <ChevronRight size={13} className="hn-location-chevron" />
+          </div>
+          <p className="hn-location-sub">Find trusted professionals near you</p>
+        </div>
+        <div className="hn-header-actions">
+          <button className="hn-bell-btn" onClick={() => navigate('notifications')} aria-label="Notifications">
+            <Bell size={18} />
+            {unreadCount > 0 && <span className="hn-bell-dot" />}
+          </button>
+          <button className="hn-avatar-btn" onClick={() => navigate('profile')} aria-label="Profile">
+            {user?.profile_photo ? (
+              <img src={resolveProPhoto(user.profile_photo)} alt="avatar" className="hn-avatar-img" />
+            ) : (
+              <span className="hn-avatar-fallback">{avatarInitial(user?.full_name || user?.name)}</span>
+            )}
+          </button>
+        </div>
+      </header>
+
+      {/* ══════════════════════════
+          SEARCH BAR
+      ══════════════════════════ */}
+      <div className="hn-search-wrap">
+        <div className="hn-search-bar">
+          <Search size={17} className="hn-search-icon" />
+          <input
+            className="hn-search-input"
+            placeholder="Search for services (e.g. plumber, electrician, cleaning...)"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && navigate('services')}
+          />
+        </div>
+      </div>
+
+      {/* ══════════════════════════
+          HERO BANNER CAROUSEL
+      ══════════════════════════ */}
+      <section className="hn-hero-wrap">
+        <div className="hn-hero-track" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
+          {HERO_SLIDES.map((slide, i) => (
+            <div key={i} className="hn-hero-card">
+              {/* Decorative blobs */}
+              <div className="hn-hero-blob hn-hero-blob-1" />
+              <div className="hn-hero-blob hn-hero-blob-2" />
+
+              {/* Left content */}
+              <div className="hn-hero-content">
+                <span className="hn-hero-pill">{slide.pill}</span>
+                <h1 className="hn-hero-title">{slide.title}</h1>
+                <p className="hn-hero-sub">{slide.sub}</p>
                 <button
-                  className="home-promo-btn"
-                  style={{ background: '#FFFFFF', color: '#00796B', fontWeight: 700 }}
-                  onClick={() => openBookingFor('Plumbing', 'Tap Repair')}
+                  className="hn-hero-btn"
+                  onClick={() => navigate('services')}
                 >
-                  {slide.buttonText}
+                  {slide.btn} <ArrowRight size={15} />
                 </button>
+                <span className="hn-hero-handwritten">Your Local Service Hub</span>
               </div>
-              <div className="home-promo-visual">
-                <div className="home-promo-placeholder">{slide.emoji}</div>
-              </div>
-            </div>
-          ))}
-        </div>
 
-        <div className="home-promo-controls">
-          <div className="home-promo-dots">
-            {promoSlides.map((_, index) => (
-              <button
-                key={index}
-                className={`home-promo-dot ${index === currentPromoIndex ? 'active' : ''}`}
-                style={{
-                  background: index === currentPromoIndex ? '#00796B' : '#CBD5E1',
-                }}
-                onClick={() => setCurrentPromoIndex(index)}
-                aria-label={`Go to slide ${index + 1}`}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── What do you need help with? (Quick Book - Screen 1) ── */}
-      <section style={{ padding: '0 16px', marginBottom: 24 }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'baseline',
-            marginBottom: 12,
-          }}
-        >
-          <div>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: 0 }}>
-              What do you need help with?
-            </h2>
-            <small style={{ fontSize: 12.5, color: '#64748B' }}>
-              Instant booking with verified professionals
-            </small>
-          </div>
-          <button
-            onClick={() => navigate('services')}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#00796B',
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2,
-            }}
-          >
-            View All <ChevronRight size={14} />
-          </button>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-          {quickServices.map((srv) => (
-            <div
-              key={srv.id}
-              className="visily-card"
-              style={{
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8,
-                padding: 14,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
-              }}
-              onClick={() => openBookingFor(srv.category, srv.title)}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <div className="visily-icon-mint-box" style={{ width: 38, height: 38 }}>
-                  <srv.icon size={20} />
-                </div>
-                <span
-                  style={{
-                    fontSize: 11.5,
-                    fontWeight: 700,
-                    color: '#00796B',
-                    background: '#E0F2F1',
-                    padding: '2px 8px',
-                    borderRadius: 10,
-                  }}
-                >
-                  {srv.price}
-                </span>
-              </div>
-              <div>
-                <strong style={{ fontSize: 14, color: '#0F172A', display: 'block' }}>
-                  {srv.title}
-                </strong>
-                <small
-                  style={{
-                    fontSize: 11.5,
-                    color: '#64748B',
-                    lineHeight: 1.35,
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                  }}
-                >
-                  {srv.desc}
-                </small>
+              {/* Right — worker image */}
+              <div className="hn-hero-visual">
+                <img src={heroBg} alt="Service Professional" className="hn-hero-img" />
               </div>
             </div>
           ))}
         </div>
-      </section>
 
-      {/* ── Categories Icon Grid ── */}
-      <section style={{ padding: '0 16px', marginBottom: 24 }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 14,
-          }}
-        >
-          <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: 0 }}>
-            Categories
-          </h2>
-          <button
-            onClick={() => navigate('services')}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#00796B',
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2,
-            }}
-          >
-            All Categories <ChevronRight size={14} />
-          </button>
-        </div>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: 12,
-            textAlign: 'center',
-          }}
-        >
-          {browseCategories.map((item) => (
+        {/* Pagination dots */}
+        <div className="hn-hero-dots">
+          {HERO_SLIDES.map((_, i) => (
             <button
-              key={item.id}
-              onClick={() => openBookingFor(item.category)}
-              style={{
-                background: '#FFFFFF',
-                border: '1px solid #E2E8F0',
-                borderRadius: 16,
-                padding: '12px 6px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 6,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
+              key={i}
+              className={`hn-hero-dot${i === currentSlide ? ' active' : ''}`}
+              onClick={() => setCurrentSlide(i)}
+              aria-label={`Slide ${i + 1}`}
+            />
+          ))}
+        </div>
+      </section>
+
+      {/* ══════════════════════════
+          BROWSE BY CATEGORY
+      ══════════════════════════ */}
+      <section className="hn-section">
+        <div className="hn-section-header">
+          <h2 className="hn-section-title">{t('home.browse_by_category')}</h2>
+          <button className="hn-see-all" onClick={() => navigate('services')}>
+            {t('home.view_all')} <ChevronRight size={14} />
+          </button>
+        </div>
+
+        <div className="hn-category-grid">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat.id}
+              className="hn-cat-item"
+              onClick={() => cat.category ? openBookingFor(cat.category) : navigate('services')}
             >
-              <div
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: '50%',
-                  background: '#E0F2F1',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  overflow: 'hidden',
-                }}
-              >
-                <img
-                  src={item.icon}
-                  alt={item.label}
-                  style={{ width: 28, height: 28, objectFit: 'contain' }}
-                />
+              <div className="hn-cat-icon-wrap" style={{ background: cat.bg }}>
+                <img src={cat.icon} alt={cat.label} className="hn-cat-icon" />
               </div>
-              <span
-                style={{
-                  fontSize: 11.5,
-                  fontWeight: 600,
-                  color: '#334155',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  maxWidth: '100%',
-                }}
-              >
-                {item.label}
-              </span>
+              <span className="hn-cat-label">{t(`service_items.${cat.id}`, { defaultValue: cat.label })}</span>
             </button>
           ))}
         </div>
       </section>
 
-      {/* ── Top Rated Professionals (Screen 5 Cards) ── */}
-      <section style={{ padding: '0 16px', marginBottom: 24 }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 14,
-          }}
-        >
+      {/* ══════════════════════════
+          TOP RATED PROFESSIONALS
+      ══════════════════════════ */}
+      <section className="hn-section">
+        <div className="hn-section-header">
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: 0 }}>
-              Top Professionals
-            </h2>
-            <small style={{ fontSize: 12.5, color: '#64748B' }}>
-              Verified and trusted local experts
-            </small>
+            <h2 className="hn-section-title">{t('home.top_rated_near')}</h2>
+            <p className="hn-section-sub">{t('home.verified_trusted')}</p>
           </div>
-          <button
-            onClick={() => navigate('professionals')}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#00796B',
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2,
-            }}
-          >
-            View all <ChevronRight size={14} />
+          <button className="hn-see-all" onClick={() => navigate('professionals')}>
+            {t('home.view_all')} <ChevronRight size={14} />
           </button>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {loadingPros ? (
-            <div style={{ padding: '24px 16px', background: '#F8FAFC', borderRadius: 16, textAlign: 'center', color: '#64748B', fontSize: 13 }}>
-              Loading verified professionals...
-            </div>
-          ) : topPros.length === 0 ? (
-            <div style={{ padding: '24px 16px', background: '#F8FAFC', borderRadius: 16, border: '1px dashed #CBD5E1', textAlign: 'center' }}>
-              <p style={{ margin: 0, fontSize: 13.5, color: '#64748B' }}>
-                No registered professionals found in the database yet. Real verified specialists will appear here when registered.
-              </p>
-            </div>
-          ) : (
-            topPros.slice(0, 5).map((pro) => (
-              <div
-                key={pro.id}
-                className="visily-pro-list-card"
-                style={{
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
-                  padding: '14px 16px',
-                }}
-                onClick={() => openBookingFor(pro.category, pro.tags[0], pro)}
-              >
-                <div className="visily-pro-avatar-wrap">
-                  {pro.avatar ? (
-                    <img src={pro.avatar} alt={pro.full_name} className="visily-pro-avatar-img" />
-                  ) : (
-                    <div
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        borderRadius: '50%',
-                        background: '#00796B',
-                        color: '#FFFFFF',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 700,
-                        fontSize: 16,
-                      }}
-                    >
-                      {pro.full_name.charAt(0)}
-                    </div>
-                  )}
-                  <span className="visily-pro-verified-tick">✓</span>
-                </div>
-
-                <div className="visily-pro-info-col">
-                  <div className="visily-pro-name-row">
-                    <span className="visily-pro-name">{pro.full_name}</span>
-                    <span className="visily-verified-chip">
-                      <CheckCircle2 size={12} /> Verified
-                    </span>
-                  </div>
-                  <div className="visily-pro-meta">
-                    <span style={{ color: '#F59E0B', fontWeight: 700 }}>★ {pro.rating}</span>
-                    <span>({pro.reviews})</span>
-                    <span>•</span>
-                    <span>{pro.experience_years}+ yrs exp</span>
-                    {pro.distance_km && (
-                      <>
-                        <span>•</span>
-                        <span>{pro.distance_km} km away</span>
-                      </>
-                    )}
-                  </div>
-                  <div className="visily-pro-tags">
-                    {pro.tags.map((t, idx) => (
-                      <span key={idx} className="visily-pro-tag">
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-                  <span className="visily-pro-price">₹{pro.hourly_rate}/hr</span>
-                  <button
-                    type="button"
-                    style={{
-                      background: '#00796B',
-                      color: '#FFFFFF',
-                      border: 'none',
-                      borderRadius: 14,
-                      padding: '6px 12px',
-                      fontSize: 12,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openBookingFor(pro.category, pro.tags[0], pro);
-                    }}
-                  >
-                    Book
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </section>
-
-      {/* ── How Our App Works (01, 02, 03) ── */}
-      <section style={{ padding: '0 16px', marginBottom: 24 }}>
-        <div style={{ marginBottom: 12 }}>
-          <span style={{ fontSize: 11.5, fontWeight: 700, color: '#00796B', letterSpacing: '0.05em' }}>
-            SIMPLE & FAST
-          </span>
-          <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: '2px 0 0' }}>
-            How It Works
-          </h2>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-          {[
-            {
-              step: '01',
-              title: 'Choose Service',
-              desc: 'Select what you need fixed at your location.',
-              icon: Search,
-            },
-            {
-              step: '02',
-              title: 'Pick Professional',
-              desc: 'Review ratings, distance, and confirm your slot.',
-              icon: UserRoundCheck,
-            },
-            {
-              step: '03',
-              title: 'Track & Relax',
-              desc: 'Live arrival tracking & cash after service.',
-              icon: CheckCircle2,
-            },
-          ].map(({ step, title, desc, icon: Icon }) => (
+        <div className="hn-pros-scroll">
+          {topPros.slice(0, 6).map((pro, idx) => (
             <div
-              key={step}
-              className="visily-card"
-              style={{
-                padding: '14px 10px',
-                textAlign: 'center',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 6,
-              }}
+              key={pro.id}
+              className="hn-pro-card"
+              onClick={() => openBookingFor(pro.category, '')}
             >
-              <div className="visily-icon-mint-box" style={{ width: 38, height: 38 }}>
-                <Icon size={18} />
+              {/* Image / avatar */}
+              <div className="hn-pro-card-img-wrap">
+                {pro.avatar ? (
+                  <img src={pro.avatar} alt={pro.full_name} className="hn-pro-card-img" />
+                ) : (
+                  <div
+                    className="hn-pro-card-avatar"
+                    style={{ background: AVATAR_COLORS[idx % AVATAR_COLORS.length] }}
+                  >
+                    {avatarInitial(pro.full_name)}
+                  </div>
+                )}
+                <button
+                  className="hn-pro-fav-btn"
+                  onClick={(e) => { e.stopPropagation(); toggleFav(pro.id); }}
+                  aria-label="Favourite"
+                >
+                  <Heart
+                    size={14}
+                    fill={favs[pro.id] ? '#E53E3E' : 'none'}
+                    stroke={favs[pro.id] ? '#E53E3E' : '#ffffff'}
+                  />
+                </button>
+                <div className="hn-pro-rating-badge">
+                  <Star size={11} fill="#F59E0B" stroke="none" />
+                  <span>{pro.rating}</span>
+                </div>
               </div>
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: '#00796B' }}>
-                STEP {step}
-              </span>
-              <strong style={{ fontSize: 12.5, color: '#0F172A' }}>{title}</strong>
-              <small style={{ fontSize: 11, color: '#64748B', lineHeight: 1.3 }}>{desc}</small>
+
+              {/* Info */}
+              <div className="hn-pro-card-body">
+                <strong className="hn-pro-name">{pro.full_name}</strong>
+                <span className="hn-pro-category">{pro.category}</span>
+                <div className="hn-pro-meta-row">
+                  <span className="hn-pro-rate">₹{pro.hourly_rate}/hr</span>
+                  <span className="hn-pro-dist">{pro.distance_km} km</span>
+                </div>
+              </div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ── Trust Highlights ── */}
-      <section
-        style={{
-          margin: '0 16px',
-          padding: '14px 16px',
-          background: '#FFFFFF',
-          borderRadius: 18,
-          border: '1px solid #E2E8F0',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: 14,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div className="visily-icon-mint-box" style={{ width: 36, height: 36 }}>
-            <ShieldCheck size={18} />
+      {/* ══════════════════════════
+          BOOKING CTA CARD
+      ══════════════════════════ */}
+      <section className="hn-section" style={{ paddingBottom: 8 }}>
+        <div className="hn-cta-card">
+          <div className="hn-cta-icon-wrap">
+            <CalendarCheck size={28} strokeWidth={1.8} />
           </div>
-          <div>
-            <strong style={{ fontSize: 12.5, color: '#0F172A', display: 'block' }}>
-              Verified Experts
-            </strong>
-            <small style={{ fontSize: 11, color: '#64748B' }}>Background checked</small>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div className="visily-icon-mint-box" style={{ width: 36, height: 36 }}>
-            <BadgePercent size={18} />
-          </div>
-          <div>
-            <strong style={{ fontSize: 12.5, color: '#0F172A', display: 'block' }}>
-              Transparent Cost
-            </strong>
-            <small style={{ fontSize: 11, color: '#64748B' }}>No hidden charges</small>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div className="visily-icon-mint-box" style={{ width: 36, height: 36 }}>
-            <Award size={18} />
-          </div>
-          <div>
-            <strong style={{ fontSize: 12.5, color: '#0F172A', display: 'block' }}>
-              30 Days Warranty
-            </strong>
-            <small style={{ fontSize: 11, color: '#64748B' }}>Quality guaranteed</small>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div className="visily-icon-mint-box" style={{ width: 36, height: 36 }}>
-            <Navigation size={18} />
-          </div>
-          <div>
-            <strong style={{ fontSize: 12.5, color: '#0F172A', display: 'block' }}>
-              Live Tracking
-            </strong>
-            <small style={{ fontSize: 11, color: '#64748B' }}>Real time GPS updates</small>
-          </div>
+          <h3 className="hn-cta-title">{t('home.need_service_today')}</h3>
+          <p className="hn-cta-sub">
+            {t('home.book_in_just')}
+          </p>
+          <button className="hn-cta-btn" onClick={() => navigate('services')}>
+            {t('home.book_now')} <ArrowRight size={15} />
+          </button>
         </div>
       </section>
 
-      {/* ── 9-Step Booking Modal ── */}
+      {/* Booking modal */}
       {bookingModalConfig && (
         <BookingModal
           category={bookingModalConfig.category}
           initialTitle={bookingModalConfig.initialTitle}
-          professional={bookingModalConfig.professional}
           currentLocation={bookingModalConfig.currentLocation}
           onClose={() => setBookingModalConfig(null)}
-          onSuccess={(newRequest) => {
+          onSuccess={() => {
             setBookingModalConfig(null);
             showToast('Service booked successfully!', 'success');
             navigate('requests');
