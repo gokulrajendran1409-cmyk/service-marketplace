@@ -36,6 +36,7 @@ router.post('/requests/:id/respond', protectProfessional, professionalController
 router.patch('/requests/:id/journey', protectProfessional, professionalController.updateRequestJourney);
 router.post('/requests/:id/verify-otp', protectProfessional, professionalController.verifyOtp);
 router.post('/requests/:id/submit-wage', protectProfessional, professionalController.submitWage);
+router.post('/requests/:id/complete-task', protectProfessional, professionalController.completeTask);
 router.patch('/requests/:id/location', protectProfessional, professionalController.updateLocation);
 router.patch('/current-location', protectProfessional, professionalController.updateCurrentLocation);
 router.get('/earnings', protectProfessional, professionalController.getEarnings);

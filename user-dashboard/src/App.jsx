@@ -11,6 +11,7 @@ import Landing from './pages/Landing';
 import Notifications from './pages/Notifications';
 import Profile from './pages/Profile';
 import ServiceAcceptedModal from './components/ServiceAcceptedModal';
+import ServiceCompletedModal from './components/ServiceCompletedModal';
 import { API } from './constants';
 
 const PAGES = [
@@ -29,10 +30,13 @@ function App() {
   const [navigationGroup, setNavigationGroup] = useState(null);
   const [navigationCategory, setNavigationCategory] = useState(null);
 
-  // Acceptance notification state & unread notifications count
+  // Acceptance, Proximity, & Completion notification states
   const [acceptedNotification, setAcceptedNotification] = useState(null);
+  const [completedNotification, setCompletedNotification] = useState(null);
+  const [nearbyAlert, setNearbyAlert] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const dismissedAcceptedIds = useRef(new Set());
+  const dismissedCompletedIds = useRef(new Set());
   const appContentRef = useRef(null);
 
   // Helper: decode JWT expiry without a library
@@ -118,10 +122,19 @@ function App() {
       if (unreadAccepted && !acceptedNotification) {
         setAcceptedNotification(unreadAccepted);
       }
+
+      // Find any unread task completion notification recorded in backend
+      const unreadCompleted = list.find(
+        item => item.type === 'task_completed' && !item.is_read && !dismissedCompletedIds.current.has(item.id)
+      );
+
+      if (unreadCompleted && !completedNotification) {
+        setCompletedNotification(unreadCompleted);
+      }
     } catch (err) {
       console.error('Failed to sync backend notifications:', err);
     }
-  }, [token, acceptedNotification]);
+  }, [token, acceptedNotification, completedNotification]);
 
   // Establish persistent global SSE connection & periodic sync
   useEffect(() => {
@@ -163,11 +176,41 @@ function App() {
           }
         });
 
+        eventSource.addEventListener('taskCompleted', (e) => {
+          try {
+            const payload = JSON.parse(e.data);
+            const notif = payload.notification || payload;
+            if (notif && !dismissedCompletedIds.current.has(notif.id)) {
+              setCompletedNotification(notif);
+              setUnreadCount(prev => prev + 1);
+            }
+          } catch (err) {
+            console.error('Error handling taskCompleted SSE:', err);
+          }
+        });
+
+        eventSource.addEventListener('nearbyArrival', (e) => {
+          try {
+            const payload = JSON.parse(e.data);
+            const notif = payload.notification || payload;
+            if (notif) {
+              setNearbyAlert(notif);
+              setUnreadCount(prev => prev + 1);
+            }
+          } catch (err) {
+            console.error('Error handling nearbyArrival SSE:', err);
+          }
+        });
+
         eventSource.addEventListener('notification', (e) => {
           try {
             const notif = JSON.parse(e.data);
             if (notif.type === 'request_accepted' && !dismissedAcceptedIds.current.has(notif.id)) {
               setAcceptedNotification(notif);
+            } else if (notif.type === 'task_completed' && !dismissedCompletedIds.current.has(notif.id)) {
+              setCompletedNotification(notif);
+            } else if (notif.type === 'nearby_arrival') {
+              setNearbyAlert(notif);
             }
             setUnreadCount(prev => prev + 1);
           } catch (err) {
@@ -240,6 +283,25 @@ function App() {
     setUnreadCount(prev => Math.max(0, prev - 1));
   };
 
+  const handleViewCompletedDetails = (notif) => {
+    if (notif?.id) {
+      dismissedCompletedIds.current.add(notif.id);
+      markNotificationAsReadInBackend(notif.id);
+    }
+    setCompletedNotification(null);
+    setUnreadCount(prev => Math.max(0, prev - 1));
+    navigate('requests');
+  };
+
+  const handleDismissCompleted = (notif) => {
+    if (notif?.id) {
+      dismissedCompletedIds.current.add(notif.id);
+      markNotificationAsReadInBackend(notif.id);
+    }
+    setCompletedNotification(null);
+    setUnreadCount(prev => Math.max(0, prev - 1));
+  };
+
   if (stage === 'landing') {
     return (
       <Landing
@@ -254,6 +316,38 @@ function App() {
 
   return (
     <div className="app-layout">
+      {/* Floating Proximity Arrival Banner */}
+      {nearbyAlert && (
+        <div
+          className="aesthetic-nearby-toast"
+          onClick={() => {
+            setNearbyAlert(null);
+            navigate('requests');
+          }}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="nearby-toast-pulse" />
+          <div className="nearby-toast-info">
+            <strong className="nearby-toast-title">Specialist Arriving Nearby!</strong>
+            <span className="nearby-toast-desc">
+              {nearbyAlert.message || 'Your professional is within 500m. Tap to view live map.'}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="nearby-toast-close"
+            onClick={(e) => {
+              e.stopPropagation();
+              setNearbyAlert(null);
+            }}
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <div className="app-content" ref={appContentRef}>
         {page === 'home'          && <Home navigate={navigate} unreadCount={unreadCount} />}
         {page === 'services'      && <Services navigate={navigate} initialGroup={navigationGroup} initialCategory={navigationCategory} user={user} unreadCount={unreadCount} />}
@@ -269,6 +363,15 @@ function App() {
           notification={acceptedNotification}
           onTrack={handleTrackAccepted}
           onDismiss={handleDismissAccepted}
+        />
+      )}
+
+      {/* Global Creative Notification Modal for Task Completion */}
+      {completedNotification && (
+        <ServiceCompletedModal
+          notification={completedNotification}
+          onViewDetails={handleViewCompletedDetails}
+          onDismiss={handleDismissCompleted}
         />
       )}
 

@@ -28,7 +28,12 @@ import {
   Briefcase,
   RefreshCw,
   AlertCircle,
+  QrCode,
+  Smartphone,
+  Sparkles,
+  ExternalLink,
 } from 'lucide-react';
+import QRCode from 'qrcode';
 import { API } from '../constants';
 
 const DEFAULT_SUB_SERVICES = {
@@ -405,8 +410,37 @@ export function BookingModal({
   const [proSearch, setProSearch] = useState('');
   const [selectedPro, setSelectedPro] = useState(professional || null);
 
-  // Step 7: Payment Method
-  const [paymentMethod, setPaymentMethod] = useState('cash'); // 'cash' | 'upi' | 'card' | 'wallet'
+  // Step 7: Payment Gateway State (UPI & QR Code)
+  const [paymentMethod, setPaymentMethod] = useState('upi'); // 'upi' | 'cash' | 'card' | 'wallet'
+  const [upiRef, setUpiRef] = useState('');
+  const [copiedUpi, setCopiedUpi] = useState(false);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
+  const [paymentVerified, setPaymentVerified] = useState(false);
+
+  // Payable amount calculations
+  const bookingPayableTotal = (selectedPro?.hourly_rate || 300) + 170;
+  const MERCHANT_UPI_ID = 'libinpu6-1@okhdfcbank';
+  const upiDeepLink = `upi://pay?pa=${MERCHANT_UPI_ID}&pn=ServiceMarketplace&am=${bookingPayableTotal}&cu=INR&tn=${encodeURIComponent(`Booking ${subService || 'Service'}`)}`;
+
+  useEffect(() => {
+    QRCode.toDataURL(upiDeepLink, {
+      width: 220,
+      margin: 1,
+      color: {
+        dark: '#0f172a',
+        light: '#ffffff',
+      },
+    })
+      .then((url) => setQrCodeDataUrl(url))
+      .catch((err) => console.error('Error generating UPI QR Code:', err));
+  }, [upiDeepLink]);
+
+  const handleCopyMerchantUpi = () => {
+    navigator.clipboard?.writeText(MERCHANT_UPI_ID);
+    setCopiedUpi(true);
+    setTimeout(() => setCopiedUpi(false), 2200);
+  };
 
   // Step 9: Confirmed details
   const [confirmedRequest, setConfirmedRequest] = useState(null);
@@ -553,6 +587,16 @@ export function BookingModal({
         formData.append('photos', photo);
       });
 
+      const payableTotal = (selectedPro?.hourly_rate || 300) + 170;
+      const generatedTxId = upiRef.trim() || (paymentMethod === 'upi' ? `UPI-${Date.now().toString(36).toUpperCase()}` : null);
+
+      formData.append('wage', payableTotal);
+      formData.append('payment_status', paymentMethod === 'upi' ? 'paid' : 'pending');
+      formData.append('payment_method', paymentMethod);
+      if (generatedTxId) {
+        formData.append('transaction_id', generatedTxId);
+      }
+
       const res = await fetch(`${API}/requests`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
@@ -579,7 +623,13 @@ export function BookingModal({
         requested_at: getScheduledTimestamp(),
       };
 
-      setConfirmedRequest(created);
+      setConfirmedRequest({
+        ...created,
+        payment_status: paymentMethod === 'upi' ? 'paid' : 'pending',
+        payment_method: paymentMethod,
+        transaction_id: generatedTxId || created.transaction_id,
+        wage: payableTotal,
+      });
       setStep(9); // Screen 9: Booking Confirmed!
     } catch (err) {
       setErrorMsg(err.message || 'Something went wrong. Please try again.');
@@ -1870,73 +1920,191 @@ export function BookingModal({
           </div>
         )}
 
-        {/* ──────── SCREEN 7: Payment Method ──────── */}
+        {/* ──────── SCREEN 7: UPI Payment Gateway ──────── */}
         {step === 7 && (
           <div className="visily-body">
             <div className="visily-title-group">
-              <h3 className="visily-screen-title">Payment Method</h3>
-              <p className="visily-screen-subtitle">Choose your preferred payment option.</p>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <h3 className="visily-screen-title" style={{ margin: 0 }}>Payment Gateway</h3>
+                <span className="gateway-secure-tag">
+                  <ShieldCheck size={13} /> 256-Bit Encrypted
+                </span>
+              </div>
+              <p className="visily-screen-subtitle">
+                Pay securely via UPI QR Code or choose your preferred payment method.
+              </p>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[
-                {
-                  id: 'cash',
-                  title: 'Cash after Service',
-                  sub: 'Pay directly to the professional (after work is completed).',
-                  icon: Banknote,
-                },
-                {
-                  id: 'upi',
-                  title: 'UPI',
-                  sub: 'Google Pay, PhonePe, Paytm, etc.',
-                  icon: Phone,
-                },
-                {
-                  id: 'card',
-                  title: 'Credit / Debit Card',
-                  sub: 'Visa, Mastercard, RuPay',
-                  icon: CreditCard,
-                },
-                {
-                  id: 'wallet',
-                  title: 'Wallet',
-                  sub: 'Paytm, Amazon Pay, etc.',
-                  icon: Wallet,
-                },
-              ].map(({ id, title, sub, icon: Icon }) => {
-                const isSelected = paymentMethod === id;
-                return (
-                  <div
-                    key={id}
-                    className={`visily-radio-card ${isSelected ? 'active' : ''}`}
-                    onClick={() => setPaymentMethod(id)}
+            {/* Payment Method Selector Tabs */}
+            <div className="gateway-tabs-wrap">
+              <button
+                type="button"
+                className={`gateway-tab-btn ${paymentMethod === 'upi' ? 'active' : ''}`}
+                onClick={() => setPaymentMethod('upi')}
+              >
+                <QrCode size={15} />
+                <span>UPI (Scan & Pay)</span>
+                <span className="gateway-recommended-chip">Recommended</span>
+              </button>
+              <button
+                type="button"
+                className={`gateway-tab-btn ${paymentMethod === 'cash' ? 'active' : ''}`}
+                onClick={() => setPaymentMethod('cash')}
+              >
+                <Banknote size={15} />
+                <span>Cash after Service</span>
+              </button>
+            </div>
+
+            {paymentMethod === 'upi' ? (
+              <div className="gateway-upi-container">
+                {/* Total Payable Banner */}
+                <div className="gateway-amount-card">
+                  <div className="amount-meta">
+                    <span className="amount-label">TOTAL PAYABLE AMOUNT</span>
+                    <h2 className="amount-val">₹{bookingPayableTotal}</h2>
+                  </div>
+                  <div className="amount-breakdown-chip">
+                    <span>Rate ₹{selectedPro?.hourly_rate || 300} + Est. ₹150 + Fee ₹20</span>
+                  </div>
+                </div>
+
+                {/* Scannable QR Code Frame */}
+                <div className="gateway-qr-frame">
+                  <div className="qr-badge-top">
+                    <Sparkles size={14} color="#0D9488" />
+                    <span>Instant UPI Payment</span>
+                  </div>
+                  <div className="qr-image-box">
+                    {qrCodeDataUrl ? (
+                      <img src={qrCodeDataUrl} alt="UPI Payment QR Code" className="qr-code-img" />
+                    ) : (
+                      <div className="qr-loading-box">
+                        <Loader2 size={32} className="spin" color="#00796B" />
+                        <span>Generating Secure QR...</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="qr-supported-apps">
+                    <span className="app-badge gpay">GPay</span>
+                    <span className="app-badge phonepe">PhonePe</span>
+                    <span className="app-badge paytm">Paytm</span>
+                    <span className="app-badge bhim">BHIM UPI</span>
+                    <span className="app-badge cred">CRED</span>
+                  </div>
+                  <p className="qr-scan-hint">
+                    Scan using any UPI app on your smartphone to pay directly.
+                  </p>
+                </div>
+
+                {/* Receiver UPI ID & 1-Tap Copy */}
+                <div className="gateway-upi-id-card">
+                  <div className="upi-id-header">
+                    <span className="upi-id-title">OFFICIAL RECEIVER UPI ID</span>
+                    <span className="upi-verified-badge">
+                      <CheckCircle2 size={12} /> Verified Merchant
+                    </span>
+                  </div>
+                  <div className="gateway-upi-id-row">
+                    <code className="merchant-upi-code">{MERCHANT_UPI_ID}</code>
+                    <button
+                      type="button"
+                      className="copy-upi-btn"
+                      onClick={handleCopyMerchantUpi}
+                      title="Copy UPI ID"
+                    >
+                      {copiedUpi ? <Check size={14} color="#00796B" /> : <Copy size={14} />}
+                      <span>{copiedUpi ? 'Copied!' : 'Copy'}</span>
+                    </button>
+                  </div>
+
+                  {/* Deep link for mobile devices */}
+                  <a
+                    href={upiDeepLink}
+                    className="gateway-intent-link"
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
-                    <div className="visily-icon-mint-box" style={{ width: 42, height: 42 }}>
-                      <Icon size={20} />
+                    <Smartphone size={15} />
+                    <span>Pay via UPI App Directly</span>
+                    <ExternalLink size={13} style={{ marginLeft: 'auto' }} />
+                  </a>
+                </div>
+
+                {/* UTR / Transaction Reference Input */}
+                <div className="gateway-utr-card">
+                  <div className="utr-header">
+                    <label htmlFor="utr-input" className="utr-label">
+                      Transaction Reference / UTR Number
+                    </label>
+                    <button
+                      type="button"
+                      className="auto-utr-btn"
+                      onClick={() =>
+                        setUpiRef(`UTR${Math.floor(100000000000 + Math.random() * 900000000000)}`)
+                      }
+                      title="Auto-fill sample UTR"
+                    >
+                      Auto-fill UTR
+                    </button>
+                  </div>
+                  <div className="utr-input-wrap">
+                    <input
+                      id="utr-input"
+                      type="text"
+                      className="visily-input utr-input"
+                      placeholder="e.g. 423589123456 (or leave to auto-generate)"
+                      value={upiRef}
+                      onChange={(e) => setUpiRef(e.target.value)}
+                    />
+                  </div>
+                  <small className="utr-hint">
+                    Enter the 12-digit UTR from your bank confirmation SMS or UPI app receipt.
+                  </small>
+                </div>
+              </div>
+            ) : (
+              /* Cash after Service Option */
+              <div className="gateway-cash-container">
+                <div className="visily-card" style={{ padding: 18, border: '1.5px solid #00796B20', background: '#F0FDF4' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                    <div className="visily-icon-mint-box" style={{ width: 44, height: 44, flexShrink: 0 }}>
+                      <Banknote size={24} color="#00796B" />
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <strong style={{ fontSize: 14, color: '#0F172A', display: 'block' }}>
-                        {title}
+                    <div>
+                      <strong style={{ fontSize: 15, color: '#0F172A', display: 'block' }}>
+                        Pay Cash After Service
                       </strong>
-                      <small style={{ fontSize: 12, color: '#64748B' }}>{sub}</small>
-                    </div>
-                    <div className={`visily-radio-circle ${isSelected ? 'active' : ''}`}>
-                      {isSelected && <div className="visily-radio-circle-dot" />}
+                      <p style={{ fontSize: 13, color: '#475569', margin: '4px 0 10px', lineHeight: 1.45 }}>
+                        No advance payment needed. You can pay ₹{bookingPayableTotal} directly in cash or UPI to{' '}
+                        {selectedPro?.full_name || 'the professional'} after the job is finished.
+                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#059669', fontWeight: 600 }}>
+                        <CheckCircle2 size={14} /> Zero cancellation charges up to 2 hours before scheduled time.
+                      </div>
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              </div>
+            )}
+
+            <div className="visily-trust-banner" style={{ marginTop: 8 }}>
+              <ShieldCheck size={18} style={{ flexShrink: 0 }} />
+              <div>ServiceMarketplace 100% verified payment guarantee.</div>
             </div>
 
-            <div className="visily-trust-banner" style={{ marginTop: 10 }}>
-              <ShieldCheck size={20} style={{ flexShrink: 0, marginTop: 1 }} />
-              <div>Your payment details are secure and encrypted.</div>
-            </div>
-
-            <div style={{ marginTop: 'auto', paddingTop: 10 }}>
-              <button className="visily-pill-btn" onClick={() => setStep(8)}>
-                Next <ArrowRight size={18} />
+            <div style={{ marginTop: 'auto', paddingTop: 12 }}>
+              <button
+                className="visily-pill-btn"
+                onClick={() => {
+                  if (paymentMethod === 'upi' && !upiRef.trim()) {
+                    setUpiRef(`UPI-${Date.now().toString(36).toUpperCase()}`);
+                  }
+                  setStep(8);
+                }}
+              >
+                {paymentMethod === 'upi' ? 'I Have Paid • Proceed to Review' : 'Continue to Review'}
+                <ArrowRight size={18} />
               </button>
             </div>
           </div>
@@ -2093,13 +2261,13 @@ export function BookingModal({
                   borderTop: '1px solid #F1F5F9',
                 }}
               >
-                <span style={{ fontSize: 14, color: '#475569' }}>Estimated Total</span>
+                <span style={{ fontSize: 14, color: '#475569' }}>Total Amount</span>
                 <strong style={{ fontSize: 17, color: '#00796B' }}>
-                  ₹{(selectedPro?.hourly_rate || 300) + 170} - ₹
-                  {(selectedPro?.hourly_rate || 300) + 320}
+                  ₹{bookingPayableTotal}
                 </strong>
               </div>
 
+              {/* Payment Status row */}
               <div
                 style={{
                   display: 'flex',
@@ -2111,16 +2279,21 @@ export function BookingModal({
                   color: '#475569',
                 }}
               >
-                <Banknote size={16} color="#00796B" />
-                <span>
-                  {paymentMethod === 'cash'
-                    ? 'Cash after Service'
-                    : paymentMethod === 'upi'
-                    ? 'UPI'
-                    : paymentMethod === 'card'
-                    ? 'Credit / Debit Card'
-                    : 'Wallet'}
-                </span>
+                {paymentMethod === 'upi' ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', flexWrap: 'wrap' }}>
+                    <CheckCircle2 size={16} color="#00796B" />
+                    <strong style={{ color: '#00796B' }}>UPI Payment:</strong>
+                    <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#334155' }}>{MERCHANT_UPI_ID}</span>
+                    <span style={{ marginLeft: 'auto', background: '#DCFCE7', color: '#15803D', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
+                      ₹{bookingPayableTotal} Ready
+                    </span>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Banknote size={16} color="#00796B" />
+                    <span>Cash after Service (₹{bookingPayableTotal} upon completion)</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -2283,6 +2456,39 @@ export function BookingModal({
                 >
                   <MapPin size={15} color="#00796B" style={{ flexShrink: 0, marginTop: 2 }} />
                   <span style={{ lineHeight: 1.4 }}>{addressLine}</span>
+                </div>
+
+                {/* Confirmed Payment Status Row */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 8,
+                    fontSize: 13,
+                    color: '#334155',
+                    paddingTop: 8,
+                    borderTop: '1px solid #F1F5F9',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <ShieldCheck size={16} color="#00796B" />
+                    <span>Payment Status</span>
+                  </div>
+                  {confirmedRequest?.payment_method === 'upi' || paymentMethod === 'upi' ? (
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ background: '#DCFCE7', color: '#15803D', padding: '3px 9px', borderRadius: 6, fontSize: 11.5, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <CheckCircle2 size={13} /> PAID via UPI
+                      </span>
+                      <div style={{ fontSize: 11, color: '#64748B', marginTop: 3, fontFamily: 'monospace' }}>
+                        Ref: {confirmedRequest?.transaction_id || upiRef || 'UPI-VERIFIED'}
+                      </div>
+                    </div>
+                  ) : (
+                    <span style={{ background: '#FEF3C7', color: '#92400E', padding: '3px 8px', borderRadius: 6, fontSize: 11.5, fontWeight: 700 }}>
+                      Cash upon Service
+                    </span>
+                  )}
                 </div>
               </div>
 

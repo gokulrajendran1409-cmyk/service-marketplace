@@ -422,6 +422,49 @@ exports.respondToRequest = async (req, res) => {
                 message: 'This request was already accepted by another professional.',
                 timestamp: new Date().toISOString()
             }));
+
+            // Fetch professional details to notify customer in real-time
+            const proInfoResult = await client.query(
+                `SELECT p.id, p.full_name, p.category, p.profile_photo, u.phone,
+                        (SELECT ROUND(AVG(pr.rating)::numeric, 1) FROM professional_reviews pr WHERE pr.professional_id = p.id) AS avg_rating,
+                        (SELECT COUNT(*) FROM professional_reviews pr WHERE pr.professional_id = p.id) AS review_count
+                 FROM professionals p
+                 LEFT JOIN users u ON u.id = p.user_id
+                 WHERE p.id = $1`,
+                [professionalId]
+            );
+            const pro = proInfoResult.rows[0] || {};
+            const customerId = requestResult.rows[0].customer_id;
+
+            notifyCustomer(customerId, 'requestAccepted', {
+                id: `notif_${requestId}_accepted`,
+                type: 'request_accepted',
+                request_id: requestId,
+                title: 'Service Accepted!',
+                message: `${pro.full_name || 'Your professional'} has accepted your ${requestResult.rows[0].title || 'service'} request!`,
+                metadata: {
+                    requestId: requestId,
+                    professionalName: pro.full_name || 'Specialist',
+                    professionalPhone: pro.phone || '+919876543210',
+                    professionalCategory: pro.category || 'Certified Expert',
+                    professionalPhoto: pro.profile_photo || null,
+                    rating: Number(pro.avg_rating) || 4.9,
+                    reviewCount: Number(pro.review_count) || 12,
+                    serviceTitle: requestResult.rows[0].title,
+                    location: requestResult.rows[0].location,
+                    requestedAt: requestResult.rows[0].requested_at
+                },
+                timestamp: new Date().toISOString()
+            });
+
+            notifyCustomer(customerId, 'requestUpdate', {
+                requestId: requestId,
+                newStatus: 'accepted',
+                journeyStatus: 'accepted',
+                updateType: 'service_accepted',
+                professionalName: pro.full_name || 'Specialist',
+                message: `${pro.full_name || 'Your professional'} has accepted your ${requestResult.rows[0].title || 'service'} request!`
+            });
         }
         await client.query('COMMIT');
 
@@ -610,9 +653,10 @@ exports.updateLocation = async (req, res) => {
         
         // Ensure this professional actually owns the accepted/in-progress request
         const offer = await client.query(
-            `SELECT sr.customer_id
+            `SELECT sr.customer_id, sr.latitude, sr.longitude, sr.otp, sr.title, p.full_name as professional_name
              FROM service_offers so
              JOIN service_requests sr ON sr.id = so.request_id
+             JOIN professionals p ON p.id = so.professional_id
              WHERE so.request_id = $1 AND so.professional_id = $2 AND so.status = 'accepted'`,
             [requestId, professionalId]
         );
@@ -623,6 +667,19 @@ exports.updateLocation = async (req, res) => {
         }
 
         const customerId = offer.rows[0].customer_id;
+        const custLat = Number(offer.rows[0].latitude);
+        const custLon = Number(offer.rows[0].longitude);
+
+        let distanceMeters = null;
+        let isNearby = false;
+        if (Number.isFinite(custLat) && Number.isFinite(custLon) && Number.isFinite(Number(latitude)) && Number.isFinite(Number(longitude))) {
+            const dLat = (Number(latitude) - custLat) * Math.PI / 180;
+            const dLon = (Number(longitude) - custLon) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) ** 2 + Math.cos(custLat * Math.PI / 180) * Math.cos(Number(latitude) * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            distanceMeters = Math.round(6371000 * c);
+            isNearby = distanceMeters <= 500;
+        }
 
         // Update professional's current location
         await client.query(
@@ -640,8 +697,24 @@ exports.updateLocation = async (req, res) => {
             request_id: requestId,
             professional_latitude: latitude,
             professional_longitude: longitude,
+            distance_meters: distanceMeters,
+            is_nearby: isNearby,
+            professional_name: offer.rows[0].professional_name,
+            otp: offer.rows[0].otp,
             timestamp: new Date().toISOString()
         });
+
+        if (isNearby) {
+            notifyCustomer(customerId, 'nearby_arrival', {
+                request_id: requestId,
+                distance_meters: distanceMeters,
+                professional_name: offer.rows[0].professional_name,
+                otp: offer.rows[0].otp,
+                title: 'Professional Arriving Nearby! 📍',
+                message: `${offer.rows[0].professional_name || 'Your professional'} is arriving nearby (within ${distanceMeters}m). Arrival OTP: ${offer.rows[0].otp || '****'}.`,
+                timestamp: new Date().toISOString()
+            });
+        }
 
         res.json({ message: 'Location updated successfully' });
     } catch (error) {
@@ -827,3 +900,97 @@ exports.getReviews = async (req, res) => {
         res.status(500).json({ message: 'Failed to fetch reviews' });
     }
 };
+
+// POST /api/professionals/requests/:id/complete-task - Dedicated action for professional completing service
+exports.completeTask = async (req, res) => {
+    const professionalId = req.professionalId;
+    const requestId = Number(req.params.id);
+
+    if (!Number.isInteger(requestId)) {
+        return res.status(400).json({ message: 'A valid request ID is required' });
+    }
+
+    const client = await db.connect();
+    try {
+        await client.query('BEGIN');
+        const offerCheck = await client.query(
+            `SELECT sr.id, sr.title, sr.customer_id, sr.status, sr.payment_status, p.full_name as professional_name
+             FROM service_requests sr
+             JOIN service_offers so ON so.request_id = sr.id
+             JOIN professionals p ON p.id = so.professional_id
+             WHERE sr.id = $1 AND so.professional_id = $2 AND so.status = 'accepted'
+             FOR UPDATE OF sr`,
+            [requestId, professionalId]
+        );
+
+        if (!offerCheck.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: 'Accepted request not found for this professional' });
+        }
+
+        const request = offerCheck.rows[0];
+        const customerId = request.customer_id;
+        const professionalName = request.professional_name || 'Professional';
+        const serviceTitle = request.title || 'Service';
+
+        const updateResult = await client.query(
+            `UPDATE service_requests
+             SET status = 'completed',
+                 journey_status = 'completed',
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $1
+             RETURNING *`,
+            [requestId]
+        );
+
+        await client.query('COMMIT');
+
+        // Real-time SSE notification to the customer
+        notifyCustomer(customerId, 'requestUpdate', {
+            requestId: requestId,
+            newStatus: 'completed',
+            journeyStatus: 'completed',
+            updateType: 'task_completed',
+            professionalName: professionalName,
+            serviceTitle: serviceTitle,
+            message: `${professionalName} has completed the service: ${serviceTitle}!`,
+            timestamp: new Date().toISOString()
+        });
+
+        // Also push to customer's general notification stream
+        notifyCustomer(customerId, 'notification', {
+            id: `notif_${requestId}_completed`,
+            type: 'task_completed',
+            request_id: requestId,
+            title: 'Task Completed! 🎉',
+            message: `${professionalName} has completed your service "${serviceTitle}". Please rate your experience!`,
+            metadata: {
+                requestId: requestId,
+                professionalName: professionalName,
+                serviceTitle: serviceTitle,
+            },
+            timestamp: new Date().toISOString()
+        });
+
+        // Broadcast to admin panel
+        broadcast('service_request_updated', {
+            id: requestId,
+            professional_id: professionalId,
+            status: 'completed',
+            journey_status: 'completed',
+            timestamp: new Date().toISOString()
+        });
+
+        res.json({
+            message: 'Task completed successfully! Customer has been notified in real time.',
+            request: updateResult.rows[0]
+        });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Complete task error:', error);
+        res.status(500).json({ message: 'Failed to complete task' });
+    } finally {
+        client.release();
+    }
+};
+

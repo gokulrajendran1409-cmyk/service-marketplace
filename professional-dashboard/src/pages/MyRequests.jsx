@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Clock, CheckCircle, Ban, RefreshCw, XCircle, User, MapPin, Navigation, Loader2 } from 'lucide-react';
+import { Clock, CheckCircle, CheckCircle2, Ban, RefreshCw, XCircle, User, MapPin, Navigation, Loader2 } from 'lucide-react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -342,6 +342,39 @@ function MyRequests() {
     }
   };
 
+  const handleCompleteTask = async (requestId, requestTitle) => {
+    const confirm = window.confirm(`Mark "${requestTitle || 'this service'}" as completed? The customer will be notified immediately in real time.`);
+    if (!confirm) return;
+
+    setRespondingId(requestId);
+    try {
+      const response = await fetch(`${API_BASE}/api/professionals/requests/${requestId}/complete-task`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('professionalToken')}`
+        }
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Unable to complete task');
+
+      setRequests(current => current.map(request => request.id === requestId
+        ? {
+            ...request,
+            status: 'completed',
+            journey_status: 'completed',
+            updated_at: new Date().toISOString()
+          }
+        : request));
+
+      alert('Task marked as completed! Customer has been notified in real time.');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setRespondingId(null);
+    }
+  };
+
   const verifyOtpSubmit = async () => {
     if (!otpInput || otpInput.length !== 6) {
       alert('Please enter a valid 6-digit OTP.');
@@ -643,7 +676,32 @@ function MyRequests() {
                     </>}
                     {req.offer_status === 'accepted' && req.journey_status !== 'completed' && (
                       <div className="journey-controls">
-                        <strong>Update customer</strong>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Update Customer / Progress</strong>
+                          <button
+                            type="button"
+                            onClick={() => handleCompleteTask(req.id, req.title)}
+                            disabled={respondingId === req.id}
+                            style={{
+                              background: '#059669',
+                              color: '#FFFFFF',
+                              border: 'none',
+                              padding: '6px 14px',
+                              borderRadius: '8px',
+                              fontWeight: 700,
+                              fontSize: '12.5px',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              boxShadow: '0 2px 6px rgba(5, 150, 105, 0.25)',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <CheckCircle2 size={15} />
+                            {respondingId === req.id ? 'Completing...' : 'Task Completed'}
+                          </button>
+                        </div>
                         <div className="journey-step-buttons">
                           {JOURNEY_STEPS.map((step, index) => {
                             const currentIndex = ['accepted', ...JOURNEY_STEPS.map(item => item.key)].indexOf(req.journey_status || 'accepted');

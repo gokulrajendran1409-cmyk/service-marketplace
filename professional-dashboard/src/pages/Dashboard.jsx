@@ -167,6 +167,30 @@ function Dashboard() {
     }
   };
 
+  const handleCompleteTask = async (requestId, requestTitle) => {
+    const confirm = window.confirm(`Mark "${requestTitle || 'this service'}" as completed? The customer will be notified immediately.`);
+    if (!confirm) return;
+
+    try {
+      const token = localStorage.getItem("professionalToken");
+      const res = await fetch(`${API}/api/professionals/requests/${requestId}/complete-task`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Unable to complete task');
+
+      setOngoingRequests(prev => prev.filter(r => r.id !== requestId));
+      alert('Task marked as completed! Customer has been notified in real time.');
+      fetchData();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   useEffect(() => {
     fetchData();
     const handleRequestUpdated = () => fetchData();
@@ -466,18 +490,44 @@ function Dashboard() {
                       </div>
                     </div>
                   </div>
-                  <div className="pro-job-right">
-                    {isPaid ? (
-                      <span className="pro-job-status" style={{ background: '#D1FAE5', color: '#065F46' }}>Paid</span>
-                    ) : (
-                      <span className="pro-job-status" style={{ background: statusStyle.bg, color: statusStyle.color }}>
-                        {statusStyle.label}
-                      </span>
-                    )}
-                    {req.wage && (
-                      <div className="pro-job-earnings">₹{Number(req.wage).toLocaleString()}</div>
-                    )}
-                  </div>
+                    <div className="pro-job-right">
+                      {isPaid ? (
+                        <span className="pro-job-status" style={{ background: '#D1FAE5', color: '#065F46' }}>Paid</span>
+                      ) : (
+                        <span className="pro-job-status" style={{ background: statusStyle.bg, color: statusStyle.color }}>
+                          {statusStyle.label}
+                        </span>
+                      )}
+                      {req.wage && (
+                        <div className="pro-job-earnings">₹{Number(req.wage).toLocaleString()}</div>
+                      )}
+                      {req.status !== 'completed' && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCompleteTask(req.id, req.title);
+                          }}
+                          style={{
+                            background: '#059669',
+                            color: '#ffffff',
+                            border: 'none',
+                            padding: '5px 11px',
+                            borderRadius: '8px',
+                            fontSize: '11.5px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            marginTop: '6px',
+                            boxShadow: '0 2px 6px rgba(5, 150, 105, 0.25)'
+                          }}
+                        >
+                          <CheckCheck size={13} /> Task Completed
+                        </button>
+                      )}
+                    </div>
                 </div>
               );
             })}

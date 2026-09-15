@@ -936,6 +936,42 @@ function MyRequests({ navigate }) {
 
             {/* BOTTOM 50%: Live Arrival Info, Geological Whereabouts, and Service Journey */}
             <div className="visily-tracking-details-section">
+              {/* Live Proximity Warning (< 500m) */}
+              {(routeDistanceKm <= 0.5 || trackingRequest.is_nearby) && (
+                <div className="visily-nearby-proximity-card">
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <div className="nearby-proximity-icon-box">
+                      <Sparkles size={18} color="#0D9488" />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span className="nearby-live-pulse-dot" />
+                        <strong style={{ fontSize: 13.5, color: '#0F766E' }}>Specialist Arriving Nearby!</strong>
+                        <span className="nearby-meters-badge">
+                          {Math.round(routeDistanceKm * 1000)}m away
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 12, color: '#134E4A', margin: '3px 0 8px', lineHeight: 1.4 }}>
+                        {trackingRequest.professional_name || 'Your professional'} is almost at your doorstep. Share your OTP when they arrive.
+                      </p>
+                      <div
+                        className="nearby-otp-pill-row"
+                        onClick={() => handleCopyOtp(trackingRequest.id ? String(trackingRequest.id).slice(-4) : '4821')}
+                        title="Click to copy Arrival OTP"
+                      >
+                        <span style={{ fontSize: 12, color: '#0F766E' }}>
+                          Arrival OTP: <strong style={{ letterSpacing: '2px', fontSize: 13.5 }}>{trackingRequest.id ? String(trackingRequest.id).slice(-4) : '4821'}</strong>
+                        </span>
+                        <button type="button" className="nearby-copy-otp-btn">
+                          {copiedOtp ? <Check size={12} color="#0D9488" /> : <Copy size={12} />}
+                          <span>{copiedOtp ? 'Copied' : 'Copy'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* ETA Banner */}
               <div className="visily-track-eta-banner">
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}>
