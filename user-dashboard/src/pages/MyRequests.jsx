@@ -46,6 +46,7 @@ import {
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useTranslation } from 'react-i18next';
 import { API } from '../constants';
 import { useToast, Toast } from '../components/Toast';
 
@@ -261,6 +262,9 @@ function CustomerRouteMap({ request, onRouteDistance, onGeologicalInfo }) {
 }
 
 function MyRequests({ navigate }) {
+  const { t } = useTranslation();
+  const { toast, showToast } = useToast();
+  const [activeTab, setActiveTab] = useState('active');
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [requestFilter, setRequestFilter] = useState('upcoming'); // 'upcoming' | 'past' | 'cancelled'
@@ -320,8 +324,6 @@ function MyRequests({ navigate }) {
 
     return () => clearInterval(interval);
   }, [trackingRequest?.id]);
-
-  const { toast, showToast } = useToast();
 
   const fetchRequests = async () => {
     setLoading(true);
@@ -542,7 +544,7 @@ function MyRequests({ navigate }) {
           <ArrowLeft size={22} />
         </button>
         <h1 style={{ fontSize: 18, fontWeight: 700, color: '#0F172A', margin: 0 }}>
-          My Bookings
+          {t('nav.requests', { defaultValue: 'My Bookings' })}
         </h1>
         <div style={{ width: 24 }} />
       </div>

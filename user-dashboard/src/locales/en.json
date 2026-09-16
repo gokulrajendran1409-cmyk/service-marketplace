@@ -32,7 +32,14 @@
     "step2_desc": "Connect with background-checked, top-rated local professionals.",
     "step3": "Track & Enjoy",
     "step3_desc": "Track work status in real time and enjoy guaranteed satisfaction.",
-    "search_placeholder": "Search for services..."
+    "search_placeholder": "Search for services...",
+    "browse_by_category": "Browse by Category",
+    "top_rated_near": "Top Rated Near You",
+    "verified_trusted": "Verified and trusted local experts",
+    "need_service_today": "Need a Service Today?",
+    "book_in_just": "Book in just a few taps and get your work done without any hassle.",
+    "book_now": "Book Now",
+    "explore_services": "Explore Services"
   },
   "services": {
     "find_service": "Find a Service",
@@ -57,7 +64,11 @@
     "no_pros": "No professionals found",
     "no_pros_desc": "No verified professionals in this category yet.",
     "back_to_services": "Back to Services",
-    "back_to": "Back to"
+    "browse_by_category": "Browse by Category",
+    "choose_wide_range": "Choose from a wide range of services",
+    "professional": "Professional",
+    "professionals_plural": "Professionals",
+    "back": "Back"
   },
   "service_items": {
     "cleaning": "Cleaning",
@@ -67,7 +78,10 @@
     "ac_repair": "AC & Appliance",
     "carpentry": "Carpentry",
     "gardening": "Gardening",
-    "security": "CCTV & Security"
+    "security": "CCTV & Security",
+    "mechanic": "Mechanic",
+    "appliance": "Appliance",
+    "more": "More"
   },
   "popular_services": {
     "ac_repair": "AC Repair & Service",

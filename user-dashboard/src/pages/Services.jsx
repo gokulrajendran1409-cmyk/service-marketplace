@@ -377,51 +377,6 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
 
   return (
     <div className="page-container">
-      <div className="page-header">
-        <div className="services-heading-row">
-          <div>
-            <h1 className="page-title">
-              {activeGroup === 'all' ? t('services.find_service') : activeGroup}
-            </h1>
-            <p className="page-subtitle">
-              {activeGroup === 'all'
-                ? t('services.find_desc')
-                : `Choose a ${activeGroup.toLowerCase()} service and connect with a trusted professional.`}
-            </p>
-          </div>
-          {activeGroup !== 'all' ? (
-            <button className="show-all-services-btn" onClick={() => { setActiveGroup('all'); navigate && navigate('services'); }}>
-              <Tags size={16} /> {t('services.show_all')}
-            </button>
-          ) : (
-            <div className="browse-topbar-actions">
-              <button
-                type="button"
-                className="browse-bell-btn"
-                onClick={() => navigate('notifications')}
-                title="Notifications"
-              >
-                <Bell size={18} />
-                {unreadCount > 0 && <span className="browse-bell-badge" />}
-              </button>
-
-              <button
-                type="button"
-                className="browse-user-avatar-btn"
-                onClick={() => navigate('profile')}
-                title="My Profile"
-              >
-                <img
-                  src={user?.profile_photo || userAvatarImg}
-                  alt={user?.full_name || 'User Profile'}
-                  className="browse-user-avatar-img"
-                />
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Location Status Badge */}
       <div className="location-badge-container">
         <button 
@@ -438,48 +393,90 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
         </button>
       </div>
 
-      {/* Search Bar & Categories Showcase */}
+      <div className="page-header" style={{ padding: '16px 16px 8px' }}>
+        <div className="services-heading-row" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px', gap: '10px' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h1 className="page-title" style={{ fontSize: 'clamp(18px, 5vw, 20px)', fontWeight: '800', color: '#1e293b', margin: '0 0 4px', lineHeight: 1.2 }}>
+              {t('services.browse_by_category')}
+            </h1>
+            <p className="page-subtitle" style={{ fontSize: 'clamp(11px, 3.5vw, 13px)', color: '#64748b', margin: 0, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {t('services.choose_wide_range')}
+            </p>
+          </div>
+          
+          <button 
+            onClick={() => navigate && navigate('home')} 
+            style={{ 
+              background: 'transparent', 
+              border: 'none', 
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              color: '#0F9D95',
+              fontWeight: '700',
+              fontSize: '14px',
+              padding: '0',
+              flexShrink: 0,
+              marginTop: '2px'
+            }}
+            title="Back to Home"
+          >
+            <ArrowLeft size={16} /> {t('services.back')}
+          </button>
+        </div>
+      </div>
+
+      {/* Top Search Bar */}
+      {!selected && (
+        <div className="hn-search-wrap" style={{ margin: '0 16px 16px', padding: '0', borderBottom: 'none', background: 'transparent' }}>
+          <div className="hn-search-bar" style={{ background: '#ffffff' }}>
+            <Search size={17} className="hn-search-icon" />
+            <input
+              type="text"
+              className="hn-search-input"
+              placeholder={t('services.search_subcat')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                style={{ background: 'transparent', border: 'none', color: '#AEAEC0', fontSize: '20px', cursor: 'pointer', padding: '0 4px' }}
+                onClick={() => setSearchQuery('')}
+                title="Clear search"
+              >
+                &times;
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Categories Showcase */}
       {!selected && (
         <div className="services-main-browse-wrap">
-          {/* Search Bar */}
-          <div className="browse-search-wrap">
-            <div className="browse-search-bar">
-              <Search size={17} className="browse-search-icon" />
-              <input
-                type="text"
-                placeholder={t('services.search_subcat')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  className="browse-search-clear"
-                  onClick={() => setSearchQuery('')}
-                  title="Clear search"
-                >
-                  &times;
-                </button>
-              )}
-            </div>
-          </div>
 
           {/* Categories Grid */}
           <div className="browse-category-grid">
             {filteredBrowseCategories.length > 0 ? (
               filteredBrowseCategories.map((item, idx) => {
+                const dbCat = categories.find(c => c.original_name === item.dbCategory || c.name === item.dbCategory);
+                const actualCount = dbCat?.professional_count || 0;
+                const displayName = dbCat?.name || item.name;
+                
                 return (
                   <div key={idx} className="browse-category-card fade-up" onClick={() => setSelected(item)}>
                     <div className="browse-card-icon-wrap" style={{ color: categoryColors[item.name] || 'var(--accent-primary)' }}>
                       {typeof item.icon === 'string' ? (
-                        <img src={item.icon} alt={item.name} className="browse-card-icon-img" />
+                        <img src={item.icon} alt={displayName} className="browse-card-icon-img" />
                       ) : (
                         item.icon ? React.createElement(item.icon, { size: 24 }) : <Tags size={24} />
                       )}
                     </div>
                     <div className="browse-card-text">
-                      <h3 className="browse-card-title">{item.name}</h3>
-                      <p className="browse-card-count">{item.count}</p>
+                      <h3 className="browse-card-title">{displayName}</h3>
+                      <p className="browse-card-count">{actualCount} {actualCount === 1 ? t('services.professional') : t('services.professionals_plural')}</p>
                     </div>
                     <ChevronRight size={16} className="browse-card-chevron" />
                   </div>

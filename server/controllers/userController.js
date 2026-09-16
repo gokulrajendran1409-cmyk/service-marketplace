@@ -261,9 +261,17 @@ exports.deleteUserAddress = async (req, res) => {
 exports.getCategories = async (req, res) => {
     try {
         const { lang } = req.query;
-        let selectQuery = 'SELECT id, name, description FROM categories ORDER BY name ASC';
+        let selectQuery = `
+            SELECT id, name, description, name AS original_name,
+                   (SELECT COUNT(*)::int FROM professionals p WHERE p.category = categories.name AND p.verification_status = 'verified') as professional_count
+            FROM categories ORDER BY name ASC
+        `;
         if (lang === 'ml') {
-            selectQuery = 'SELECT id, COALESCE(name_ml, name) AS name, COALESCE(description_ml, description) AS description FROM categories ORDER BY name ASC';
+            selectQuery = `
+                SELECT id, COALESCE(name_ml, name) AS name, COALESCE(description_ml, description) AS description, categories.name AS original_name,
+                       (SELECT COUNT(*)::int FROM professionals p WHERE p.category = categories.name AND p.verification_status = 'verified') as professional_count
+                FROM categories ORDER BY name ASC
+            `;
         }
         const result = await pool.query(selectQuery);
         res.json(result.rows);
