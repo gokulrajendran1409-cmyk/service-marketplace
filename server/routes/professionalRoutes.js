@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const fs = require('fs');
 const professionalController = require('../controllers/professionalController');
-const { protectProfessional } = require('../middleware/authMiddleware');
+const { protectProfessional, protectProfessionalBase } = require('../middleware/authMiddleware');
 
 // Ensure uploads dir exists for document storage
 if (!fs.existsSync('uploads')) {
@@ -25,7 +25,7 @@ router.post('/register', upload.fields([
 router.post('/login', professionalController.loginProfessional);
 
 // Dashboard and Requests
-router.post('/setup-profile', protectProfessional, upload.fields([
+router.post('/setup-profile', protectProfessionalBase, upload.fields([
     { name: 'profile_photo', maxCount: 1 },
     { name: 'identity_photo', maxCount: 1 }
 ]), professionalController.setupProfile);

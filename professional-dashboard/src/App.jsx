@@ -10,14 +10,22 @@ import Wallet from "./pages/Wallet";
 import Reviews from "./pages/Reviews";
 import SetupProfile from "./pages/SetupProfile";
 
-function ProtectedRoute({ children }) {
+function ProtectedRoute({ children, allowIncomplete = false }) {
   const token = localStorage.getItem("professionalToken");
   const professional = JSON.parse(localStorage.getItem("professional") || "null");
 
-  if (!token || professional?.verification_status !== "verified") {
-    localStorage.removeItem("professionalToken");
-    localStorage.removeItem("professional");
+  if (!token) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Force incomplete profiles to go to setup-profile
+  if (professional?.verification_status === 'incomplete' && !allowIncomplete) {
+    return <Navigate to="/setup-profile" replace />;
+  }
+
+  // Prevent completed profiles from going back to setup-profile
+  if (professional?.verification_status !== 'incomplete' && allowIncomplete) {
+    return <Navigate to="/" replace />;
   }
 
   return children;
@@ -29,8 +37,8 @@ function App() {
       <Routes>
         <Route path="/register" element={<Registration />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/setup-profile" element={<ProtectedRoute><SetupProfile /></ProtectedRoute>} />
-        <Route path="/" element={<ProtectedRoute><ProfessionalLayout /></ProtectedRoute>}>
+        <Route path="/setup-profile" element={<ProtectedRoute allowIncomplete={true}><SetupProfile /></ProtectedRoute>} />
+        <Route path="/" element={<ProtectedRoute allowIncomplete={false}><ProfessionalLayout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
           <Route path="requests" element={<MyRequests />} />
           <Route path="wallet" element={<Wallet />} />

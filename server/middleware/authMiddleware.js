@@ -29,7 +29,7 @@ exports.protect = (req, res, next) => {
     }
 };
 
-exports.protectProfessional = (req, res, next) => {
+exports.protectProfessionalBase = (req, res, next) => {
     exports.protect(req, res, async () => {
         if (req.user.role !== 'professional' || !req.user.professionalId) {
             return res.status(403).json({ message: 'Professional access required' });
@@ -43,19 +43,26 @@ exports.protectProfessional = (req, res, next) => {
             if (!professional) {
                 return res.status(403).json({ message: 'Professional account not found' });
             }
-            if (professional.verification_status !== 'verified') {
-                return res.status(403).json({
-                    message: professional.verification_status === 'rejected'
-                        ? 'Your professional registration was rejected. Please contact support.'
-                        : 'Your professional registration is awaiting admin approval.'
-                });
-            }
             req.professionalId = req.user.professionalId;
+            req.professionalStatus = professional.verification_status;
             next();
         } catch (error) {
             console.error('Professional verification error:', error);
             res.status(500).json({ message: 'Unable to verify professional access' });
         }
+    });
+};
+
+exports.protectProfessional = (req, res, next) => {
+    exports.protectProfessionalBase(req, res, () => {
+        if (req.professionalStatus !== 'verified') {
+            return res.status(403).json({
+                message: req.professionalStatus === 'rejected'
+                    ? 'Your professional registration was rejected. Please contact support.'
+                    : 'Your professional registration is awaiting admin approval.'
+            });
+        }
+        next();
     });
 };
 

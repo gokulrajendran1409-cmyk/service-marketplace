@@ -30,6 +30,9 @@ async function startServer() {
         await pool.query('ALTER TABLE users ALTER COLUMN phone DROP NOT NULL');
         await pool.query('ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL');
         await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_photo TEXT');
+        
+        await pool.query('ALTER TABLE professionals DROP CONSTRAINT IF EXISTS professionals_verification_status_check');
+        await pool.query("ALTER TABLE professionals ADD CONSTRAINT professionals_verification_status_check CHECK (verification_status IN ('incomplete', 'pending', 'verified', 'rejected'))");
     } catch (error) {
         console.error('OAuth user schema initialization failed:', error.message);
     }

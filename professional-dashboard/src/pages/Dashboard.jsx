@@ -128,6 +128,10 @@ function Dashboard() {
   }, []);
 
   const fetchData = async () => {
+    if (professional.verification_status !== 'verified') {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const token = localStorage.getItem("professionalToken");
     const headers = { Authorization: `Bearer ${token}` };
@@ -233,6 +237,22 @@ function Dashboard() {
 
   return (
     <div className="pro-dashboard-root">
+      {professional.verification_status !== 'verified' && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(12px)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px', textAlign: 'center'
+        }}>
+          <ShieldCheck size={64} color={professional.verification_status === 'rejected' ? 'var(--error)' : 'var(--accent-primary)'} style={{ marginBottom: 16 }} />
+          <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 12 }}>
+            {professional.verification_status === 'rejected' ? 'Verification Rejected' : 'Account Under Review'}
+          </h2>
+          <p style={{ fontSize: 16, color: 'var(--text-secondary)', maxWidth: 400, lineHeight: 1.6 }}>
+            {professional.verification_status === 'rejected' 
+              ? 'Your profile verification was rejected by our admin team. Please contact support for more details.'
+              : 'Your profile is currently being reviewed by our admin team. You will be able to accept service requests once your account is verified.'}
+          </p>
+        </div>
+      )}
 
       {/* ── HERO HEADER ── */}
       <div className="pro-hero-header">
