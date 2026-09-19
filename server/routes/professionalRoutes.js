@@ -29,7 +29,7 @@ router.post('/setup-profile', protectProfessionalBase, upload.fields([
     { name: 'profile_photo', maxCount: 1 },
     { name: 'identity_photo', maxCount: 1 }
 ]), professionalController.setupProfile);
-router.get('/profile', protectProfessional, professionalController.getProfessionalProfile);
+router.get('/profile', protectProfessionalBase, professionalController.getProfessionalProfile);
 router.get('/dashboard', protectProfessional, professionalController.getDashboardStats);
 router.get('/requests', protectProfessional, professionalController.getMyRequests);
 router.post('/requests/:id/respond', protectProfessional, professionalController.respondToRequest);

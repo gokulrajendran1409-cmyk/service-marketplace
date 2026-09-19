@@ -188,7 +188,7 @@ exports.setupProfile = async (req, res) => {
                  identity_type = $10,
                  profile_photo = COALESCE($11, profile_photo),
                  identity_photo = COALESCE($12, identity_photo),
-                 verification_status = 'pending'
+                 verification_status = CASE WHEN verification_status = 'verified' THEN 'verified' ELSE 'pending' END
              WHERE id = $13
              RETURNING id, user_id, full_name, date_of_birth, address, pincode, bio,
                        category, sub_category, experience_years, transport_mode,

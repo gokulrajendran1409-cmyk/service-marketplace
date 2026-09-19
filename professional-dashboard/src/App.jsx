@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import "./App.css";
 import ProfessionalLayout from "./layouts/ProfessionalLayout";
 import Dashboard from "./pages/Dashboard";
@@ -23,8 +23,11 @@ function ProtectedRoute({ children, allowIncomplete = false }) {
     return <Navigate to="/setup-profile" replace />;
   }
 
-  // Prevent completed profiles from going back to setup-profile
-  if (professional?.verification_status !== 'incomplete' && allowIncomplete) {
+  const location = useLocation();
+  const isEditing = new URLSearchParams(location.search).get("edit") === "1";
+
+  // Prevent completed profiles from going back to setup-profile (unless editing)
+  if (professional?.verification_status !== 'incomplete' && allowIncomplete && !isEditing) {
     return <Navigate to="/" replace />;
   }
 
