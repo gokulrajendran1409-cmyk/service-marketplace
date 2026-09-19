@@ -58,21 +58,18 @@ function Dashboard() {
   const [mapRadius, setMapRadius] = useState(professional.work_radius ? parseInt(professional.work_radius) : 10);
 
   const updateLocationFromCoordinates = async (latitude, longitude) => {
-    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`);
+    const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
     const data = await res.json();
           
-    const address = data.address || {};
-          const localPlace = address.neighbourhood || address.suburb || address.residential || address.road || address.hamlet || "";
-          const city = address.city || address.town || address.village || address.state_district || "";
-          const addressParts = [
-            address.house_number,
-            address.road,
-            address.neighbourhood || address.suburb,
-            city,
-            address.state,
-            address.postcode,
-          ].filter(Boolean);
-          const accurateLocation = data.display_name || [...new Set(addressParts)].join(', ') || localPlace || "Location Found";
+    const city = data.locality || data.city || data.principalSubdivision || "";
+    const addressParts = [
+      data.locality,
+      data.city,
+      data.principalSubdivision,
+      data.countryName,
+      data.postcode
+    ].filter(Boolean);
+    const accurateLocation = [...new Set(addressParts)].join(', ') || "Location Found";
           
           setCurrentLocation(accurateLocation);
           
@@ -81,7 +78,7 @@ function Dashboard() {
             location: accurateLocation,
             address: addressParts.join(', '),
             city: city || accurateLocation,
-            pincode: address.postcode || professional.pincode,
+            pincode: data.postcode || professional.pincode,
             work_lat: latitude,
             work_lng: longitude,
           };
@@ -299,18 +296,21 @@ function Dashboard() {
           </div>
 
           <div className="pro-hero-left" style={{ width: '100%' }}>
-            <div className="pro-hero-avatar">{getInitials(professional.full_name)}</div>
+            {professional.profile_photo ? (
+              <img 
+                src={professional.profile_photo.startsWith('http') ? professional.profile_photo : `${API}/uploads/${professional.profile_photo}`} 
+                alt={professional.full_name} 
+                className="pro-hero-avatar" 
+                style={{ objectFit: 'cover' }} 
+                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+              />
+            ) : null}
+            <div className="pro-hero-avatar" style={{ display: professional.profile_photo ? 'none' : 'flex' }}>
+              {getInitials(professional.full_name)}
+            </div>
             <div>
               <div className="pro-hero-greeting">Welcome back 👋</div>
               <h1 className="pro-hero-name">{professional.full_name?.split(' ')[0] || "Professional"}</h1>
-              <button
-                className={`pro-online-pill ${isOnline ? 'online' : 'offline'}`}
-                onClick={() => setIsOnline(!isOnline)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: '4px' }}
-              >
-                <span className="pro-online-dot" />
-                {isOnline ? "Online · Tap to go offline" : "Offline · Tap to go online"}
-              </button>
             </div>
           </div>
         </div>

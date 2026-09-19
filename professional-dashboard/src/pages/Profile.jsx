@@ -133,7 +133,18 @@ function Profile() {
       <div className="pro-profile-hero">
         <div className="pro-profile-hero-bg" />
         <div className="pro-profile-avatar-wrap">
-          <div className="pro-profile-avatar">{getInitials(professional.full_name)}</div>
+          {professional.profile_photo ? (
+            <img 
+              src={professional.profile_photo.startsWith('http') ? professional.profile_photo : `${API}/uploads/${professional.profile_photo}`} 
+              alt={professional.full_name} 
+              className="pro-profile-avatar" 
+              style={{ objectFit: 'cover' }} 
+              onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+            />
+          ) : null}
+          <div className="pro-profile-avatar" style={{ display: professional.profile_photo ? 'none' : 'flex' }}>
+            {getInitials(professional.full_name)}
+          </div>
           {professional.verification_status === "verified" && (
             <div className="pro-profile-verified-badge">
               <CheckCircle2 size={13} />

@@ -41,7 +41,7 @@ import cctvIcon from '../assets/category-icons/cctv.png';
 import applianceRepairIcon from '../assets/category-icons/appliance_repair.png';
 import otherServicesIcon from '../assets/category-icons/other_services.png';
 
-const SERVER_BASE = import.meta.env.VITE_API_URL || 'https://service-marketplace-af7p.onrender.com';
+const SERVER_BASE = import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com';
 
 const resolveProPhoto = (path) => {
   if (!path) return null;
@@ -135,11 +135,10 @@ function Home({ navigate, unreadCount = 0 }) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           setCurrentCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-          fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&zoom=10`)
+          fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&localityLanguage=en`)
             .then((r) => r.json())
             .then((d) => {
-              const a = d.address || {};
-              setLocationName(a.city || a.town || a.village || 'Thiruvananthapuram');
+              setLocationName(d.locality || d.city || d.principalSubdivision || 'Thiruvananthapuram');
             })
             .catch(() => {});
         },
@@ -212,10 +211,16 @@ function Home({ navigate, unreadCount = 0 }) {
           </button>
           <button className="hn-avatar-btn" onClick={() => navigate('profile')} aria-label="Profile">
             {user?.profile_photo ? (
-              <img src={resolveProPhoto(user.profile_photo)} alt="avatar" className="hn-avatar-img" />
-            ) : (
-              <span className="hn-avatar-fallback">{avatarInitial(user?.full_name || user?.name)}</span>
-            )}
+              <img 
+                src={resolveProPhoto(user.profile_photo)} 
+                alt="avatar" 
+                className="hn-avatar-img" 
+                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+              />
+            ) : null}
+            <span className="hn-avatar-fallback" style={{ display: user?.profile_photo ? 'none' : 'flex' }}>
+              {avatarInitial(user?.full_name || user?.name)}
+            </span>
           </button>
         </div>
       </header>
@@ -333,15 +338,23 @@ function Home({ navigate, unreadCount = 0 }) {
               {/* Image / avatar */}
               <div className="hn-pro-card-img-wrap">
                 {pro.avatar ? (
-                  <img src={pro.avatar} alt={pro.full_name} className="hn-pro-card-img" />
-                ) : (
-                  <div
-                    className="hn-pro-card-avatar"
-                    style={{ background: AVATAR_COLORS[idx % AVATAR_COLORS.length] }}
-                  >
-                    {avatarInitial(pro.full_name)}
-                  </div>
-                )}
+                  <img 
+                    src={pro.avatar} 
+                    alt={pro.full_name} 
+                    className="hn-pro-card-img" 
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+                  />
+                ) : null}
+                
+                <div
+                  className="hn-pro-card-avatar"
+                  style={{ 
+                    background: AVATAR_COLORS[idx % AVATAR_COLORS.length],
+                    display: pro.avatar ? 'none' : 'flex'
+                  }}
+                >
+                  {avatarInitial(pro.full_name)}
+                </div>
                 <button
                   className="hn-pro-fav-btn"
                   onClick={(e) => { e.stopPropagation(); toggleFav(pro.id); }}

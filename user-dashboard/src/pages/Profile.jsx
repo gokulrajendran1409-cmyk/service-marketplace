@@ -536,9 +536,21 @@ function Profile({ user, onUserUpdate, onLogout }) {
           {photoPreview ? (
             <img src={photoPreview} alt="New Preview" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
           ) : (profile.profile_photo || profile.photo_url) ? (
-            <img src={resolvePhotoUrl(profile.profile_photo || profile.photo_url)} alt={profile.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+            <>
+              <img 
+                src={resolvePhotoUrl(profile.profile_photo || profile.photo_url)} 
+                alt={profile.name} 
+                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} 
+                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+              />
+              <div style={{ display: 'none', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 700, color: '#00796B', background: '#E0F2F1', borderRadius: '50%' }}>
+                {(profile.name || profile.full_name || 'U').charAt(0).toUpperCase()}
+              </div>
+            </>
           ) : (
-            <UserRound size={36} />
+            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 700, color: '#00796B', background: '#E0F2F1', borderRadius: '50%' }}>
+              {(profile.name || profile.full_name || 'U').charAt(0).toUpperCase()}
+            </div>
           )}
 
           {editing && (

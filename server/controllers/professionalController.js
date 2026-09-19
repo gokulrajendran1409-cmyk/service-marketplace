@@ -245,7 +245,7 @@ exports.getProfessionalProfile = async (req, res) => {
         const result = await db.query(
                 `SELECT p.id, p.full_name, p.date_of_birth, p.address, p.pincode, p.bio,
                     p.category, p.sub_category, p.experience_years,
-                    transport_mode, identity_type, profile_photo, identity_photo,
+                    p.transport_mode, p.identity_type, p.profile_photo, p.identity_photo,
                     p.verification_status, u.phone, u.email
                  FROM professionals p
                  JOIN users u ON u.id = p.user_id

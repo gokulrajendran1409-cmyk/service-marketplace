@@ -26,7 +26,7 @@ import mechanicIcon from '../assets/category-icons/mechanic.png';
 import paintingIcon from '../assets/category-icons/painting.png';
 import beautyWellnessIcon from '../assets/category-icons/beauty_wellness.png';
 
-const SERVER_BASE = import.meta.env.VITE_API_URL || 'https://service-marketplace-af7p.onrender.com';
+const SERVER_BASE = import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com';
 
 const TEAL = '#00796B';
 
@@ -107,11 +107,10 @@ function BrowseProfessionals({ navigate, initialCategory = null }) {
           longitude: position.coords.longitude,
         };
         setLocation(current);
-        fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${current.latitude}&lon=${current.longitude}&zoom=10`)
+        fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${current.latitude}&longitude=${current.longitude}&localityLanguage=en`)
           .then(r => r.json())
           .then(data => {
-            const addr = data.address || {};
-            const place = addr.city || addr.town || addr.village || addr.county || 'Thiruvananthapuram';
+            const place = data.locality || data.city || data.principalSubdivision || 'Thiruvananthapuram';
             setLocationName(place);
           })
           .catch(() => {});
@@ -370,10 +369,15 @@ function BrowseProfessionals({ navigate, initialCategory = null }) {
               <div key={pro.id} className="browse-pro-card">
                 <div className="browse-pro-avatar">
                   {pro.profile_photo ? (
-                    <img src={pro.profile_photo} alt={pro.full_name} />
-                  ) : (
-                    <span>{pro.full_name?.charAt(0).toUpperCase()}</span>
-                  )}
+                    <img 
+                      src={pro.profile_photo} 
+                      alt={pro.full_name} 
+                      onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'inline'; }} 
+                    />
+                  ) : null}
+                  <span style={{ display: pro.profile_photo ? 'none' : 'inline' }}>
+                    {pro.full_name?.charAt(0).toUpperCase()}
+                  </span>
                 </div>
 
                 <div className="browse-pro-content">
