@@ -10,9 +10,22 @@ const API = import.meta.env.DEV
   ? 'http://localhost:5000'
   : 'https://service-marketplace-af7p.onrender.com';
 
+const resolveProPhoto = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http') || path.startsWith('data:')) return path;
+  if (path.startsWith('/')) return `${API}${path}`;
+  return `${API}/uploads/${path}`;
+};
+
 function Profile() {
   const navigate = useNavigate();
-  const professional = JSON.parse(localStorage.getItem("professional") || "{}");
+  const [professional, setProfessional] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("professional") || "{}");
+    } catch {
+      return {};
+    }
+  });
   const [stats, setStats] = useState({ total_earnings: 0 });
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -47,7 +60,35 @@ function Profile() {
     }
   };
 
-  useEffect(() => { fetchStats(); }, []);
+  const fetchProfile = async () => {
+    try {
+      const response = await fetch(`${API}/api/professionals/profile`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("professionalToken")}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProfessional(prev => {
+          const merged = { ...prev, ...data };
+          localStorage.setItem("professional", JSON.stringify(merged));
+          return merged;
+        });
+        setEditForm({
+          full_name: data.full_name || "",
+          email: data.email || "",
+          phone: data.phone || "",
+          service_category: data.category || "",
+          location: data.address || "",
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => { 
+    fetchStats(); 
+    fetchProfile();
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("professionalToken");
@@ -133,16 +174,16 @@ function Profile() {
       <div className="pro-profile-hero">
         <div className="pro-profile-hero-bg" />
         <div className="pro-profile-avatar-wrap">
-          {professional.profile_photo ? (
+          {resolveProPhoto(professional.profile_photo) ? (
             <img 
-              src={professional.profile_photo.startsWith('http') ? professional.profile_photo : `${API}/uploads/${professional.profile_photo}`} 
+              src={resolveProPhoto(professional.profile_photo)} 
               alt={professional.full_name} 
               className="pro-profile-avatar" 
               style={{ objectFit: 'cover' }} 
-              onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+              onError={(e) => { e.target.style.display = 'none'; if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex'; }} 
             />
           ) : null}
-          <div className="pro-profile-avatar" style={{ display: professional.profile_photo ? 'none' : 'flex' }}>
+          <div className="pro-profile-avatar" style={{ display: resolveProPhoto(professional.profile_photo) ? 'none' : 'flex' }}>
             {getInitials(professional.full_name)}
           </div>
           {professional.verification_status === "verified" && (

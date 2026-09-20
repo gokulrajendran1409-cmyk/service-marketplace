@@ -41,6 +41,11 @@ export function useProfessionalNotifications(professionalId) {
         // New service request
         es.addEventListener("new_service_request", (e) => {
             try {
+                const pro = JSON.parse(localStorage.getItem("professional") || "{}");
+                if (!pro.is_online) {
+                    // Professional is offline - do not receive job notification
+                    return;
+                }
                 const data = JSON.parse(e.data);
                 const notification = {
                     id: Date.now(),

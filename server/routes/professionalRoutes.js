@@ -13,12 +13,17 @@ if (!fs.existsSync('uploads')) {
 // Configure multer for local file storage
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, 'uploads/'),
-    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '_'))
+    filename: (req, file, cb) => {
+        const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+        const cleanName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+        cb(null, `pro-${uniqueSuffix}-${cleanName}`);
+    }
 });
 const upload = multer({ storage });
 
 // Map exact fields expected by multer
 router.post('/register', upload.fields([
+    { name: 'profile_photo', maxCount: 1 },
     { name: 'id_proof', maxCount: 1 },
     { name: 'certificate', maxCount: 1 }
 ]), professionalController.registerProfessional);
@@ -39,6 +44,7 @@ router.post('/requests/:id/submit-wage', protectProfessional, professionalContro
 router.post('/requests/:id/complete-task', protectProfessional, professionalController.completeTask);
 router.patch('/requests/:id/location', protectProfessional, professionalController.updateLocation);
 router.patch('/current-location', protectProfessional, professionalController.updateCurrentLocation);
+router.patch('/online-status', protectProfessional, professionalController.updateOnlineStatus);
 router.get('/earnings', protectProfessional, professionalController.getEarnings);
 router.get('/reviews', protectProfessional, professionalController.getReviews);
 

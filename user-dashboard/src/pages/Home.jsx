@@ -93,7 +93,7 @@ const SAMPLE_PROS = [
 
 const AVATAR_COLORS = ['#625DB5', '#4FA66A', '#D97706', '#2F80C0', '#C0527A'];
 
-function Home({ navigate, unreadCount = 0 }) {
+function Home({ navigate, unreadCount = 0, user: userProp }) {
   const [locationName, setLocationName] = useState('Thiruvananthapuram');
   const [currentCoords, setCurrentCoords] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -104,7 +104,7 @@ function Home({ navigate, unreadCount = 0 }) {
   const [activeBooking, setActiveBooking] = useState(null);
   const { toast, showToast } = useToast();
   const { t } = useTranslation();
-  const user = (() => { try { return JSON.parse(localStorage.getItem('userData') || '{}'); } catch { return {}; } })();
+  const user = userProp || (() => { try { return JSON.parse(localStorage.getItem('userData') || '{}'); } catch { return {}; } })();
 
   // Fetch real professionals
   useEffect(() => {

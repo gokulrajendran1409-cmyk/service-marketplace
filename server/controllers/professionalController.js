@@ -39,6 +39,8 @@ exports.registerProfessional = async (req, res) => {
             return res.status(400).json({ message: 'First name, last name, email, and password are required' });
         }
 
+        const profilePhoto = req.files?.profile_photo?.[0]?.filename || req.file?.filename || null;
+
         const client = await db.connect();
         try {
             await client.query('BEGIN');
@@ -53,23 +55,24 @@ exports.registerProfessional = async (req, res) => {
 
             const passwordHash = await bcrypt.hash(password, 10);
             const userRes = await client.query(
-                'INSERT INTO users (name, email, phone, password_hash) VALUES ($1, $2, $3, $4) RETURNING id, name, email, phone',
-                [full_name.trim(), email.trim().toLowerCase(), null, passwordHash]
+                'INSERT INTO users (name, email, phone, password_hash, profile_photo) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, phone, profile_photo',
+                [full_name.trim(), email.trim().toLowerCase(), null, passwordHash, profilePhoto ? `/uploads/${profilePhoto}` : null]
             );
             const user = userRes.rows[0];
 
-        // Insert into professionals
+            // Insert into professionals
             const profQuery = `
             INSERT INTO professionals (
-                user_id, full_name, experience_years, password_hash, verification_status
-            ) VALUES ($1, $2, $3, $4, $5) RETURNING id
+                user_id, full_name, experience_years, password_hash, verification_status, profile_photo
+            ) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, profile_photo
         `;
         const profValues = [
             user.id,
             full_name,
             0,
             passwordHash,
-            'incomplete'
+            'incomplete',
+            profilePhoto
         ];
         
         const profResult = await client.query(profQuery, profValues);
@@ -79,7 +82,13 @@ exports.registerProfessional = async (req, res) => {
 
             res.status(201).json({
                 message: 'Registration successful. Please log in to set up your profile.',
-                professional: { id: professionalId, full_name, email: user.email, verification_status: 'incomplete' }
+                professional: { 
+                    id: professionalId, 
+                    full_name, 
+                    email: user.email, 
+                    verification_status: 'incomplete',
+                    profile_photo: profilePhoto 
+                }
             });
         } catch (err) {
             await client.query('ROLLBACK');
@@ -100,7 +109,7 @@ exports.loginProfessional = async (req, res) => {
 
         const result = await db.query(`
             SELECT u.id AS user_id, u.name, u.email, p.password_hash, p.id AS professional_id,
-                     p.full_name, p.verification_status, p.rejection_reason
+                     p.full_name, p.verification_status, p.rejection_reason, p.profile_photo, p.is_online
             FROM users u
             JOIN professionals p ON p.user_id = u.id
             WHERE u.email = $1
@@ -119,7 +128,9 @@ exports.loginProfessional = async (req, res) => {
                 id: professional.professional_id,
                 full_name: professional.full_name,
                 email: professional.email,
-                verification_status: professional.verification_status
+                verification_status: professional.verification_status,
+                profile_photo: professional.profile_photo,
+                is_online: Boolean(professional.is_online)
             }
         });
     } catch (err) {
@@ -242,7 +253,7 @@ exports.getProfessionalProfile = async (req, res) => {
                 `SELECT p.id, p.full_name, p.date_of_birth, p.address, p.pincode, p.bio,
                     p.category, p.sub_category, p.experience_years,
                     p.transport_mode, p.identity_type, p.profile_photo, p.identity_photo,
-                    p.verification_status, u.phone, u.email
+                    p.verification_status, p.is_online, u.phone, u.email
                  FROM professionals p
                  JOIN users u ON u.id = p.user_id
                  WHERE p.id = $1`,
@@ -989,4 +1000,35 @@ exports.completeTask = async (req, res) => {
         client.release();
     }
 };
+
+exports.updateOnlineStatus = async (req, res) => {
+    try {
+        const { is_online } = req.body;
+        const professionalId = req.professionalId;
+        if (typeof is_online !== 'boolean') {
+            return res.status(400).json({ message: 'is_online boolean field is required' });
+        }
+
+        const result = await db.query(
+            `UPDATE professionals 
+             SET is_online = $1 
+             WHERE id = $2 
+             RETURNING id, full_name, is_online`,
+            [is_online, professionalId]
+        );
+
+        if (!result.rows.length) {
+            return res.status(404).json({ message: 'Professional not found' });
+        }
+
+        res.json({
+            message: `Professional is now ${is_online ? 'online' : 'offline'}`,
+            professional: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Update online status error:', error);
+        res.status(500).json({ message: 'Failed to update online status' });
+    }
+};
+
 

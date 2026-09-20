@@ -32,12 +32,32 @@ function LocationPicker({ onSelect }) {
   return null;
 }
 
+const resolveProPhoto = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http') || path.startsWith('data:')) return path;
+  if (path.startsWith('/')) return `${API}${path}`;
+  return `${API}/uploads/${path}`;
+};
+
 function Dashboard() {
   const navigate = useNavigate();
-  const professional = JSON.parse(localStorage.getItem("professional") || "{}");
+  const [professional, setProfessional] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("professional") || "{}");
+    } catch {
+      return {};
+    }
+  });
   const professionalId = professional.id;
   const [showNotifications, setShowNotifications] = useState(false);
-  const [isOnline, setIsOnline] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => {
+    try {
+      return Boolean(JSON.parse(localStorage.getItem("professional") || "{}").is_online);
+    } catch {
+      return false;
+    }
+  });
+  const [togglingOnline, setTogglingOnline] = useState(false);
   const { notifications, unreadCount, markAllRead } = useProfessionalNotifications(professionalId);
   const dropdownRef = useRef(null);
   const [stats, setStats] = useState(null);
@@ -194,6 +214,71 @@ function Dashboard() {
 
   useEffect(() => {
     fetchData();
+    const token = localStorage.getItem("professionalToken");
+    if (token) {
+      fetch(`${API}/api/professionals/profile`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data) {
+            setProfessional(prev => {
+              const merged = { ...prev, ...data };
+              localStorage.setItem("professional", JSON.stringify(merged));
+              return merged;
+            });
+            if (data.is_online !== undefined) {
+              setIsOnline(Boolean(data.is_online));
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
+
+  const handleToggleOnline = async () => {
+    const nextStatus = !isOnline;
+    setTogglingOnline(true);
+    try {
+      const token = localStorage.getItem("professionalToken");
+      const res = await fetch(`${API}/api/professionals/online-status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ is_online: nextStatus })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to update online status');
+      const updatedOnline = data.professional?.is_online ?? nextStatus;
+      setIsOnline(updatedOnline);
+      setProfessional(prev => {
+        const updated = { ...prev, is_online: updatedOnline };
+        localStorage.setItem("professional", JSON.stringify(updated));
+        return updated;
+      });
+      window.dispatchEvent(new CustomEvent('professional-online-changed', {
+        detail: { is_online: updatedOnline }
+      }));
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setTogglingOnline(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleOnlineChanged = (e) => {
+      if (e?.detail?.is_online !== undefined) {
+        setIsOnline(Boolean(e.detail.is_online));
+      }
+    };
+    window.addEventListener('professional-online-changed', handleOnlineChanged);
+    return () => window.removeEventListener('professional-online-changed', handleOnlineChanged);
+  }, []);
+
+  useEffect(() => {
     const handleRequestUpdated = () => fetchData();
     window.addEventListener('professional-request-updated', handleRequestUpdated);
     return () => window.removeEventListener('professional-request-updated', handleRequestUpdated);
@@ -259,13 +344,13 @@ function Dashboard() {
         <div className="pro-hero-bg" />
         
         <div className="pro-hero-content" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-          {/* Top Bar with Location & Notifications */}
+          {/* Top Bar with Location, Online Toggle & Notifications */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-            <div className="pro-location-control" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255, 255, 255, 0.9)', padding: '6px 14px', borderRadius: '14px', backdropFilter: 'blur(8px)', boxShadow: '0 4px 14px rgba(0,0,0,0.06)', maxWidth: 'calc(100% - 48px)' }}>
+            <div className="pro-location-control" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255, 255, 255, 0.9)', padding: '6px 14px', borderRadius: '14px', backdropFilter: 'blur(8px)', boxShadow: '0 4px 14px rgba(0,0,0,0.06)', maxWidth: 'calc(100% - 105px)' }}>
               <MapPin size={16} color="var(--accent-primary)" />
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700, lineHeight: 1 }}>Current Location</span>
-                <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 800, lineHeight: 1.2, marginTop: '2px', maxWidth: 'min(62vw, 360px)', whiteSpace: 'normal' }}>
+                <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 800, lineHeight: 1.2, marginTop: '2px', maxWidth: 'min(50vw, 320px)', whiteSpace: 'normal' }}>
                   {currentLocation ? (
                     currentLocation
                   ) : isFetchingLocation ? (
@@ -277,64 +362,143 @@ function Dashboard() {
               </div>
             </div>
 
-            <div style={{ position: "relative" }} ref={dropdownRef}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <button
-                className="pro-bell-btn"
-                onClick={() => {
-                  setShowNotifications(!showNotifications);
-                  if (unreadCount > 0 && !showNotifications) markAllRead();
-                }}
+                type="button"
+                className={`pro-toggle-btn ${isOnline ? 'active' : ''}`}
+                onClick={handleToggleOnline}
+                disabled={togglingOnline}
+                title={isOnline ? "You are online and accepting job requests. Click to go offline." : "You are offline. Click to go online and receive job notifications."}
+                aria-label="Toggle online availability"
               >
-                <Bell size={18} />
-                {unreadCount > 0 && (
-                  <span className="pro-notif-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
-                )}
+                <Power size={18} />
               </button>
 
-              {showNotifications && (
-                <div className="notification-dropdown">
-                  <div className="notification-header">
-                    <h3>Notifications</h3>
-                    {notifications.length > 0 && <button onClick={markAllRead}>Mark all read</button>}
-                  </div>
-                  <div className="notification-list">
-                    {notifications.length === 0 ? (
-                      <div className="notification-empty">No new notifications</div>
-                    ) : notifications.map(n => (
-                      <div key={n.id} className={`notification-item ${!n.read ? 'unread' : ''}`}>
-                        <div className="notification-title">{n.title}</div>
-                        <div className="notification-message">{n.message}</div>
-                        <div className="notification-time">
-                          {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              <div style={{ position: "relative" }} ref={dropdownRef}>
+                <button
+                  className="pro-bell-btn"
+                  onClick={() => {
+                    setShowNotifications(!showNotifications);
+                    if (unreadCount > 0 && !showNotifications) markAllRead();
+                  }}
+                >
+                  <Bell size={18} />
+                  {unreadCount > 0 && (
+                    <span className="pro-notif-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                  )}
+                </button>
+
+                {showNotifications && (
+                  <div className="notification-dropdown">
+                    <div className="notification-header">
+                      <h3>Notifications</h3>
+                      {notifications.length > 0 && <button onClick={markAllRead}>Mark all read</button>}
+                    </div>
+                    <div className="notification-list">
+                      {notifications.length === 0 ? (
+                        <div className="notification-empty">No new notifications</div>
+                      ) : notifications.map(n => (
+                        <div key={n.id} className={`notification-item ${!n.read ? 'unread' : ''}`}>
+                          <div className="notification-title">{n.title}</div>
+                          <div className="notification-message">{n.message}</div>
+                          <div className="notification-time">
+                            {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
 
           <div className="pro-hero-left" style={{ width: '100%' }}>
-            {professional.profile_photo ? (
+            {resolveProPhoto(professional.profile_photo) ? (
               <img 
-                src={professional.profile_photo.startsWith('http') ? professional.profile_photo : `${API}/uploads/${professional.profile_photo}`} 
+                src={resolveProPhoto(professional.profile_photo)} 
                 alt={professional.full_name} 
                 className="pro-hero-avatar" 
                 style={{ objectFit: 'cover' }} 
-                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+                onError={(e) => { e.target.style.display = 'none'; if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex'; }} 
               />
             ) : null}
-            <div className="pro-hero-avatar" style={{ display: professional.profile_photo ? 'none' : 'flex' }}>
+            <div className="pro-hero-avatar" style={{ display: resolveProPhoto(professional.profile_photo) ? 'none' : 'flex' }}>
               {getInitials(professional.full_name)}
             </div>
             <div>
               <div className="pro-hero-greeting">Welcome back 👋</div>
               <h1 className="pro-hero-name">{professional.full_name?.split(' ')[0] || "Professional"}</h1>
+              <button
+                type="button"
+                className={`pro-online-pill ${isOnline ? 'online' : ''}`}
+                onClick={handleToggleOnline}
+                disabled={togglingOnline}
+                style={{ cursor: 'pointer', border: 'none', font: 'inherit' }}
+                title="Click to toggle availability status"
+              >
+                <span className="pro-online-dot" />
+                {isOnline ? 'Available for Jobs' : 'Offline'}
+              </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* ── OFFLINE STATUS BANNER ── */}
+      {!isOnline && (
+        <div style={{
+          margin: '0 24px 20px',
+          padding: '14px 18px',
+          borderRadius: '16px',
+          background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(245, 158, 11, 0.08))',
+          border: '1px solid rgba(239, 68, 68, 0.25)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          boxShadow: '0 2px 10px rgba(239, 68, 68, 0.05)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '12px',
+              background: 'rgba(239, 68, 68, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#DC2626',
+              flexShrink: 0
+            }}>
+              <Power size={20} />
+            </div>
+            <div>
+              <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)' }}>You are currently Offline</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>You will not receive any new job notifications or offers until you switch back online.</div>
+            </div>
+          </div>
+          <button
+            onClick={handleToggleOnline}
+            disabled={togglingOnline}
+            style={{
+              background: '#059669',
+              color: 'white',
+              border: 'none',
+              borderRadius: '10px',
+              padding: '8px 18px',
+              fontWeight: '700',
+              fontSize: '13px',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              boxShadow: '0 2px 8px rgba(5, 150, 105, 0.3)',
+              transition: 'all 0.2s'
+            }}
+          >
+            {togglingOnline ? 'Updating...' : 'Go Online'}
+          </button>
+        </div>
+      )}
 
       {/* ── STATS STRIP ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', margin: '0 24px 20px' }}>

@@ -6,6 +6,13 @@ const API = import.meta.env.DEV
   ? 'http://localhost:5000'
   : 'https://service-marketplace-af7p.onrender.com';
 
+const resolveProPhoto = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http') || path.startsWith('data:')) return path;
+  if (path.startsWith('/')) return `${API}${path}`;
+  return `${API}/uploads/${path}`;
+};
+
 function SetupProfile() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -23,7 +30,7 @@ function SetupProfile() {
   const [pincode, setPincode] = useState(professional.pincode || '');
   const [bio, setBio] = useState(professional.bio || '');
   const [profilePhoto, setProfilePhoto] = useState(null);
-  const [profilePreview, setProfilePreview] = useState(professional.profile_photo ? `${API}/uploads/${professional.profile_photo}` : null);
+  const [profilePreview, setProfilePreview] = useState(resolveProPhoto(professional.profile_photo));
 
   const [category, setCategory] = useState(professional.category || '');
   const [subCategory, setSubCategory] = useState(professional.sub_category || '');
@@ -32,7 +39,7 @@ function SetupProfile() {
   const [transportMode, setTransportMode] = useState(professional.transport_mode || 'bike');
   const [identityType, setIdentityType] = useState(professional.identity_type || 'Aadhaar');
   const [identityPhoto, setIdentityPhoto] = useState(null);
-  const [identityPreview, setIdentityPreview] = useState(professional.identity_photo ? `${API}/uploads/${professional.identity_photo}` : null);
+  const [identityPreview, setIdentityPreview] = useState(resolveProPhoto(professional.identity_photo));
 
   // Categories & Subcategories fetched from DB
   const [dbCategories, setDbCategories] = useState([]);
@@ -78,8 +85,8 @@ function SetupProfile() {
         setExperienceYears(data.experience_years ?? '');
         setTransportMode(data.transport_mode || 'bike');
         setIdentityType(data.identity_type || 'Aadhaar');
-        setProfilePreview(data.profile_photo ? `${API}/uploads/${data.profile_photo}` : null);
-        setIdentityPreview(data.identity_photo ? `${API}/uploads/${data.identity_photo}` : null);
+        setProfilePreview(resolveProPhoto(data.profile_photo));
+        setIdentityPreview(resolveProPhoto(data.identity_photo));
         localStorage.setItem('professional', JSON.stringify({ ...professional, ...data }));
       } catch (fetchError) {
         setError(fetchError.message);
