@@ -241,7 +241,12 @@ function MyRequests() {
     // Native EventSource cannot send custom Authorization headers, so the JWT is
     // passed via ?token= query param. Backend extracts and verifies it identically to a Bearer header.
     const stream = new EventSource(`${API_BASE}/api/professionals/notifications/stream/${professional.id}?token=${token}`);
-    stream.addEventListener('new_service_request', fetchRequests);
+    stream.addEventListener('new_service_request', () => {
+      const pro = JSON.parse(localStorage.getItem('professional') || '{}');
+      if (pro.is_online) {
+        fetchRequests();
+      }
+    });
     stream.addEventListener('request_taken', fetchRequests);
     return () => stream.close();
   }, []);

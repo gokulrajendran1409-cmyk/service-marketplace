@@ -351,7 +351,7 @@ function App() {
       )}
 
       <div className="app-content" ref={appContentRef}>
-        {page === 'home'          && <Home navigate={navigate} unreadCount={unreadCount} />}
+        {page === 'home'          && <Home navigate={navigate} unreadCount={unreadCount} user={user} />}
         {page === 'services'      && <Services navigate={navigate} initialGroup={navigationGroup} initialCategory={navigationCategory} user={user} unreadCount={unreadCount} />}
         {page === 'professionals' && <BrowseProfessionals navigate={navigate} initialCategory={navigationCategory} />}
         {page === 'requests'      && <MyRequests navigate={navigate} />}

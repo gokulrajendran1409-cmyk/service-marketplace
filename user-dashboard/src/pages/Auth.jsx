@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Wrench, Loader2 } from 'lucide-react';
+import { Wrench, Loader2, Camera, X, User } from 'lucide-react';
 import { useToast, Toast } from '../components/Toast';
 
 const API = `${import.meta.env.VITE_API_URL || 'https://service-marketplace-af7p.onrender.com'}/api/auth`;
@@ -37,9 +37,38 @@ function Auth({ onLogin }) {
   const { toast, showToast } = useToast();
 
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
+  const [profilePhoto, setProfilePhoto] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const fileInputRef = useRef(null);
   const googleButtonRef = useRef(null);
   const onLoginRef = useRef(onLogin);
   const showToastRef = useRef(showToast);
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showToast('Please select a valid image file', 'error');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Image file size must be under 5MB', 'error');
+      return;
+    }
+    setProfilePhoto(file);
+    const previewUrl = URL.createObjectURL(file);
+    setPhotoPreview(previewUrl);
+  };
+
+  const handleRemovePhoto = (e) => {
+    e.stopPropagation();
+    setProfilePhoto(null);
+    if (photoPreview) {
+      URL.revokeObjectURL(photoPreview);
+      setPhotoPreview(null);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   useEffect(() => {
     onLoginRef.current = onLogin;
@@ -103,21 +132,37 @@ function Auth({ onLogin }) {
     setLoading(true);
 
     try {
-      const endpoint = isLogin ? '/login' : '/register';
-      const payload = isLogin
-        ? { email: form.email, password: form.password }
-        : form;
+      let res;
+      if (isLogin) {
+        res = await fetch(`${API}/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: form.email, password: form.password })
+        });
+      } else {
+        const formData = new FormData();
+        formData.append('name', form.name.trim());
+        formData.append('email', form.email.trim());
+        formData.append('phone', form.phone.trim());
+        formData.append('password', form.password);
+        if (profilePhoto) {
+          formData.append('profile_photo', profilePhoto);
+        }
 
-      const res = await fetch(`${API}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+        res = await fetch(`${API}/register`, {
+          method: 'POST',
+          body: formData
+        });
+      }
 
       const data = await res.json();
 
       if (!res.ok) {
         throw new Error(data.message || 'Authentication failed');
+      }
+
+      if (data.user?.profile_photo) {
+        localStorage.setItem('user_profile_photo', data.user.profile_photo);
       }
 
       onLogin(data.user, data.token);
@@ -167,7 +212,13 @@ function Auth({ onLogin }) {
       const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
       const payload = btoa(JSON.stringify({ id: 1, role: 'customer', name: 'Demo Customer', exp: expiry }));
       const mockToken = `${header}.${payload}.demoSignature`;
-      const mockUser = { id: 1, name: 'Demo Customer', email: 'demo@marketplace.com', phone: '9876543210' };
+      const mockUser = {
+        id: 1,
+        name: 'Demo Customer',
+        email: 'demo@marketplace.com',
+        phone: '9876543210',
+        profile_photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80'
+      };
       onLogin(mockUser, mockToken);
     } finally {
       setLoading(false);
@@ -188,6 +239,78 @@ function Auth({ onLogin }) {
         <form onSubmit={handleSubmit} className="form-grid" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {!isLogin && (
             <>
+              {/* Profile Photo Selector */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '8px' }}>
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    width: '92px',
+                    height: '92px',
+                    borderRadius: '50%',
+                    border: '2.5px dashed #00796B',
+                    position: 'relative',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: '#F4FBF9',
+                    overflow: 'hidden',
+                    transition: 'all 0.2s ease',
+                    boxShadow: photoPreview ? '0 4px 14px rgba(0, 121, 107, 0.25)' : 'none',
+                  }}
+                  title="Click to select profile photo"
+                >
+                  {photoPreview ? (
+                    <img
+                      src={photoPreview}
+                      alt="Profile preview"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#00796B' }}>
+                      <Camera size={26} />
+                      <span style={{ fontSize: '10px', fontWeight: 600, marginTop: '4px' }}>Add Photo</span>
+                    </div>
+                  )}
+
+                  {photoPreview && (
+                    <button
+                      type="button"
+                      onClick={handleRemovePhoto}
+                      style={{
+                        position: 'absolute',
+                        top: '4px',
+                        right: '4px',
+                        background: 'rgba(239, 68, 68, 0.9)',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: '22px',
+                        height: '22px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+                      }}
+                      title="Remove photo"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handlePhotoChange}
+                />
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px', fontWeight: 500 }}>
+                  {photoPreview ? 'Profile photo set ✓' : 'Set your profile photo'}
+                </div>
+              </div>
+
               <div className="form-group">
                 <label>Full Name</label>
                 <input className="form-input" name="name" type="text" required value={form.name} onChange={handleChange} />

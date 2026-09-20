@@ -30,8 +30,32 @@ function IncomingRequestPanel() {
   const [professionalPoint, setProfessionalPoint] = useState(null);
   const [locationLoading, setLocationLoading] = useState(false);
   const [distanceKm, setDistanceKm] = useState(null);
+  const [isOnline, setIsOnline] = useState(() => {
+    try {
+      return Boolean(JSON.parse(localStorage.getItem('professional') || '{}').is_online);
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const handleOnlineChanged = (e) => {
+      const nextOnline = Boolean(e?.detail?.is_online);
+      setIsOnline(nextOnline);
+      if (!nextOnline) {
+        setRequest(null);
+      }
+    };
+    window.addEventListener('professional-online-changed', handleOnlineChanged);
+    return () => window.removeEventListener('professional-online-changed', handleOnlineChanged);
+  }, []);
 
   const fetchPendingRequest = async () => {
+    const pro = JSON.parse(localStorage.getItem('professional') || '{}');
+    if (!pro.is_online) {
+      setRequest(null);
+      return;
+    }
     try {
       const response = await fetch(`${API}/api/professionals/requests`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('professionalToken')}` }
@@ -45,15 +69,25 @@ function IncomingRequestPanel() {
   };
 
   useEffect(() => {
+    if (!isOnline) {
+      setRequest(null);
+      return undefined;
+    }
+
     const professional = JSON.parse(localStorage.getItem('professional') || '{}');
-    if (professional.verification_status !== 'verified') return;
+    if (professional.verification_status !== 'verified') return undefined;
 
     fetchPendingRequest();
     const token = localStorage.getItem('professionalToken');
     if (!professional.id || !token) return undefined;
 
     const stream = new EventSource(`${API}/api/professionals/notifications/stream/${professional.id}?token=${token}`);
-    stream.addEventListener('new_service_request', fetchPendingRequest);
+    stream.addEventListener('new_service_request', () => {
+      const currentPro = JSON.parse(localStorage.getItem('professional') || '{}');
+      if (currentPro.is_online) {
+        fetchPendingRequest();
+      }
+    });
     stream.addEventListener('request_taken', fetchPendingRequest);
     stream.addEventListener('service_request_updated', fetchPendingRequest);
     const pollTimer = window.setInterval(fetchPendingRequest, 5000);
@@ -61,7 +95,7 @@ function IncomingRequestPanel() {
       stream.close();
       window.clearInterval(pollTimer);
     };
-  }, []);
+  }, [isOnline]);
 
   useEffect(() => {
     setShowLocationMap(false);
@@ -127,7 +161,7 @@ function IncomingRequestPanel() {
     }
   };
 
-  if (!request) return null;
+  if (!request || !isOnline) return null;
 
   return (
     <aside className="incoming-request-panel" aria-label="Incoming service request">

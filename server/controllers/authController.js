@@ -20,19 +20,32 @@ exports.register = async (req, res) => {
         }
 
         // Check if user exists
-        const existing = await pool.query('SELECT id FROM users WHERE email = $1 OR phone = $2', [email, phone]);
+        const existing = await pool.query('SELECT id FROM users WHERE email = $1 OR phone = $2', [email.trim().toLowerCase(), phone.trim()]);
         if (existing.rows.length > 0) {
             return res.status(409).json({ message: 'User with this email or phone already exists' });
+        }
+
+        // Determine profile photo URL
+        let profilePhoto = null;
+        if (req.file) {
+            profilePhoto = `/uploads/${req.file.filename}`;
+        } else if (req.body.profile_photo && typeof req.body.profile_photo === 'string') {
+            profilePhoto = req.body.profile_photo.trim();
         }
 
         // Hash password
         const passwordHash = await bcrypt.hash(password, 10);
 
+        // Ensure column exists
+        try {
+            await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_photo TEXT');
+        } catch (_) {}
+
         // Insert user
         const result = await pool.query(
-            `INSERT INTO users (name, email, phone, password_hash)
-             VALUES ($1, $2, $3, $4) RETURNING id, name, email, phone`,
-            [name, email, phone, passwordHash]
+            `INSERT INTO users (name, email, phone, password_hash, profile_photo)
+             VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, phone, profile_photo`,
+            [name.trim(), email.trim().toLowerCase(), phone.trim(), passwordHash, profilePhoto]
         );
 
         const user = result.rows[0];
@@ -125,7 +138,7 @@ exports.googleLogin = async (req, res) => {
 
         // Check existing user
         let result = await pool.query(
-            'SELECT id, name, email, phone FROM users WHERE email = $1',
+            'SELECT id, name, email, phone, profile_photo FROM users WHERE email = $1',
             [email]
         );
 
@@ -133,13 +146,20 @@ exports.googleLogin = async (req, res) => {
 
         if (result.rows.length > 0) {
             user = result.rows[0];
+            // If user has no profile photo but Google provides one, optionally update it
+            if (!user.profile_photo && payload.picture) {
+                try {
+                    await pool.query('UPDATE users SET profile_photo = $1 WHERE id = $2', [payload.picture, user.id]);
+                    user.profile_photo = payload.picture;
+                } catch (_) {}
+            }
         } else {
             // Create new Google user
             result = await pool.query(
-                `INSERT INTO users (name, email, phone, password_hash)
-                 VALUES ($1, $2, $3, $4)
-                 RETURNING id, name, email, phone`,
-                [name, email, `g${payload.sub.slice(-19)}`, `google-${payload.sub}`]
+                `INSERT INTO users (name, email, phone, password_hash, profile_photo)
+                 VALUES ($1, $2, $3, $4, $5)
+                 RETURNING id, name, email, phone, profile_photo`,
+                [name, email, `g${payload.sub.slice(-19)}`, `google-${payload.sub}`, payload.picture || null]
             );
 
             user = result.rows[0];

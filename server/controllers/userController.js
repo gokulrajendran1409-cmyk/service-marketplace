@@ -381,9 +381,10 @@ exports.createRequest = async (req, res) => {
             await client.query('ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS transaction_id VARCHAR(100)');
 
             const professionals = await client.query(
-                                `SELECT p.id, p.full_name, p.registered_latitude, p.registered_longitude
+                                `SELECT p.id, p.full_name, p.registered_latitude, p.registered_longitude, p.is_online
                                  FROM professionals p
                                  WHERE p.category = $1 AND p.verification_status = 'verified'
+                                     AND COALESCE(p.is_online, false) = true
                                      AND ($2::bigint IS NULL OR p.id = $2)
                                      AND ($2::bigint IS NOT NULL OR (p.registered_latitude IS NOT NULL AND p.registered_longitude IS NOT NULL))
                                      AND NOT EXISTS (
@@ -412,7 +413,7 @@ exports.createRequest = async (req, res) => {
                 });
             if (!nearbyProfessionals.length) {
                 await client.query('ROLLBACK');
-                return res.status(404).json({ message: 'No available professionals were found. Professionals currently handling jobs will receive new requests after completing them.' });
+                return res.status(404).json({ message: 'No available online professionals were found in your area at the moment. Please try again shortly.' });
             }
 
             const result = await client.query(

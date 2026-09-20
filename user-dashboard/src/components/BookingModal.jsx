@@ -413,7 +413,6 @@ export function BookingModal({
   // Step 7: Payment Gateway State (UPI & QR Code)
   const [paymentMethod, setPaymentMethod] = useState('upi'); // 'upi' | 'cash' | 'card' | 'wallet'
   const [upiRef, setUpiRef] = useState('');
-  const [copiedUpi, setCopiedUpi] = useState(false);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [paymentVerified, setPaymentVerified] = useState(false);
@@ -435,12 +434,6 @@ export function BookingModal({
       .then((url) => setQrCodeDataUrl(url))
       .catch((err) => console.error('Error generating UPI QR Code:', err));
   }, [upiDeepLink]);
-
-  const handleCopyMerchantUpi = () => {
-    navigator.clipboard?.writeText(MERCHANT_UPI_ID);
-    setCopiedUpi(true);
-    setTimeout(() => setCopiedUpi(false), 2200);
-  };
 
   // Step 9: Confirmed details
   const [confirmedRequest, setConfirmedRequest] = useState(null);
@@ -1997,39 +1990,17 @@ export function BookingModal({
                   </p>
                 </div>
 
-                {/* Receiver UPI ID & 1-Tap Copy */}
-                <div className="gateway-upi-id-card">
-                  <div className="upi-id-header">
-                    <span className="upi-id-title">OFFICIAL RECEIVER UPI ID</span>
-                    <span className="upi-verified-badge">
-                      <CheckCircle2 size={12} /> Verified Merchant
-                    </span>
-                  </div>
-                  <div className="gateway-upi-id-row">
-                    <code className="merchant-upi-code">{MERCHANT_UPI_ID}</code>
-                    <button
-                      type="button"
-                      className="copy-upi-btn"
-                      onClick={handleCopyMerchantUpi}
-                      title="Copy UPI ID"
-                    >
-                      {copiedUpi ? <Check size={14} color="#00796B" /> : <Copy size={14} />}
-                      <span>{copiedUpi ? 'Copied!' : 'Copy'}</span>
-                    </button>
-                  </div>
-
-                  {/* Deep link for mobile devices */}
-                  <a
-                    href={upiDeepLink}
-                    className="gateway-intent-link"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Smartphone size={15} />
-                    <span>Pay via UPI App Directly</span>
-                    <ExternalLink size={13} style={{ marginLeft: 'auto' }} />
-                  </a>
-                </div>
+                {/* Deep link for mobile devices */}
+                <a
+                  href={upiDeepLink}
+                  className="gateway-intent-link"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Smartphone size={15} />
+                  <span>Pay via UPI App Directly</span>
+                  <ExternalLink size={13} style={{ marginLeft: 'auto' }} />
+                </a>
 
                 {/* UTR / Transaction Reference Input */}
                 <div className="gateway-utr-card">
@@ -2283,7 +2254,7 @@ export function BookingModal({
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', flexWrap: 'wrap' }}>
                     <CheckCircle2 size={16} color="#00796B" />
                     <strong style={{ color: '#00796B' }}>UPI Payment:</strong>
-                    <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#334155' }}>{MERCHANT_UPI_ID}</span>
+                    <span style={{ fontSize: 12, color: '#334155', fontWeight: 600 }}>Scan & Pay</span>
                     <span style={{ marginLeft: 'auto', background: '#DCFCE7', color: '#15803D', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
                       ₹{bookingPayableTotal} Ready
                     </span>
