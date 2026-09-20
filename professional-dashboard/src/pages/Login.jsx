@@ -16,16 +16,13 @@ export default function Login() {
     setError("");
     setStatusMessage("");
     try {
-      const response = await fetch("https://service-marketplace-af7p.onrender.com/api/professionals/login", {
+      const api = import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com';
+      const response = await fetch(`${api}/api/professionals/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password })
       });
       const result = await response.json();
-      if (response.status === 403 && result.status === "pending") {
-        setStatusMessage("Status: Pending admin approval. The dashboard will be available after the admin accepts your registration.");
-        return;
-      }
       if (!response.ok) throw new Error(result.message || "Unable to log in");
       localStorage.setItem("professionalToken", result.token);
       localStorage.setItem("professional", JSON.stringify(result.professional));

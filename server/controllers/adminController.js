@@ -80,7 +80,10 @@ const getPendingVerifications = async (req, res) => {
     try {
         const query = `
             SELECT 
-                p.id, p.full_name, p.category, p.experience_years, p.bio, p.verification_status, p.created_at,
+                p.id, p.full_name, p.category, p.sub_category, p.experience_years, 
+                p.bio, p.verification_status, p.created_at, p.profile_photo, 
+                p.identity_photo, p.identity_type, p.date_of_birth, p.address, 
+                p.pincode, p.transport_mode, u.email, u.phone,
                 json_agg(
                     json_build_object(
                         'type', d.document_type,
@@ -88,9 +91,10 @@ const getPendingVerifications = async (req, res) => {
                     )
                 ) as documents
             FROM professionals p
+            LEFT JOIN users u ON p.user_id = u.id
             LEFT JOIN professional_documents d ON p.id = d.professional_id
             WHERE p.verification_status IN ('pending', 'under_review')
-            GROUP BY p.id
+            GROUP BY p.id, u.id
             ORDER BY p.created_at ASC
         `;
         const result = await pool.query(query);
@@ -158,8 +162,11 @@ const getAllVerifications = async (req, res) => {
     try {
         const query = `
             SELECT 
-                p.id, p.full_name, p.category, p.experience_years, p.bio, 
-                p.verification_status, p.rejection_reason, p.verified_at, p.created_at,
+                p.id, p.full_name, p.category, p.sub_category, p.experience_years, 
+                p.bio, p.verification_status, p.rejection_reason, p.verified_at, 
+                p.created_at, p.profile_photo, p.identity_photo, p.identity_type, 
+                p.date_of_birth, p.address, p.pincode, p.transport_mode, 
+                u.email, u.phone,
                 json_agg(
                     json_build_object(
                         'type', d.document_type,
@@ -167,8 +174,9 @@ const getAllVerifications = async (req, res) => {
                     )
                 ) as documents
             FROM professionals p
+            LEFT JOIN users u ON p.user_id = u.id
             LEFT JOIN professional_documents d ON p.id = d.professional_id
-            GROUP BY p.id
+            GROUP BY p.id, u.id
             ORDER BY p.created_at DESC
         `;
         const result = await pool.query(query);

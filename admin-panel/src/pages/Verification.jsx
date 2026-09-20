@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { CheckCircle, XCircle, FileText, User, Clock, ShieldCheck, ShieldX } from "lucide-react";
+import { CheckCircle, XCircle, FileText, User, Clock, ShieldCheck, ShieldX, Phone, Mail, MapPin, Briefcase } from "lucide-react";
+
+const API = import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com';
 
 function Verification() {
   const [activeTab, setActiveTab] = useState("pending");
@@ -10,7 +12,7 @@ function Verification() {
 
   const fetchPending = async () => {
     try {
-      const response = await fetch("https://service-marketplace-af7p.onrender.com/api/admin/verifications");
+      const response = await fetch(`${API}/api/admin/verifications`);
       if (!response.ok) throw new Error("Failed to fetch verifications");
       const data = await response.json();
       setPendingList(data);
@@ -21,7 +23,7 @@ function Verification() {
 
   const fetchHistory = async () => {
     try {
-      const response = await fetch("https://service-marketplace-af7p.onrender.com/api/admin/verifications/history");
+      const response = await fetch(`${API}/api/admin/verifications/history`);
       if (!response.ok) throw new Error("Failed to fetch history");
       const data = await response.json();
       setHistoryList(data);
@@ -37,7 +39,7 @@ function Verification() {
   const handleApprove = async (id) => {
     if (!window.confirm("Are you sure you want to approve this professional?")) return;
     try {
-      const response = await fetch(`https://service-marketplace-af7p.onrender.com/api/admin/verifications/${id}/approve`, {
+      const response = await fetch(`${API}/api/admin/verifications/${id}/approve`, {
         method: "POST"
       });
       if (response.ok) {
@@ -56,7 +58,7 @@ function Verification() {
     if (!window.confirm("Are you sure you want to reject this professional?")) return;
     const reason = "Rejected by administrator.";
     try {
-      const response = await fetch(`https://service-marketplace-af7p.onrender.com/api/admin/verifications/${id}/reject`, {
+      const response = await fetch(`${API}/api/admin/verifications/${id}/reject`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason })
@@ -141,8 +143,18 @@ function Verification() {
             <div key={prof.id} className="stat-card" style={{ padding: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                 <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                  <div className="stat-icon" style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)' }}>
-                    <User size={24} />
+                  <div className="stat-icon" style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)', width: 48, height: 48, padding: 0, overflow: 'hidden', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {prof.profile_photo ? (
+                      <img 
+                        src={prof.profile_photo.startsWith('http') ? prof.profile_photo : `${API}/uploads/${prof.profile_photo}`} 
+                        alt="Profile" 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                      />
+                    ) : null}
+                    <div style={{ display: prof.profile_photo ? 'none' : 'flex', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: 'var(--accent-primary)' }}>
+                      {(prof.full_name || 'U').charAt(0).toUpperCase()}
+                    </div>
                   </div>
                   <div>
                     <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px' }}>
@@ -175,6 +187,24 @@ function Verification() {
                 )}
               </div>
               
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ padding: '16px', background: 'var(--bg-base)', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                  <h4 style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}><Mail size={14} /> Contact Info</h4>
+                  <p style={{ fontSize: '14px', marginBottom: '4px' }}>{prof.email || 'No email'}</p>
+                  <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{prof.phone || 'No phone'}</p>
+                </div>
+                <div style={{ padding: '16px', background: 'var(--bg-base)', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                  <h4 style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}><MapPin size={14} /> Location</h4>
+                  <p style={{ fontSize: '14px', marginBottom: '4px' }}>{prof.address || 'No address'}</p>
+                  <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Pincode: {prof.pincode || 'N/A'}</p>
+                </div>
+                <div style={{ padding: '16px', background: 'var(--bg-base)', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                  <h4 style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}><Briefcase size={14} /> Work Details</h4>
+                  <p style={{ fontSize: '14px', marginBottom: '4px' }}>Sub: {prof.sub_category || 'N/A'}</p>
+                  <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Transport: {prof.transport_mode ? prof.transport_mode.replace('_', ' ') : 'N/A'}</p>
+                </div>
+              </div>
+              
               <div style={{ padding: '16px', background: 'var(--bg-base)', borderRadius: '8px', border: '1px solid var(--border-light)', marginBottom: '16px' }}>
                 <h4 style={{ fontSize: '14px', marginBottom: '8px', color: 'var(--text-secondary)' }}>Professional Bio</h4>
                 <p style={{ fontSize: '15px' }}>{prof.bio || 'No bio provided.'}</p>
@@ -195,14 +225,24 @@ function Verification() {
                 </div>
               )}
 
-              <div>
-                <h4 style={{ fontSize: '14px', marginBottom: '12px', color: 'var(--text-secondary)' }}>Submitted Documents</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
+                <h4 style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Identity & Documents</h4>
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  {prof.identity_photo && (
+                    <a 
+                      href={prof.identity_photo.startsWith('http') ? prof.identity_photo : `${API}/uploads/${prof.identity_photo}`} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', border: '1px solid var(--border-focus)', borderRadius: '6px', color: 'var(--accent-primary)', background: 'var(--bg-base)', textDecoration: 'none', fontWeight: '500' }}
+                    >
+                      <FileText size={18} /> {prof.identity_type ? prof.identity_type.replace('_', ' ').toUpperCase() : 'ID Proof'}
+                    </a>
+                  )}
                   {prof.documents && prof.documents.map((doc, idx) => (
                     doc && doc.url ? (
                       <a 
                         key={idx}
-                        href={`https://service-marketplace-af7p.onrender.com/uploads/${doc.url}`} 
+                        href={doc.url.startsWith('http') ? doc.url : `${API}/uploads/${doc.url}`} 
                         target="_blank" 
                         rel="noreferrer"
                         style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', border: '1px solid var(--border-focus)', borderRadius: '6px', color: 'var(--accent-primary)', background: 'var(--bg-base)', textDecoration: 'none', fontWeight: '500' }}
@@ -211,7 +251,7 @@ function Verification() {
                       </a>
                     ) : null
                   ))}
-                  {(!prof.documents || !prof.documents.some(d => d && d.url)) && (
+                  {(!prof.identity_photo && (!prof.documents || !prof.documents.some(d => d && d.url))) && (
                     <span style={{ color: 'var(--text-muted)' }}>No documents uploaded.</span>
                   )}
                 </div>

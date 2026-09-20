@@ -61,33 +61,25 @@ exports.registerProfessional = async (req, res) => {
         // Insert into professionals
             const profQuery = `
             INSERT INTO professionals (
-                user_id, full_name, experience_years, password_hash
-            ) VALUES ($1, $2, $3, $4) RETURNING id
+                user_id, full_name, experience_years, password_hash, verification_status
+            ) VALUES ($1, $2, $3, $4, $5) RETURNING id
         `;
         const profValues = [
             user.id,
             full_name,
             0,
-            passwordHash
+            passwordHash,
+            'incomplete'
         ];
         
-        profValues[0] = user.id;
         const profResult = await client.query(profQuery, profValues);
         const professionalId = profResult.rows[0].id;
 
             await client.query('COMMIT');
 
-        // Notify admin panel in real-time
-        broadcast('new_registration', {
-            id: professionalId,
-            full_name,
-            category: 'Uncategorized',
-            timestamp: new Date().toISOString()
-        });
-
             res.status(201).json({
-                message: 'Registration successful. Your profile is pending verification.',
-                professional: { id: professionalId, full_name, email: user.email, verification_status: 'pending' }
+                message: 'Registration successful. Please log in to set up your profile.',
+                professional: { id: professionalId, full_name, email: user.email, verification_status: 'incomplete' }
             });
         } catch (err) {
             await client.query('ROLLBACK');
@@ -117,14 +109,7 @@ exports.loginProfessional = async (req, res) => {
         if (!professional || !(await bcrypt.compare(password, professional.password_hash))) {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
-        if (professional.verification_status !== 'verified') {
-            return res.status(403).json({
-                status: professional.verification_status,
-                message: professional.verification_status === 'rejected'
-                    ? `Status: Rejected by admin. Reason: ${professional.rejection_reason || 'No reason was provided.'}`
-                    : 'Your registration is pending admin approval. You can log in after approval.'
-            });
-        }
+        // verification_status is no longer blocking login, token is issued normally.
 
         const token = jwt.sign({ id: professional.user_id, professionalId: professional.professional_id, role: 'professional' }, JWT_SECRET, { expiresIn: '7d' });
         res.json({
@@ -178,10 +163,10 @@ exports.setupProfile = async (req, res) => {
 
         const userResult = await client.query(
             `UPDATE users
-             SET phone = $1, address = $2
-             WHERE id = (SELECT user_id FROM professionals WHERE id = $3)
+             SET phone = $1
+             WHERE id = (SELECT user_id FROM professionals WHERE id = $2)
              RETURNING id`,
-            [phoneValue, addressValue, professionalId]
+            [phoneValue, professionalId]
         );
 
         if (!userResult.rows.length) {
@@ -202,11 +187,13 @@ exports.setupProfile = async (req, res) => {
                  transport_mode = $9,
                  identity_type = $10,
                  profile_photo = COALESCE($11, profile_photo),
-                 identity_photo = COALESCE($12, identity_photo)
+                 identity_photo = COALESCE($12, identity_photo),
+                 verification_status = CASE WHEN verification_status = 'verified' THEN 'verified' ELSE 'pending' END
              WHERE id = $13
              RETURNING id, user_id, full_name, date_of_birth, address, pincode, bio,
                        category, sub_category, experience_years, transport_mode,
-                       identity_type, profile_photo, identity_photo, verification_status`,
+                       identity_type, profile_photo, identity_photo, verification_status,
+                       (SELECT email FROM users WHERE id = professionals.user_id) as email`,
             [
                 full_name.trim(),
                 date_of_birth,
@@ -230,6 +217,15 @@ exports.setupProfile = async (req, res) => {
         }
 
         await client.query('COMMIT');
+
+        // Notify admin panel in real-time that profile is setup and ready for review
+        broadcast('new_registration', {
+            id: professionalId,
+            full_name: full_name.trim(),
+            category: category,
+            timestamp: new Date().toISOString()
+        });
+
         res.json({ message: 'Profile setup completed successfully', professional: { ...result.rows[0], phone: phoneValue } });
     } catch (error) {
         await client.query('ROLLBACK');
@@ -245,7 +241,7 @@ exports.getProfessionalProfile = async (req, res) => {
         const result = await db.query(
                 `SELECT p.id, p.full_name, p.date_of_birth, p.address, p.pincode, p.bio,
                     p.category, p.sub_category, p.experience_years,
-                    transport_mode, identity_type, profile_photo, identity_photo,
+                    p.transport_mode, p.identity_type, p.profile_photo, p.identity_photo,
                     p.verification_status, u.phone, u.email
                  FROM professionals p
                  JOIN users u ON u.id = p.user_id

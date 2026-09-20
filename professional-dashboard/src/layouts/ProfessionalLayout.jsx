@@ -45,8 +45,10 @@ function IncomingRequestPanel() {
   };
 
   useEffect(() => {
-    fetchPendingRequest();
     const professional = JSON.parse(localStorage.getItem('professional') || '{}');
+    if (professional.verification_status !== 'verified') return;
+
+    fetchPendingRequest();
     const token = localStorage.getItem('professionalToken');
     if (!professional.id || !token) return undefined;
 

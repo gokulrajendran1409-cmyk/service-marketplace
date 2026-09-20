@@ -72,6 +72,24 @@ import itSupportIcon from '../assets/category-icons/it_support.png';
 import languageClassesIcon from '../assets/category-icons/language_classes.png';
 import petCareIcon from '../assets/category-icons/pet_care.png';
 import otherServicesIcon from '../assets/category-icons/other_services.png';
+
+const PROFESSION_LABELS = {
+  'Plumbing': 'Plumber',
+  'Electrical': 'Electrician',
+  'AC & Appliance Repair': 'AC & Appliance Tech',
+  'Carpentry': 'Carpenter',
+  'Cleaning': 'Cleaner',
+  'Painting': 'Painter',
+  'Vehicle Services': 'Mechanic',
+  'Personal Care': 'Beauty Professional',
+  'Gardening & Landscaping': 'Gardener',
+  'CCTV & Security': 'Security Tech',
+  'Computer & Mobile Repair': 'IT Tech',
+  'Photography & Videography': 'Photographer',
+  'Home Repair & Maintenance': 'Handyman'
+};
+
+const getProfessionLabel = (category) => PROFESSION_LABELS[category] || category || 'Professional';
 const scrollAppToTop = (behavior = 'smooth') => {
   document.querySelector('.app-content')?.scrollTo({ top: 0, behavior });
 };
@@ -215,16 +233,15 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
         setLocationStatus('ready');
         resolve(current);
 
-        fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${current.latitude}&lon=${current.longitude}&zoom=18&addressdetails=1`)
+        fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${current.latitude}&longitude=${current.longitude}&localityLanguage=en`)
           .then(response => {
             if (!response.ok) throw new Error('Reverse geocoding failed');
             return response.json();
           })
           .then(data => {
-            const addr = data.address || {};
-            const place = addr.city || addr.town || addr.village || addr.county || addr.state_district || 'Thiruvananthapuram';
+            const place = data.locality || data.city || data.principalSubdivision || 'Thiruvananthapuram';
             setLocationName(place);
-            setLocation(prev => prev ? { ...prev, placeName: data.display_name || place } : prev);
+            setLocation(prev => prev ? { ...prev, placeName: place } : prev);
           })
           .catch(() => {});
       },
@@ -349,11 +366,20 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
     <div key={pro.id} className="pro-card fade-up">
       <div className="pro-header">
         <div className="pro-avatar">
-          {pro.profile_photo ? <img src={pro.profile_photo} alt={pro.full_name} /> : pro.full_name.charAt(0).toUpperCase()}
+          {pro.profile_photo ? (
+            <img 
+              src={pro.profile_photo} 
+              alt={pro.full_name} 
+              onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'inline'; }}
+            />
+          ) : null}
+          <span style={{ display: pro.profile_photo ? 'none' : 'inline' }}>
+            {pro.full_name?.charAt(0).toUpperCase()}
+          </span>
         </div>
         <div>
           <div className="pro-name">{pro.full_name}</div>
-          <span className="pro-category">{pro.category}</span>
+          <span className="pro-category">{getProfessionLabel(pro.category)}</span>
         </div>
       </div>
       <div className="pro-meta">

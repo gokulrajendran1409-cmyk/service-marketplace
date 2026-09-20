@@ -31,7 +31,8 @@ export function useProfessionalNotifications(professionalId) {
         // a Bearer header; the param is then stripped from req.query so it never
         // leaks into generic request logs / error renders.
         const token = localStorage.getItem("professionalToken");
-        if (!token) return;
+        const professional = JSON.parse(localStorage.getItem("professional") || "{}");
+        if (!token || professional.verification_status !== 'verified') return;
 
         const SSE_URL = `${API_BASE}/api/professionals/notifications/stream/${professionalId}?token=${token}`;
         const es = new EventSource(SSE_URL);
