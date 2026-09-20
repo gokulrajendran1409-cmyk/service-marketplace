@@ -33,11 +33,13 @@ const TEAL = '#00796B';
 const CATEGORY_META = {
   Plumbing: { label: 'Plumber', icon: plumbingIcon },
   Electrical: { label: 'Electrician', icon: electricalIcon },
-  'AC & Appliance Repair': { label: 'AC Repair', icon: acRepairIcon },
-  Carpentry: { label: 'Carpenter', icon: carpentryIcon },
+  'AC & Appliances': { label: 'AC & Appliance Tech', icon: acRepairIcon },
   Cleaning: { label: 'Cleaning', icon: cleaningIcon },
-  Painting: { label: 'Painter', icon: paintingIcon },
-  'Vehicle Services': { label: 'Mechanic', icon: mechanicIcon },
+  'Pest Control': { label: 'Pest Control', icon: cleaningIcon },
+  'Home Improvement': { label: 'Home Improvement', icon: paintingIcon },
+  Vehicle: { label: 'Mechanic', icon: mechanicIcon },
+  'Personal & Daily Help': { label: 'Daily Help', icon: beautyWellnessIcon },
+  'CCTV & Security': { label: 'Security Tech', icon: mechanicIcon },
   'Personal Care': { label: 'Beauty', icon: beautyWellnessIcon },
 };
 

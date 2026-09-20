@@ -1,4 +1,5 @@
 const pool = require("../config/database");
+const { broadcast } = require("../utils/sseClients");
 
 const getDashboard = async (req, res) => {
     try {
@@ -194,9 +195,29 @@ const getCategories = async (req, res) => {
                 c.id,
                 c.name,
                 c.description,
+                c.price_estimate,
                 c.created_at,
-                COUNT(p.id) FILTER (WHERE p.verification_status = 'verified') AS verified_count,
-                COUNT(p.id) AS total_professionals
+                COUNT(DISTINCT p.id) FILTER (WHERE p.verification_status = 'verified') AS verified_count,
+                COUNT(DISTINCT p.id) AS total_professionals,
+                COALESCE(
+                    (
+                        SELECT json_agg(
+                            json_build_object(
+                                'id', s.id,
+                                'category_id', s.category_id,
+                                'category_name', s.category_name,
+                                'name', s.name,
+                                'image_url', s.image_url,
+                                'price_estimate', s.price_estimate,
+                                'created_at', s.created_at,
+                                'updated_at', s.updated_at
+                            ) ORDER BY s.id ASC
+                        )
+                        FROM subcategories s
+                        WHERE s.category_id = c.id OR LOWER(s.category_name) = LOWER(c.name)
+                    ),
+                    '[]'::json
+                ) AS subcategories
             FROM categories c
             LEFT JOIN professionals p ON p.category = c.name
             GROUP BY c.id
@@ -207,6 +228,93 @@ const getCategories = async (req, res) => {
     } catch (error) {
         console.error('Error fetching categories:', error);
         res.status(500).json({ message: 'Failed to fetch categories' });
+    }
+};
+
+const updateCategoryPrice = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { price_estimate } = req.body;
+
+        if (!price_estimate || typeof price_estimate !== 'string' || !price_estimate.trim()) {
+            return res.status(400).json({ message: 'Valid price_estimate string is required' });
+        }
+
+        const cleanPrice = price_estimate.trim();
+        const result = await pool.query(
+            `UPDATE categories
+             SET price_estimate = $1, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2
+             RETURNING id, name, description, price_estimate, updated_at`,
+            [cleanPrice, id]
+        );
+
+        if (!result.rows.length) {
+            return res.status(404).json({ message: 'Category not found' });
+        }
+
+        const updatedCategory = result.rows[0];
+
+        // Broadcast real-time event to SSE clients
+        broadcast('category_price_updated', {
+            type: 'category',
+            id: updatedCategory.id,
+            name: updatedCategory.name,
+            price_estimate: updatedCategory.price_estimate,
+            timestamp: new Date().toISOString()
+        });
+
+        res.json({
+            message: `Price updated for category "${updatedCategory.name}" successfully`,
+            category: updatedCategory
+        });
+    } catch (error) {
+        console.error('Error updating category price:', error);
+        res.status(500).json({ message: 'Failed to update category price' });
+    }
+};
+
+const updateSubcategoryPrice = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { price_estimate } = req.body;
+
+        if (!price_estimate || typeof price_estimate !== 'string' || !price_estimate.trim()) {
+            return res.status(400).json({ message: 'Valid price_estimate string is required' });
+        }
+
+        const cleanPrice = price_estimate.trim();
+        const result = await pool.query(
+            `UPDATE subcategories
+             SET price_estimate = $1, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2
+             RETURNING id, category_id, category_name, name, image_url, price_estimate, updated_at`,
+            [cleanPrice, id]
+        );
+
+        if (!result.rows.length) {
+            return res.status(404).json({ message: 'Subcategory not found' });
+        }
+
+        const updatedSubcategory = result.rows[0];
+
+        // Broadcast real-time event to SSE clients
+        broadcast('subcategory_price_updated', {
+            type: 'subcategory',
+            id: updatedSubcategory.id,
+            category_name: updatedSubcategory.category_name,
+            name: updatedSubcategory.name,
+            price_estimate: updatedSubcategory.price_estimate,
+            timestamp: new Date().toISOString()
+        });
+
+        res.json({
+            message: `Price updated for subcategory "${updatedSubcategory.name}" successfully`,
+            subcategory: updatedSubcategory
+        });
+    } catch (error) {
+        console.error('Error updating subcategory price:', error);
+        res.status(500).json({ message: 'Failed to update subcategory price' });
     }
 };
 
@@ -309,6 +417,8 @@ module.exports = {
     getVerifiedProfessionals,
     getAllVerifications,
     getCategories,
+    updateCategoryPrice,
+    updateSubcategoryPrice,
     getServiceRequests,
     getReviews
 };

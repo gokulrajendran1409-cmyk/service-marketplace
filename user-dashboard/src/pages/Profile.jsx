@@ -23,13 +23,14 @@ import {
 import { API } from '../constants';
 import { useTranslation } from 'react-i18next';
 
-const SERVER_BASE = import.meta.env.VITE_API_URL || 'https://service-marketplace-af7p.onrender.com';
+const SERVER_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com');
+const FALLBACK_SERVER = SERVER_BASE.includes('localhost') ? 'https://service-marketplace-af7p.onrender.com' : 'http://localhost:5000';
 
 const resolvePhotoUrl = (path) => {
   if (!path) return null;
-  if (path.startsWith('http') || path.startsWith('data:')) return path;
-  if (path.startsWith('/')) return `${SERVER_BASE}${path}`;
-  return `${SERVER_BASE}/uploads/${path}`;
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) return path;
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${SERVER_BASE}${cleanPath}`;
 };
 
 function Profile({ user, onUserUpdate, onLogout }) {
@@ -115,6 +116,7 @@ function Profile({ user, onUserUpdate, onLogout }) {
         setProfile(finalProfile);
         setForm({ phone: data.phone || '', address: data.address || '' });
         onUserUpdate(finalProfile);
+        window.dispatchEvent(new CustomEvent('user-profile-updated', { detail: finalProfile }));
       }
     } catch {
       /* Keep cached profile visible when offline. */
@@ -325,9 +327,10 @@ function Profile({ user, onUserUpdate, onLogout }) {
 
       setProfile(updatedProfile);
       onUserUpdate(updatedProfile);
-      if (photoToSave) {
-        localStorage.setItem('user_profile_photo', photoToSave);
+      if (updatedProfile.profile_photo) {
+        localStorage.setItem('user_profile_photo', updatedProfile.profile_photo);
       }
+      window.dispatchEvent(new CustomEvent('user-profile-updated', { detail: updatedProfile }));
       setEditing(false);
       setPhotoFile(null);
       setPhotoPreview(null);
@@ -541,7 +544,17 @@ function Profile({ user, onUserUpdate, onLogout }) {
                 src={resolvePhotoUrl(profile.profile_photo || profile.photo_url)} 
                 alt={profile.name} 
                 style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} 
-                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                onError={(e) => {
+                  const p = profile.profile_photo || profile.photo_url;
+                  if (!e.target.dataset.fallbackTried && p && !p.startsWith('http') && !p.startsWith('data:')) {
+                    e.target.dataset.fallbackTried = 'true';
+                    const cleanPath = p.startsWith('/') ? p : `/${p}`;
+                    e.target.src = `${FALLBACK_SERVER}${cleanPath}`;
+                    return;
+                  }
+                  e.target.style.display = 'none';
+                  if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                }}
               />
               <div style={{ display: 'none', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 700, color: '#00796B', background: '#E0F2F1', borderRadius: '50%' }}>
                 {(profile.name || profile.full_name || 'U').charAt(0).toUpperCase()}

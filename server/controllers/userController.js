@@ -257,19 +257,42 @@ exports.deleteUserAddress = async (req, res) => {
     }
 };
 
+const CATEGORY_ALIASES = {
+    'AC & Appliances': ['AC & Appliances'],
+    'Cleaning': ['Cleaning'],
+    'Pest Control': ['Pest Control'],
+    'Home Improvement': ['Home Improvement'],
+    'Vehicle': ['Vehicle'],
+    'Personal & Daily Help': ['Personal & Daily Help', 'Personal Care'],
+    'CCTV & Security': ['CCTV & Security'],
+    'Plumbing': ['Plumbing'],
+    'Electrical': ['Electrical'],
+    'Gardening & Landscaping': ['Gardening & Landscaping'],
+    'Computer & Mobile Repair': ['Computer & Mobile Repair'],
+    'Photography & Videography': ['Photography & Videography']
+};
+
 // GET /api/user/categories - list all service categories
 exports.getCategories = async (req, res) => {
     try {
         const { lang } = req.query;
         let selectQuery = `
-            SELECT id, name, description, name AS original_name,
-                   (SELECT COUNT(*)::int FROM professionals p WHERE p.category = categories.name AND p.verification_status = 'verified') as professional_count
+            SELECT id, name, description, price_estimate, name AS original_name,
+                   (SELECT COUNT(*)::int FROM professionals p 
+                    WHERE (p.category = categories.name 
+                           OR (categories.name = 'Personal & Daily Help' AND p.category = 'Personal Care')
+                          ) 
+                      AND p.verification_status = 'verified') as professional_count
             FROM categories ORDER BY name ASC
         `;
         if (lang === 'ml') {
             selectQuery = `
-                SELECT id, COALESCE(name_ml, name) AS name, COALESCE(description_ml, description) AS description, categories.name AS original_name,
-                       (SELECT COUNT(*)::int FROM professionals p WHERE p.category = categories.name AND p.verification_status = 'verified') as professional_count
+                SELECT id, COALESCE(name_ml, name) AS name, COALESCE(description_ml, description) AS description, price_estimate, categories.name AS original_name,
+                       (SELECT COUNT(*)::int FROM professionals p 
+                        WHERE (p.category = categories.name 
+                               OR (categories.name = 'Personal & Daily Help' AND p.category = 'Personal Care')
+                              ) 
+                          AND p.verification_status = 'verified') as professional_count
                 FROM categories ORDER BY name ASC
             `;
         }
@@ -309,8 +332,9 @@ exports.getProfessionals = async (req, res) => {
         const params = [];
         let where = "WHERE p.verification_status = 'verified'";
         if (category) {
-            params.push(category);
-            where += ` AND p.category = $${params.length}`;
+            const aliases = CATEGORY_ALIASES[category] || [category];
+            params.push(aliases);
+            where += ` AND p.category = ANY($${params.length}::varchar[])`;
         }
         const query = `
             SELECT p.id, p.full_name, p.category, p.sub_category, p.experience_years, p.bio,
@@ -713,13 +737,17 @@ exports.getNotifications = async (req, res) => {
         const customerId = req.user.id;
         const result = await pool.query(
             `SELECT sr.id as request_id, sr.title, sr.status, sr.journey_status, sr.created_at, sr.updated_at, sr.otp,
-                    p.full_name as professional_name, prof_user.phone as professional_phone, p.category as professional_category, p.profile_photo as professional_photo
+                    p.full_name as professional_name, prof_user.phone as professional_phone, p.category as professional_category, p.profile_photo as professional_photo,
+                    COALESCE(n.is_read, false) as is_read_completed,
+                    COALESCE(na.is_read, false) as is_read_accepted
              FROM service_requests sr
              LEFT JOIN LATERAL (
                  SELECT professional_id FROM service_offers WHERE request_id = sr.id AND status = 'accepted' LIMIT 1
              ) so ON true
              LEFT JOIN professionals p ON p.id = so.professional_id
              LEFT JOIN users prof_user ON prof_user.id = p.user_id
+             LEFT JOIN notifications n ON n.user_id = sr.customer_id AND n.request_id = sr.id AND n.type = 'task_completed'
+             LEFT JOIN notifications na ON na.user_id = sr.customer_id AND na.request_id = sr.id AND na.type = 'request_accepted'
              WHERE sr.customer_id = $1
              ORDER BY sr.updated_at DESC
              LIMIT 30`,
@@ -736,7 +764,7 @@ exports.getNotifications = async (req, res) => {
                     title: 'Task Completed! 🎉',
                     message: `${row.professional_name || 'Specialist'} has completed "${row.title}". Tap to view invoice & rate your experience.`,
                     timestamp: row.updated_at || row.created_at,
-                    is_read: false,
+                    is_read: Boolean(row.is_read_completed),
                     metadata: {
                         requestId: row.request_id,
                         professionalName: row.professional_name,
@@ -751,7 +779,7 @@ exports.getNotifications = async (req, res) => {
                     title: 'Service Accepted! 🛠️',
                     message: `${row.professional_name || 'A specialist'} has accepted your "${row.title}" request! Arrival OTP: ${row.otp || '****'}`,
                     timestamp: row.updated_at || row.created_at,
-                    is_read: false,
+                    is_read: Boolean(row.is_read_accepted),
                     metadata: {
                         requestId: row.request_id,
                         professionalName: row.professional_name,
@@ -789,5 +817,46 @@ exports.getNotifications = async (req, res) => {
 };
 
 exports.markNotificationRead = async (req, res) => {
-    res.json({ success: true });
+    try {
+        const customerId = req.user.id;
+        const rawId = String(req.params.id || '');
+
+        let requestId = null;
+        let notifType = null;
+
+        const match = rawId.match(/^notif_(\d+)_(completed|accepted|.*)$/);
+        if (match) {
+            requestId = parseInt(match[1], 10);
+            notifType = match[2] === 'completed' ? 'task_completed' : (match[2] === 'accepted' ? 'request_accepted' : match[2]);
+        } else if (/^\d+$/.test(rawId)) {
+            const notifRow = await pool.query('SELECT request_id, type FROM notifications WHERE id = $1', [parseInt(rawId, 10)]);
+            if (notifRow.rows[0]) {
+                requestId = notifRow.rows[0].request_id;
+                notifType = notifRow.rows[0].type;
+            }
+        }
+
+        if (requestId && notifType) {
+            await pool.query(
+                `INSERT INTO notifications (user_id, request_id, type, title, message, is_read, created_at)
+                 VALUES ($1, $2, $3, $4, $5, true, CURRENT_TIMESTAMP)
+                 ON CONFLICT (user_id, request_id, type)
+                 DO UPDATE SET is_read = true`,
+                [
+                    customerId,
+                    requestId,
+                    notifType,
+                    notifType === 'task_completed' ? 'Task Completed! 🎉' : 'Service Accepted!',
+                    `Notification for request #${requestId}`
+                ]
+            );
+        } else if (/^\d+$/.test(rawId)) {
+            await pool.query('UPDATE notifications SET is_read = true WHERE id = $1 AND user_id = $2', [parseInt(rawId, 10), customerId]);
+        }
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('markNotificationRead error:', err);
+        res.status(500).json({ message: 'Failed to mark notification as read' });
+    }
 };

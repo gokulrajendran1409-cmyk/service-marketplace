@@ -68,7 +68,7 @@ function AdminLayout() {
             <MessageSquareWarning className="nav-icon" /> Complaints
           </NavLink>
           <NavLink to="/categories" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
-            <Tags className="nav-icon" /> Categories
+            <Tags className="nav-icon" /> Services & Pricing
           </NavLink>
         </nav>
       </aside>

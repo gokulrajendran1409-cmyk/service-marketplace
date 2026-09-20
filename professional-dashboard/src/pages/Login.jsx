@@ -26,6 +26,9 @@ export default function Login() {
       if (!response.ok) throw new Error(result.message || "Unable to log in");
       localStorage.setItem("professionalToken", result.token);
       localStorage.setItem("professional", JSON.stringify(result.professional));
+      window.dispatchEvent(new CustomEvent('professional-online-changed', {
+        detail: { is_online: Boolean(result.professional?.is_online) }
+      }));
       navigate("/");
     } catch (err) {
       setError(err.message);

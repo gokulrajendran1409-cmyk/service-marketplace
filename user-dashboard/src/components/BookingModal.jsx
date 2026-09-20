@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   X,
   ArrowLeft,
@@ -34,15 +34,136 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import QRCode from 'qrcode';
-import { API } from '../constants';
+import { API, categoryIcons } from '../constants';
 
-const DEFAULT_SUB_SERVICES = {
-  Plumbing: ['Tap Repair', 'Pipe Fitting', 'Water Heater Repair', 'Drain Cleaning', 'Sink Leakage'],
-  Electrical: ['Switch & Socket', 'Fan Repair & Install', 'MCB & Fuse Box', 'Wiring Issues', 'Appliance Install'],
-  'AC & Appliance Repair': ['AC Service & Filter Clean', 'Cooling Problem', 'Gas Leak & Refill', 'Compressor Check'],
-  Cleaning: ['Deep Home Cleaning', 'Bathroom Deep Clean', 'Kitchen Scrubbing', 'Sofa & Upholstery'],
-  Painting: ['Interior Wall Painting', 'Exterior Painting', 'Waterproofing', 'Touch-up & Putty'],
-  Carpentry: ['Furniture Assembly', 'Door & Window Repair', 'Lock Replacement', 'Custom Woodwork'],
+// Comprehensive default fallback subcategories matching database for all active categories
+const CATEGORY_DEFAULT_SUBCATEGORIES = {
+  'Plumbing': [
+    'Pipe leak & burst repair',
+    'Tap, faucet & mixer fix',
+    'Drain & sewer unclogging',
+    'Toilet & cistern repair',
+    'Water heater & geyser service',
+    'Water tank cleaning & sanitization',
+    'Motor & water pump repair',
+    'Bathroom & kitchen pipe fitting',
+  ],
+  'Vehicle': [
+    'Bike mechanic',
+    'Car mechanic',
+    'Car wash/detailing',
+    'Battery/jump-start',
+    'Tyre/puncture service',
+    'Vehicle recovery services',
+  ],
+  'Electrical': [
+    'Switch, Socket & Dimmer Repair',
+    'Ceiling Fan Fitting & Repair',
+    'Chandelier & Designer Lighting',
+    'Circuit Breaker & MCB Fuse Box',
+    'Complete House Rewiring',
+    'Inverter & UPS Setup',
+  ],
+  'AC & Appliances': [
+    'AC service',
+    'AC repair',
+    'Refrigerator',
+    'Washing machine',
+    'Microwave',
+    'Geyser',
+    'TV',
+    'RO/water purifier',
+  ],
+  'Cleaning': [
+    'Full house cleaning',
+    'Bathroom cleaning',
+    'Kitchen cleaning',
+    'Sofa cleaning',
+    'Carpet cleaning',
+    'Move-in/move-out cleaning',
+    'Basic Express House Cleaning',
+    'Intensive Home Deep Clean & Scrub',
+  ],
+  'Pest Control': [
+    'Cockroach',
+    'Termite',
+    'Mosquito',
+    'Rodent',
+    'General pest control',
+  ],
+  'Home Improvement': [
+    'Painting',
+    'Wall repair',
+    'Tile work',
+    'Waterproofing',
+    'Wallpaper',
+    'False ceiling',
+  ],
+  'Personal & Daily Help': [
+    'Barber',
+    'Beauty services',
+    'Home tutor',
+    'Cook',
+    'Elder care',
+    'Babysitter',
+    'Driver',
+  ],
+  'Personal Care': [
+    "Men's Haircut & Beard Grooming",
+    'Bridal Makeup & Traditional Styling',
+    'Facial, Bleach & Skin Glow Spa',
+    'Hair Spa, Coloring & Keratin Care',
+    'Manicure, Pedicure & Nail Art',
+    'Barber and Beautician Services',
+  ],
+  'CCTV & Security': [
+    'HD Dome & Bullet CCTV Installation',
+    'DVR / NVR & Mobile Remote Setup',
+    'Smart Video Doorbell Fitting',
+    'Biometric & Smart Digital Door Lock',
+    'Motion Sensor & Alarm System',
+    'Security Camera Wiring & Repair',
+  ],
+  'Gardening & Landscaping': [
+    'Lawn Mowing & Turf Care',
+    'Garden Weeding & Soil Enrichment',
+    'Hedge Trimming & Shrub Shaping',
+    'Plant Pest & Fungus Control',
+    'Landscape & Patio Garden Design',
+    'Automatic Drip Irrigation Setup',
+  ],
+  'Computer & Mobile Repair': [
+    'Laptop Screen & Battery Swap',
+    'Virus Removal & OS Reinstallation',
+    'Smartphone Screen & Glass Repair',
+    'Data Recovery & Hard Drive Backup',
+    'RAM & NVMe SSD Storage Upgrade',
+    'Wi-Fi Router & Network Setup',
+  ],
+  'Photography & Videography': [
+    'Wedding & Engagement Photography',
+    'Family & Newborn Studio Portrait',
+    'E-commerce Product & Brand Shoot',
+    '4K Drone Aerial Videography',
+    'Birthday, Gala & Party Coverage',
+    'Video Editing & Color Grading',
+  ],
+};
+
+const CATEGORY_TAGLINES = {
+  'Plumbing': 'Fix leaking pipes, taps, faucets, drainage and sanitary fittings.',
+  'Vehicle': 'Doorstep bike & car servicing, emergency recovery & detailing.',
+  'Electrical': 'Safe wiring, switch repairs, fan installation & electrical setups.',
+  'AC & Appliances': 'AC servicing, gas refills, and home appliance repairs.',
+  'Cleaning': 'Deep home cleaning, bathroom descaling & sanitization.',
+  'Pest Control': 'Targeted eradication for cockroaches, termites & pests.',
+  'Home Improvement': 'Painting, waterproofing, wall repair, and false ceiling.',
+  'Personal & Daily Help': 'Verified home tutors, barbers, cooks, and daily helpers.',
+  'Personal Care': 'Salon, beauty styling, grooming, and wellness care.',
+  'CCTV & Security': 'CCTV installation, smart locks, and security alarms.',
+  'Gardening & Landscaping': 'Lawn mowing, pruning, garden care & drip irrigation.',
+  'Computer & Mobile Repair': 'Hardware repairs, virus removal, and network setup.',
+  'Photography & Videography': 'Event photography, portraits, and video production.',
 };
 
 const ENGLISH_MONTHS = [
@@ -70,6 +191,8 @@ export function BookingModal({
   currentLocation = null,
   initialTitle = '',
   initialDescription = '',
+  subcategories: propSubcategories = null,
+  categories: propCategories = null,
   onClose,
   onSuccess,
 }) {
@@ -81,8 +204,95 @@ export function BookingModal({
 
   // Form State
   const [serviceCategory, setServiceCategory] = useState(category || 'Plumbing');
-  const availableSubServices = DEFAULT_SUB_SERVICES[serviceCategory] || ['General Service', 'Repair & Fix', 'Inspection'];
-  const [subService, setSubService] = useState(initialTitle || availableSubServices[0] || 'Tap Repair');
+  const [isChangingCategory, setIsChangingCategory] = useState(false);
+  const [dbSubcategories, setDbSubcategories] = useState(
+    Array.isArray(propSubcategories) && propSubcategories.length > 0 ? propSubcategories : []
+  );
+  const [dbCategories, setDbCategories] = useState(
+    Array.isArray(propCategories) && propCategories.length > 0 ? propCategories : []
+  );
+
+  // Load subcategories dynamically from API if not provided in props
+  useEffect(() => {
+    if (propSubcategories && propSubcategories.length > 0) {
+      setDbSubcategories(propSubcategories);
+    } else {
+      fetch(`${API}/subcategories`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) setDbSubcategories(data);
+        })
+        .catch((err) => console.error('Failed to fetch subcategories for booking modal:', err));
+    }
+  }, [propSubcategories]);
+
+  // Load categories dynamically from API if not provided in props
+  useEffect(() => {
+    if (propCategories && propCategories.length > 0) {
+      setDbCategories(propCategories);
+    } else {
+      fetch(`${API}/categories`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) setDbCategories(data);
+        })
+        .catch((err) => console.error('Failed to fetch categories for booking modal:', err));
+    }
+  }, [propCategories]);
+
+  // Available categories list for changing category
+  const activeCategoryList = useMemo(() => {
+    if (dbCategories && dbCategories.length > 0) {
+      const names = dbCategories.map((c) => c.name || c).filter(Boolean);
+      return Array.from(new Set(names));
+    }
+    return Object.keys(CATEGORY_DEFAULT_SUBCATEGORIES);
+  }, [dbCategories]);
+
+  // Filter ONLY AND ALL subcategories for the particular serviceCategory
+  const availableSubServices = useMemo(() => {
+    if (!serviceCategory) return [];
+    const targetNorm = serviceCategory.trim().toLowerCase();
+
+    if (dbSubcategories && dbSubcategories.length > 0) {
+      const matched = dbSubcategories
+        .filter((sub) => {
+          const catName = (sub.category_name || sub.category || '').trim().toLowerCase();
+          return catName === targetNorm;
+        })
+        .map((sub) => sub.name)
+        .filter(Boolean);
+
+      if (matched.length > 0) {
+        return Array.from(new Set(matched));
+      }
+    }
+
+    for (const [catKey, subs] of Object.entries(CATEGORY_DEFAULT_SUBCATEGORIES)) {
+      if (catKey.toLowerCase() === targetNorm) {
+        return subs;
+      }
+    }
+
+    return ['General Service', 'Repair & Fix', 'Inspection'];
+  }, [dbSubcategories, serviceCategory]);
+
+  const [subService, setSubService] = useState(() => {
+    if (initialTitle && initialTitle.trim()) return initialTitle.trim();
+    return availableSubServices[0] || 'General Service';
+  });
+
+  // Keep subService strictly in sync with availableSubServices for that serviceCategory
+  useEffect(() => {
+    if (availableSubServices.length > 0) {
+      if (initialTitle && availableSubServices.includes(initialTitle)) {
+        setSubService(initialTitle);
+      } else if (!availableSubServices.includes(subService)) {
+        setSubService(availableSubServices[0]);
+      }
+    }
+  }, [availableSubServices, serviceCategory, initialTitle]);
+
   const [description, setDescription] = useState(
     initialDescription || 'The kitchen tap is leaking and the water flow is very slow.'
   );
@@ -727,30 +937,61 @@ export function BookingModal({
             </div>
 
             {/* Selected Service Card */}
-            <div className="visily-service-preview-card">
-              <div className="visily-icon-mint-box">
-                <Wrench size={24} />
-              </div>
-              <div>
-                <strong style={{ fontSize: 15, color: '#0F172A', display: 'block' }}>
-                  {serviceCategory}
-                </strong>
-                <small style={{ fontSize: 12, color: '#64748B' }}>
-                  Fix leaking or faulty fittings and get smooth service.
-                </small>
-              </div>
-              <button
-                className="visily-change-btn"
-                onClick={() => {
-                  const categories = Object.keys(DEFAULT_SUB_SERVICES);
-                  const nextCat =
-                    categories[(categories.indexOf(serviceCategory) + 1) % categories.length];
-                  setServiceCategory(nextCat);
-                  setSubService(DEFAULT_SUB_SERVICES[nextCat][0]);
-                }}
-              >
-                Change
-              </button>
+            <div className="visily-service-preview-card" style={{ flexDirection: isChangingCategory ? 'column' : 'row', alignItems: isChangingCategory ? 'stretch' : 'center', gap: 12 }}>
+              {!isChangingCategory ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
+                    <div className="visily-icon-mint-box">
+                      {(() => {
+                        const CatIcon = categoryIcons[serviceCategory] || Wrench;
+                        return <CatIcon size={24} />;
+                      })()}
+                    </div>
+                    <div>
+                      <strong style={{ fontSize: 15, color: '#0F172A', display: 'block' }}>
+                        {serviceCategory}
+                      </strong>
+                      <small style={{ fontSize: 12, color: '#64748B' }}>
+                        {CATEGORY_TAGLINES[serviceCategory] || 'Professional certified services at upfront rates.'}
+                      </small>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="visily-change-btn"
+                    onClick={() => setIsChangingCategory(true)}
+                  >
+                    Change
+                  </button>
+                </>
+              ) : (
+                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>Select Service Category</span>
+                    <button
+                      type="button"
+                      style={{ background: 'none', border: 'none', color: '#00796B', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}
+                      onClick={() => setIsChangingCategory(false)}
+                    >
+                      Done
+                    </button>
+                  </div>
+                  <select
+                    className="visily-select"
+                    value={serviceCategory}
+                    onChange={(e) => {
+                      setServiceCategory(e.target.value);
+                      setIsChangingCategory(false);
+                    }}
+                  >
+                    {activeCategoryList.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Sub Service Dropdown */}

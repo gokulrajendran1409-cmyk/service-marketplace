@@ -39,28 +39,32 @@ import paintingIcon from '../assets/category-icons/painting.png';
 import mechanicIcon from '../assets/category-icons/mechanic.png';
 import cctvIcon from '../assets/category-icons/cctv.png';
 import applianceRepairIcon from '../assets/category-icons/appliance_repair.png';
+import beautyWellnessIcon from '../assets/category-icons/beauty_wellness.png';
+import landscapingIcon from '../assets/category-icons/landscaping.png';
 import otherServicesIcon from '../assets/category-icons/other_services.png';
 
-const SERVER_BASE = import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com';
+const SERVER_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com');
+const FALLBACK_SERVER = SERVER_BASE.includes('localhost') ? 'https://service-marketplace-af7p.onrender.com' : 'http://localhost:5000';
 
 const resolveProPhoto = (path) => {
   if (!path) return null;
-  if (path.startsWith('http') || path.startsWith('data:')) return path;
-  if (path.startsWith('/')) return `${SERVER_BASE}${path}`;
-  return `${SERVER_BASE}/uploads/${path}`;
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) return path;
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${SERVER_BASE}${cleanPath}`;
 };
 
 const CATEGORIES = [
-  { id: 'plumbing',   label: 'Plumbing',       icon: plumbingIcon,      bg: '#E8E7F8', color: '#625DB5', category: 'Plumbing' },
-  { id: 'electrical', label: 'Electrical',     icon: electricalIcon,    bg: '#FEF3C7', color: '#B45309', category: 'Electrical' },
-  { id: 'ac_repair',  label: 'AC Repair',      icon: acRepairIcon,      bg: '#D0E5F3', color: '#2F80C0', category: 'AC & Appliance Repair' },
-  { id: 'carpentry',  label: 'Carpentry',      icon: carpentryIcon,     bg: '#F3D4E0', color: '#C0527A', category: 'Carpentry' },
-  { id: 'cleaning',   label: 'Cleaning',       icon: cleaningIcon,      bg: '#BFE8CC', color: '#4FA66A', category: 'Cleaning' },
-  { id: 'painting',   label: 'Painting',       icon: paintingIcon,      bg: '#FFE9D0', color: '#D97706', category: 'Painting' },
-  { id: 'mechanic',   label: 'Mechanic',       icon: mechanicIcon,      bg: '#E2E8F0', color: '#475569', category: 'Vehicle Services' },
-  { id: 'cctv',       label: 'CCTV',           icon: cctvIcon,          bg: '#F0EFFD', color: '#5B56B3', category: 'CCTV & Security' },
-  { id: 'appliance',  label: 'Appliance',      icon: applianceRepairIcon, bg: '#FEE2E2', color: '#B91C1C', category: 'AC & Appliance Repair' },
-  { id: 'more',       label: 'More',           icon: otherServicesIcon, bg: '#F7F7F7', color: '#777777', category: null },
+  { id: 'plumbing',         label: 'Plumbing',         icon: plumbingIcon,        bg: '#E0F2FE', color: '#0284C7', category: 'Plumbing' },
+  { id: 'ac_appliances',    label: 'AC & Appliances',  icon: applianceRepairIcon, bg: '#D0E5F3', color: '#2F80C0', category: 'AC & Appliances' },
+  { id: 'cleaning',         label: 'Cleaning',         icon: cleaningIcon,        bg: '#BFE8CC', color: '#4FA66A', category: 'Cleaning' },
+  { id: 'pest_control',     label: 'Pest Control',     icon: otherServicesIcon,   bg: '#FEE2E2', color: '#B91C1C', category: 'Pest Control' },
+  { id: 'home_improvement', label: 'Improvement',      icon: paintingIcon,        bg: '#FFE9D0', color: '#D97706', category: 'Home Improvement' },
+  { id: 'vehicle',          label: 'Vehicle',          icon: mechanicIcon,        bg: '#E2E8F0', color: '#475569', category: 'Vehicle' },
+  { id: 'personal_help',    label: 'Personal Help',    icon: beautyWellnessIcon,  bg: '#F3D4E0', color: '#C0527A', category: 'Personal & Daily Help' },
+  { id: 'electrical',       label: 'Electrical',       icon: electricalIcon,      bg: '#FEF3C7', color: '#B45309', category: 'Electrical' },
+  { id: 'cctv',             label: 'CCTV & Security',  icon: cctvIcon,            bg: '#F0EFFD', color: '#5B56B3', category: 'CCTV & Security' },
+  { id: 'gardening',        label: 'Gardening',        icon: landscapingIcon,     bg: '#DCFCE7', color: '#15803D', category: 'Gardening & Landscaping' },
+  { id: 'more',             label: 'More',             icon: otherServicesIcon,   bg: '#F7F7F7', color: '#777777', category: null },
 ];
 
 const HERO_SLIDES = [
@@ -209,19 +213,33 @@ function Home({ navigate, unreadCount = 0, user: userProp }) {
             <Bell size={18} />
             {unreadCount > 0 && <span className="hn-bell-dot" />}
           </button>
-          <button className="hn-avatar-btn" onClick={() => navigate('profile')} aria-label="Profile">
-            {user?.profile_photo ? (
-              <img 
-                src={resolveProPhoto(user.profile_photo)} 
-                alt="avatar" 
-                className="hn-avatar-img" 
-                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
-              />
-            ) : null}
-            <span className="hn-avatar-fallback" style={{ display: user?.profile_photo ? 'none' : 'flex' }}>
-              {avatarInitial(user?.full_name || user?.name)}
-            </span>
-          </button>
+          {(() => {
+            const currentPhoto = user?.profile_photo || localStorage.getItem('user_profile_photo');
+            return (
+              <button className="hn-avatar-btn" onClick={() => navigate('profile')} aria-label="Profile">
+                {currentPhoto ? (
+                  <img 
+                    src={resolveProPhoto(currentPhoto)} 
+                    alt="avatar" 
+                    className="hn-avatar-img" 
+                    onError={(e) => {
+                      if (!e.target.dataset.fallbackTried && currentPhoto && !currentPhoto.startsWith('http') && !currentPhoto.startsWith('data:')) {
+                        e.target.dataset.fallbackTried = 'true';
+                        const cleanPath = currentPhoto.startsWith('/') ? currentPhoto : `/${currentPhoto}`;
+                        e.target.src = `${FALLBACK_SERVER}${cleanPath}`;
+                        return;
+                      }
+                      e.target.style.display = 'none';
+                      if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <span className="hn-avatar-fallback" style={{ display: currentPhoto ? 'none' : 'flex' }}>
+                  {avatarInitial(user?.full_name || user?.name)}
+                </span>
+              </button>
+            );
+          })()}
         </div>
       </header>
 

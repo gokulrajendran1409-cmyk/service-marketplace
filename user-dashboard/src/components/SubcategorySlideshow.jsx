@@ -199,11 +199,47 @@ export const SERVICE_SLIDESHOW_IMAGES = {
     'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=1200&q=80', // Home surface finishing
     'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=1200&q=80', // Multi-skilled maintenance work
   ],
+  'AC & Appliances': [
+    'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=1200&q=80', // Split AC cooling
+    'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?auto=format&fit=crop&w=1200&q=80', // Modern refrigerator
+    'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&w=1200&q=80', // Washing machine repair
+    'https://images.unsplash.com/photo-1585659722983-3a675dabf23d?auto=format&fit=crop&w=1200&q=80', // Microwave and kitchen appliances
+    'https://images.unsplash.com/photo-1593784991095-a205069470b6?auto=format&fit=crop&w=1200&q=80', // TV and home entertainment
+  ],
+  'Pest Control': [
+    'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=1200&q=80', // Pest inspection & spray
+    'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1200&q=80', // Pest control expert
+    'https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?auto=format&fit=crop&w=1200&q=80', // Disinfection and eradication
+    'https://images.unsplash.com/photo-1592417817098-8f3d6eb225cc?auto=format&fit=crop&w=1200&q=80', // Mosquito fogging & pest safety
+    'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80', // Clean pest-free environment
+  ],
+  'Home Improvement': [
+    'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=1200&q=80', // Painting wall
+    'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1200&q=80', // Wall repair & plaster
+    'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=1200&q=80', // Tile work & flooring
+    'https://images.unsplash.com/photo-1615529182904-14819c35db37?auto=format&fit=crop&w=1200&q=80', // Wallpaper & accent wall
+    'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1200&q=80', // False ceiling & modern interior
+  ],
+  'Vehicle': [
+    'https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=1200&q=80', // Bike mechanic
+    'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=1200&q=80', // Car mechanic
+    'https://images.unsplash.com/photo-1601362840469-51e4d8d58785?auto=format&fit=crop&w=1200&q=80', // Car wash & detailing
+    'https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?auto=format&fit=crop&w=1200&q=80', // Battery jump-start
+    'https://images.unsplash.com/photo-1578844251758-2f71da64c96f?auto=format&fit=crop&w=1200&q=80', // Tyre puncture service
+    'https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=1200&q=80', // Vehicle recovery & flatbed towing
+  ],
+  'Personal & Daily Help': [
+    'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1200&q=80', // Barber & grooming
+    'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1200&q=80', // Beauty services
+    'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=1200&q=80', // Home tutor teaching
+    'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1200&q=80', // Home cook preparing food
+    'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=1200&q=80', // Professional driver
+  ],
 };
 
 // Helper to look up the 5 related images for any service category string
 export const getServiceSlideshowImages = (categoryName) => {
-  if (!categoryName) return SERVICE_SLIDESHOW_IMAGES['Plumbing'];
+  if (!categoryName) return SERVICE_SLIDESHOW_IMAGES['Cleaning'];
   const trimmed = categoryName.trim();
   if (SERVICE_SLIDESHOW_IMAGES[trimmed]) return SERVICE_SLIDESHOW_IMAGES[trimmed];
 
@@ -217,17 +253,15 @@ export const getServiceSlideshowImages = (categoryName) => {
     }
   }
   // Keyword fallbacks
-  if (lower.includes('plumb') || lower.includes('pipe') || lower.includes('leak') || lower.includes('tap')) return SERVICE_SLIDESHOW_IMAGES['Plumbing'];
+  if (lower.includes('plumb') || lower.includes('pipe') || lower.includes('tap') || lower.includes('faucet') || lower.includes('drain') || lower.includes('leak')) return SERVICE_SLIDESHOW_IMAGES['Plumbing'];
+  if (lower.includes('pest') || lower.includes('termite') || lower.includes('cockroach') || lower.includes('mosquito')) return SERVICE_SLIDESHOW_IMAGES['Pest Control'];
+  if (lower.includes('improvement') || lower.includes('waterproof') || lower.includes('ceiling') || lower.includes('wallpaper') || lower.includes('paint')) return SERVICE_SLIDESHOW_IMAGES['Home Improvement'];
   if (lower.includes('elect') || lower.includes('wire') || lower.includes('switch') || lower.includes('light')) return SERVICE_SLIDESHOW_IMAGES['Electrical'];
-  if (lower.includes('ac') || lower.includes('cool') || lower.includes('air')) return SERVICE_SLIDESHOW_IMAGES['AC Repair'];
+  if (lower.includes('ac') || lower.includes('appliance') || lower.includes('fridge') || lower.includes('wash') || lower.includes('cool') || lower.includes('air')) return SERVICE_SLIDESHOW_IMAGES['AC & Appliances'];
   if (lower.includes('clean') || lower.includes('maid') || lower.includes('sweep')) return SERVICE_SLIDESHOW_IMAGES['Cleaning'];
-  if (lower.includes('paint')) return SERVICE_SLIDESHOW_IMAGES['Painting'];
-  if (lower.includes('wood') || lower.includes('carpent')) return SERVICE_SLIDESHOW_IMAGES['Carpentry'];
-  if (lower.includes('car') || lower.includes('bike') || lower.includes('mechanic') || lower.includes('auto') || lower.includes('vehicle')) return SERVICE_SLIDESHOW_IMAGES['Mechanic'];
-  if (lower.includes('cctv') || lower.includes('camera') || lower.includes('secur')) return SERVICE_SLIDESHOW_IMAGES['CCTV Installation'];
-  if (lower.includes('appliance') || lower.includes('fridge') || lower.includes('wash')) return SERVICE_SLIDESHOW_IMAGES['Appliance Repair'];
-  if (lower.includes('beauty') || lower.includes('salon') || lower.includes('spa') || lower.includes('barber')) return SERVICE_SLIDESHOW_IMAGES['Beauty & Wellness'];
-  if (lower.includes('tutor') || lower.includes('teach') || lower.includes('class')) return SERVICE_SLIDESHOW_IMAGES['Tutoring'];
+  if (lower.includes('car') || lower.includes('bike') || lower.includes('mechanic') || lower.includes('auto') || lower.includes('vehicle') || lower.includes('recovery') || lower.includes('towing') || lower.includes('breakdown')) return SERVICE_SLIDESHOW_IMAGES['Vehicle'];
+  if (lower.includes('daily help') || lower.includes('babysitter') || lower.includes('elder') || lower.includes('cook') || lower.includes('tutor') || lower.includes('beauty') || lower.includes('barber')) return SERVICE_SLIDESHOW_IMAGES['Personal & Daily Help'];
+  if (lower.includes('cctv') || lower.includes('camera') || lower.includes('secur') || lower.includes('smart lock')) return SERVICE_SLIDESHOW_IMAGES['CCTV & Security'];
   if (lower.includes('photo') || lower.includes('video')) return SERVICE_SLIDESHOW_IMAGES['Photography'];
   if (lower.includes('event') || lower.includes('party')) return SERVICE_SLIDESHOW_IMAGES['Event Planning'];
   if (lower.includes('garden') || lower.includes('landscap') || lower.includes('lawn')) return SERVICE_SLIDESHOW_IMAGES['Landscaping'];
@@ -237,7 +271,7 @@ export const getServiceSlideshowImages = (categoryName) => {
   if (lower.includes('language') || lower.includes('english')) return SERVICE_SLIDESHOW_IMAGES['Language Classes'];
   if (lower.includes('pet') || lower.includes('dog') || lower.includes('cat')) return SERVICE_SLIDESHOW_IMAGES['Pet Care'];
 
-  return SERVICE_SLIDESHOW_IMAGES['Plumbing'];
+  return SERVICE_SLIDESHOW_IMAGES['Cleaning'];
 };
 
 function SubcategorySlideshow({

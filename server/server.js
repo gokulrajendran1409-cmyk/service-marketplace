@@ -76,6 +76,43 @@ async function startServer() {
     } catch (error) {
         console.error('User addresses table initialization failed:', error.message);
     }
+
+    try {
+        const fs = require('fs');
+        const path = require('path');
+        const migration016Path = path.join(__dirname, 'migrations', '016_add_requested_subcategories.sql');
+        if (fs.existsSync(migration016Path)) {
+            const sql = fs.readFileSync(migration016Path, 'utf-8');
+            await pool.query(sql);
+        }
+        const migration017Path = path.join(__dirname, 'migrations', '017_delete_requested_service_categories.sql');
+        if (fs.existsSync(migration017Path)) {
+            const sql017 = fs.readFileSync(migration017Path, 'utf-8');
+            await pool.query(sql017);
+        }
+        const migration018Path = path.join(__dirname, 'migrations', '018_add_plumbing_and_vehicle_recovery.sql');
+        if (fs.existsSync(migration018Path)) {
+            const sql018 = fs.readFileSync(migration018Path, 'utf-8');
+            await pool.query(sql018);
+        }
+        const migration019Path = path.join(__dirname, 'migrations', '019_persist_notifications_read_status.sql');
+        if (fs.existsSync(migration019Path)) {
+            const sql019 = fs.readFileSync(migration019Path, 'utf-8');
+            await pool.query(sql019);
+        }
+        const migration020Path = path.join(__dirname, 'migrations', '020_add_professional_logins.sql');
+        if (fs.existsSync(migration020Path)) {
+            const sql020 = fs.readFileSync(migration020Path, 'utf-8');
+            await pool.query(sql020);
+        }
+        const migration021Path = path.join(__dirname, 'migrations', '021_add_category_prices.sql');
+        if (fs.existsSync(migration021Path)) {
+            const sql021 = fs.readFileSync(migration021Path, 'utf-8');
+            await pool.query(sql021);
+        }
+    } catch (error) {
+        console.error('Migrations execution error:', error.message);
+    }
 }
 
 startServer().catch(error => {

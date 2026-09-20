@@ -28,6 +28,7 @@ router.post('/register', upload.fields([
     { name: 'certificate', maxCount: 1 }
 ]), professionalController.registerProfessional);
 router.post('/login', professionalController.loginProfessional);
+router.post('/logout', protectProfessionalBase, professionalController.logoutProfessional);
 
 // Dashboard and Requests
 router.post('/setup-profile', protectProfessionalBase, upload.fields([
@@ -44,7 +45,8 @@ router.post('/requests/:id/submit-wage', protectProfessional, professionalContro
 router.post('/requests/:id/complete-task', protectProfessional, professionalController.completeTask);
 router.patch('/requests/:id/location', protectProfessional, professionalController.updateLocation);
 router.patch('/current-location', protectProfessional, professionalController.updateCurrentLocation);
-router.patch('/online-status', protectProfessional, professionalController.updateOnlineStatus);
+router.patch('/online-status', protectProfessionalBase, professionalController.updateOnlineStatus);
+router.put('/online-status', protectProfessionalBase, professionalController.updateOnlineStatus);
 router.get('/earnings', protectProfessional, professionalController.getEarnings);
 router.get('/reviews', protectProfessional, professionalController.getReviews);
 

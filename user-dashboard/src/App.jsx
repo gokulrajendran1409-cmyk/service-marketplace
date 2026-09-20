@@ -37,8 +37,28 @@ function App() {
   const [completedNotification, setCompletedNotification] = useState(null);
   const [nearbyAlert, setNearbyAlert] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
-  const dismissedAcceptedIds = useRef(new Set());
-  const dismissedCompletedIds = useRef(new Set());
+
+  const getPersistedSet = (key) => {
+    try {
+      const data = localStorage.getItem(key);
+      return data ? new Set(JSON.parse(data)) : new Set();
+    } catch {
+      return new Set();
+    }
+  };
+
+  const persistId = (key, idSet, id) => {
+    if (!id) return;
+    idSet.current.add(id);
+    try {
+      localStorage.setItem(key, JSON.stringify(Array.from(idSet.current)));
+    } catch (e) {
+      console.error('Failed to persist notification ID to localStorage:', e);
+    }
+  };
+
+  const dismissedAcceptedIds = useRef(getPersistedSet('dismissed_accepted_notifs'));
+  const dismissedCompletedIds = useRef(getPersistedSet('dismissed_completed_notifs'));
   const appContentRef = useRef(null);
 
   // Helper: decode JWT expiry without a library
@@ -48,6 +68,30 @@ function App() {
       return payload.exp * 1000 < Date.now();
     } catch { return true; }
   };
+
+  const fetchUserProfile = useCallback(async (authToken) => {
+    const activeToken = authToken || token || localStorage.getItem('userToken');
+    if (!activeToken) return;
+    try {
+      const res = await fetch(`${API}/profile`, {
+        headers: { Authorization: `Bearer ${activeToken}` }
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data && data.id) {
+        setUser(prev => {
+          const merged = { ...prev, ...data };
+          localStorage.setItem('userData', JSON.stringify(merged));
+          if (merged.profile_photo) {
+            localStorage.setItem('user_profile_photo', merged.profile_photo);
+          }
+          return merged;
+        });
+      }
+    } catch (err) {
+      console.warn('Could not fetch latest user profile from database:', err);
+    }
+  }, [token]);
 
   useEffect(() => {
     const savedToken = localStorage.getItem('userToken');
@@ -60,17 +104,26 @@ function App() {
         return;
       }
       setToken(savedToken);
-      setUser(JSON.parse(savedUser));
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (_) {
+        setUser({});
+      }
       setStage('app');
+      fetchUserProfile(savedToken);
     }
-  }, []);
+  }, [fetchUserProfile]);
 
   const handleLogin = (userData, userToken) => {
     setUser(userData);
     setToken(userToken);
     localStorage.setItem('userToken', userToken);
     localStorage.setItem('userData', JSON.stringify(userData));
+    if (userData?.profile_photo) {
+      localStorage.setItem('user_profile_photo', userData.profile_photo);
+    }
     setStage('app');
+    fetchUserProfile(userToken);
   };
 
   const handleLogout = () => {
@@ -78,6 +131,7 @@ function App() {
     setToken(null);
     localStorage.removeItem('userToken');
     localStorage.removeItem('userData');
+    localStorage.removeItem('user_profile_photo');
     setAcceptedNotification(null);
     setPage('home');
     setStage('landing');
@@ -86,7 +140,27 @@ function App() {
   const updateUser = (updatedUser) => {
     setUser(updatedUser);
     localStorage.setItem('userData', JSON.stringify(updatedUser));
+    if (updatedUser?.profile_photo) {
+      localStorage.setItem('user_profile_photo', updatedUser.profile_photo);
+    }
   };
+
+  useEffect(() => {
+    const handleProfileUpdated = (e) => {
+      if (e?.detail) {
+        setUser(prev => {
+          const merged = { ...prev, ...e.detail };
+          localStorage.setItem('userData', JSON.stringify(merged));
+          if (merged.profile_photo) {
+            localStorage.setItem('user_profile_photo', merged.profile_photo);
+          }
+          return merged;
+        });
+      }
+    };
+    window.addEventListener('user-profile-updated', handleProfileUpdated);
+    return () => window.removeEventListener('user-profile-updated', handleProfileUpdated);
+  }, []);
 
   const scrollAppToTop = () => {
     appContentRef.current?.scrollTo({ top: 0, behavior: 'instant' });
@@ -120,9 +194,10 @@ function App() {
       const unreadAccepted = list.find(
         item => item.type === 'request_accepted' && !item.is_read && !dismissedAcceptedIds.current.has(item.id)
       );
-
       if (unreadAccepted && !acceptedNotification) {
         setAcceptedNotification(unreadAccepted);
+        persistId('dismissed_accepted_notifs', dismissedAcceptedIds, unreadAccepted.id);
+        markNotificationAsReadInBackend(unreadAccepted.id);
       }
 
       // Find any unread task completion notification recorded in backend
@@ -132,6 +207,8 @@ function App() {
 
       if (unreadCompleted && !completedNotification) {
         setCompletedNotification(unreadCompleted);
+        persistId('dismissed_completed_notifs', dismissedCompletedIds, unreadCompleted.id);
+        markNotificationAsReadInBackend(unreadCompleted.id);
       }
     } catch (err) {
       console.error('Failed to sync backend notifications:', err);
@@ -171,6 +248,8 @@ function App() {
             const notif = payload.notification || payload;
             if (notif && !dismissedAcceptedIds.current.has(notif.id)) {
               setAcceptedNotification(notif);
+              persistId('dismissed_accepted_notifs', dismissedAcceptedIds, notif.id);
+              markNotificationAsReadInBackend(notif.id);
               setUnreadCount(prev => prev + 1);
             }
           } catch (err) {
@@ -184,6 +263,8 @@ function App() {
             const notif = payload.notification || payload;
             if (notif && !dismissedCompletedIds.current.has(notif.id)) {
               setCompletedNotification(notif);
+              persistId('dismissed_completed_notifs', dismissedCompletedIds, notif.id);
+              markNotificationAsReadInBackend(notif.id);
               setUnreadCount(prev => prev + 1);
             }
           } catch (err) {
@@ -209,8 +290,12 @@ function App() {
             const notif = JSON.parse(e.data);
             if (notif.type === 'request_accepted' && !dismissedAcceptedIds.current.has(notif.id)) {
               setAcceptedNotification(notif);
+              persistId('dismissed_accepted_notifs', dismissedAcceptedIds, notif.id);
+              markNotificationAsReadInBackend(notif.id);
             } else if (notif.type === 'task_completed' && !dismissedCompletedIds.current.has(notif.id)) {
               setCompletedNotification(notif);
+              persistId('dismissed_completed_notifs', dismissedCompletedIds, notif.id);
+              markNotificationAsReadInBackend(notif.id);
             } else if (notif.type === 'nearby_arrival') {
               setNearbyAlert(notif);
             }
@@ -229,20 +314,23 @@ function App() {
           // Check if the token is still valid before reconnecting
           const t = token || localStorage.getItem('userToken');
           if (!t || isTokenExpired(t)) {
-            // Token expired — force logout
             handleLogout();
             return;
           }
-          // Reconnect after 5 seconds
-          reconnectTimeout = setTimeout(connect, 5000);
+          // Reconnect with exponential backoff (max 30s)
+          reconnectTimeout = setTimeout(connect, 3000);
         };
       } catch (err) {
-        console.error('Failed to connect to notifications SSE:', err);
+        console.error('SSE connection error:', err);
       }
     };
 
     connect();
-    const interval = setInterval(checkBackendNotifications, 20000);
+
+    // Periodic background sync fallback (every 30 seconds)
+    const interval = setInterval(() => {
+      checkBackendNotifications();
+    }, 30000);
 
     return () => {
       if (eventSource) eventSource.close();
@@ -268,7 +356,7 @@ function App() {
 
   const handleTrackAccepted = (notif) => {
     if (notif?.id) {
-      dismissedAcceptedIds.current.add(notif.id);
+      persistId('dismissed_accepted_notifs', dismissedAcceptedIds, notif.id);
       markNotificationAsReadInBackend(notif.id);
     }
     setAcceptedNotification(null);
@@ -278,7 +366,7 @@ function App() {
 
   const handleDismissAccepted = (notif) => {
     if (notif?.id) {
-      dismissedAcceptedIds.current.add(notif.id);
+      persistId('dismissed_accepted_notifs', dismissedAcceptedIds, notif.id);
       markNotificationAsReadInBackend(notif.id);
     }
     setAcceptedNotification(null);
@@ -287,7 +375,7 @@ function App() {
 
   const handleViewCompletedDetails = (notif) => {
     if (notif?.id) {
-      dismissedCompletedIds.current.add(notif.id);
+      persistId('dismissed_completed_notifs', dismissedCompletedIds, notif.id);
       markNotificationAsReadInBackend(notif.id);
     }
     setCompletedNotification(null);
@@ -297,7 +385,7 @@ function App() {
 
   const handleDismissCompleted = (notif) => {
     if (notif?.id) {
-      dismissedCompletedIds.current.add(notif.id);
+      persistId('dismissed_completed_notifs', dismissedCompletedIds, notif.id);
       markNotificationAsReadInBackend(notif.id);
     }
     setCompletedNotification(null);

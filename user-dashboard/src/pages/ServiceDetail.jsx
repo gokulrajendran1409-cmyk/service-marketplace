@@ -16,28 +16,28 @@ import {
 import { API } from '../constants';
 import SubcategorySlideshow from '../components/SubcategorySlideshow';
 
-const SERVER_BASE = import.meta.env.VITE_API_URL || 'https://service-marketplace-af7p.onrender.com';
+const SERVER_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com');
 
 const resolvePhotoUrl = (path) => {
   if (!path) return null;
-  if (path.startsWith('http') || path.startsWith('data:')) return path;
-  if (path.startsWith('/')) return `${SERVER_BASE}${path}`;
-  return `${SERVER_BASE}/uploads/${path}`;
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) return path;
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${SERVER_BASE}${cleanPath}`;
 };
 
 const CATEGORY_DESCRIPTIONS = {
-  Plumbing: 'Fix leaks, unclog drains, install pipes, and more. Expert plumbers for all your water-related issues at home or office.',
-  Electrical: 'Safe wiring, switch repairs, fan installation, and complete electrical solutions by certified electricians.',
-  'AC & Appliance Repair': 'AC servicing, gas refill, and home appliance repairs to keep your equipment running smoothly.',
-  Carpentry: 'Furniture assembly, door repairs, custom woodwork, and skilled carpentry for every home need.',
-  Painting: 'Interior and exterior painting, waterproofing, and professional finish for walls and surfaces.',
+  Plumbing: 'Professional pipe repairs, tap and faucet fixes, drain unclogging, water heaters, and sanitary fittings.',
+  'AC & Appliances': 'AC servicing, gas refill, and home appliance repairs to keep your equipment running smoothly.',
   Cleaning: 'Deep cleaning, routine housekeeping, and sanitization services for a spotless home.',
-  'Home Repair & Maintenance': 'General handyman services, mounting, tile work, and all-round home maintenance.',
+  'Pest Control': 'Targeted pest eradication for cockroaches, termites, mosquitoes, rodents, and insects.',
+  'Home Improvement': 'Interior and exterior painting, waterproofing, wall repair, wallpaper, and false ceiling installations.',
+  Vehicle: 'Doorstep bike & car servicing, detailing, breakdown assistance, vehicle recovery, and tyre maintenance.',
+  'Personal & Daily Help': 'Barbers, beauty services, home tutors, cooks, elder care assistants, and drivers.',
+  Electrical: 'Safe wiring, switch repairs, fan installation, and complete electrical solutions by certified electricians.',
   'CCTV & Security': 'CCTV installation, smart locks, and security system setup for your peace of mind.',
   'Gardening & Landscaping': 'Lawn care, garden maintenance, landscaping, and outdoor beautification services.',
   'Computer & Mobile Repair': 'Laptop, phone, and network repairs with quick turnaround and reliable support.',
   'Photography & Videography': 'Professional photography and videography for events, portraits, and commercial shoots.',
-  'Vehicle Services': 'Car and bike servicing, detailing, breakdown assistance, and vehicle care at your doorstep.',
   'Personal Care': 'Salon, grooming, wellness, and personal care services delivered by verified professionals.',
 };
 
