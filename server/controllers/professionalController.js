@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const { broadcast } = require('../utils/sseClients');
 const { notifyPro } = require('../utils/proSseClients');
 const { notifyCustomer } = require('../utils/customerSseClients');
+const { checkAndSend1HourReminders } = require('../services/reminderService');
 
 const JOURNEY_STEPS = ['accepted', 'start_navigation', 'on_the_way', 'arrived', 'working'];
 
@@ -508,6 +509,10 @@ exports.respondToRequest = async (req, res) => {
             timestamp: new Date().toISOString()
         });
         res.json({ message: `Request ${decision}`, request: requestResult.rows[0] });
+
+        if (decision === 'accepted') {
+            checkAndSend1HourReminders().catch(e => console.error('Reminder check error on accept:', e.message));
+        }
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Request response error:', error);
@@ -637,18 +642,23 @@ exports.verifyOtp = async (req, res) => {
 
         const result = await client.query(
             `UPDATE service_requests
-             SET journey_status = 'arrived', journey_updated_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+             SET journey_status = 'arrived',
+                 is_otp_verified = TRUE,
+                 otp_verified_at = CURRENT_TIMESTAMP,
+                 journey_updated_at = CURRENT_TIMESTAMP,
+                 updated_at = CURRENT_TIMESTAMP
              WHERE id = $1
              RETURNING *`,
             [requestId]
         );
         await client.query('COMMIT');
 
-        // Notify customer about arrival
+        // Notify customer about arrival and OTP verification
         notifyCustomer(customerId, 'requestUpdate', {
             requestId: requestId,
             newStatus: 'in_progress',
             journeyStatus: 'arrived',
+            is_otp_verified: true,
             updateType: 'journey_update',
             professionalName: professionalName
         });
@@ -659,6 +669,7 @@ exports.verifyOtp = async (req, res) => {
             professional_id: professionalId,
             status: 'in_progress',
             journey_status: 'arrived',
+            is_otp_verified: true,
             timestamp: new Date().toISOString()
         });
         res.json({ message: 'OTP verified successfully, status updated to arrived', request: result.rows[0] });
@@ -1129,6 +1140,56 @@ exports.logoutProfessional = async (req, res) => {
     } catch (error) {
         console.error('Professional logout error:', error);
         res.status(500).json({ message: 'Failed to log out' });
+    }
+};
+
+// GET /api/professionals/notifications - Get persistent notifications for logged in professional
+exports.getNotifications = async (req, res) => {
+    try {
+        const professionalId = req.professionalId;
+        const userId = req.user.id;
+        const result = await db.query(
+            `SELECT id, request_id, professional_id, user_id, type, title, message, is_read, created_at, metadata
+             FROM notifications
+             WHERE professional_id = $1 OR (user_id = $2 AND type LIKE '%_pro%')
+             ORDER BY created_at DESC
+             LIMIT 50`,
+            [professionalId, userId]
+        );
+        res.json({
+            notifications: result.rows.map(n => ({
+                id: n.id,
+                type: n.type,
+                request_id: n.request_id,
+                title: n.title,
+                message: n.message,
+                timestamp: n.created_at,
+                read: n.is_read,
+                metadata: n.metadata
+            })),
+            unreadCount: result.rows.filter(n => !n.is_read).length
+        });
+    } catch (err) {
+        console.error('getProfessionalNotifications error:', err);
+        res.status(500).json({ message: 'Failed to fetch notifications' });
+    }
+};
+
+// PATCH /api/professionals/notifications/:id/read - Mark notification as read
+exports.markNotificationRead = async (req, res) => {
+    try {
+        const professionalId = req.professionalId;
+        const notifId = Number(req.params.id);
+        if (Number.isInteger(notifId)) {
+            await db.query(
+                `UPDATE notifications SET is_read = true WHERE id = $1 AND (professional_id = $2 OR user_id = $3)`,
+                [notifId, professionalId, req.user.id]
+            );
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error('markProfessionalNotificationRead error:', err);
+        res.status(500).json({ message: 'Failed to mark notification read' });
     }
 };
 

@@ -336,6 +336,8 @@ const getServiceRequests = async (req, res) => {
                 sr.title,
                 sr.description,
                 sr.location,
+                sr.district,
+                sr.pricing_markup_percentage,
                 sr.requested_at,
                 sr.created_at,
                 sr.updated_at,

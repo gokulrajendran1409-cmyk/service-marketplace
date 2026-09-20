@@ -176,6 +176,7 @@ function Notifications({ navigate }) {
             const isAccepted = item.type === 'request_accepted';
             const isNearby = item.type === 'nearby_arrival';
             const isCompleted = item.type === 'task_completed';
+            const isReminder = item.type === 'service_reminder_customer' || item.type === 'service_reminder';
 
             return (
               <div
@@ -187,19 +188,25 @@ function Notifications({ navigate }) {
                 <div
                   className="notif-card-icon"
                   style={{
-                    background: isCompleted
+                    background: isReminder
+                      ? '#FEF3C7'
+                      : isCompleted
                       ? '#ECFDF5'
                       : isNearby
                       ? '#FFFBEB'
                       : '#F0FDFA',
-                    color: isCompleted
+                    color: isReminder
+                      ? '#D97706'
+                      : isCompleted
                       ? '#059669'
                       : isNearby
                       ? '#D97706'
                       : '#00796B',
                   }}
                 >
-                  {isCompleted ? (
+                  {isReminder ? (
+                    <Clock size={22} />
+                  ) : isCompleted ? (
                     <Award size={22} />
                   ) : isNearby ? (
                     <MapPin size={22} />
@@ -212,10 +219,10 @@ function Notifications({ navigate }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                     <strong style={{ fontSize: 14, color: '#0F172A' }}>
-                      {item.title || (isCompleted ? 'Service Completed' : isNearby ? 'Specialist Arriving Nearby' : 'Request Accepted')}
+                      {item.title || (isReminder ? 'Service Reminder' : isCompleted ? 'Service Completed' : isNearby ? 'Specialist Arriving Nearby' : 'Request Accepted')}
                     </strong>
                     <span style={{ fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap' }}>
-                      {formatTimestamp(item.created_at)}
+                      {formatTimestamp(item.timestamp || item.created_at)}
                     </span>
                   </div>
 
@@ -226,7 +233,9 @@ function Notifications({ navigate }) {
                   {/* Action tag */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span className="notif-action-tag">
-                      {isCompleted
+                      {isReminder
+                        ? 'View Booking Details →'
+                        : isCompleted
                         ? 'View Invoice & Details →'
                         : isNearby
                         ? 'View Live Location →'

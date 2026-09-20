@@ -143,6 +143,40 @@ const BROWSE_CATEGORIES = [
   { id: 'personal_care', name: 'Personal Care', count: '52 Professionals', icon: beautyWellnessIcon, dbCategory: 'Personal Care', group: 'Personal & Daily Help', keywords: ['salon', 'spa', 'massage', 'haircut', 'facial', 'grooming', 'makeup', 'barber'] },
 ];
 
+const DISTRICT_CENTERS = {
+  Ernakulam: { latitude: 9.9816, longitude: 76.2999 },
+  Thiruvananthapuram: { latitude: 8.5241, longitude: 76.9366 },
+  Kozhikode: { latitude: 11.2588, longitude: 75.7804 },
+  Thrissur: { latitude: 10.5276, longitude: 76.2144 },
+  Kollam: { latitude: 8.8932, longitude: 76.6141 },
+  Alappuzha: { latitude: 9.4981, longitude: 76.3388 },
+  Kottayam: { latitude: 9.5916, longitude: 76.5222 },
+  Malappuram: { latitude: 11.0510, longitude: 76.0711 },
+  Kasaragod: { latitude: 12.4996, longitude: 74.9869 },
+  Pathanamthitta: { latitude: 9.2648, longitude: 76.7870 },
+  Idukki: { latitude: 9.8494, longitude: 76.9804 },
+  Wayanad: { latitude: 11.6854, longitude: 76.1320 },
+  Kannur: { latitude: 11.8745, longitude: 75.3704 },
+  Palakkad: { latitude: 10.7867, longitude: 76.6548 },
+};
+
+const DEFAULT_DISTRICT_TIERS = {
+  Kasaragod: { markup: 0, tier: 'Current Pricing (0%)' },
+  Pathanamthitta: { markup: 0, tier: 'Current Pricing (0%)' },
+  Idukki: { markup: 0, tier: 'Current Pricing (0%)' },
+  Wayanad: { markup: 0, tier: 'Current Pricing (0%)' },
+  Kannur: { markup: 0, tier: 'Current Pricing (0%)' },
+  Palakkad: { markup: 0, tier: 'Current Pricing (0%)' },
+  Thrissur: { markup: 20, tier: '20% Increased Price' },
+  Kollam: { markup: 20, tier: '20% Increased Price' },
+  Alappuzha: { markup: 20, tier: '20% Increased Price' },
+  Kottayam: { markup: 20, tier: '20% Increased Price' },
+  Malappuram: { markup: 20, tier: '20% Increased Price' },
+  Ernakulam: { markup: 30, tier: '30% Increased Price' },
+  Thiruvananthapuram: { markup: 30, tier: '30% Increased Price' },
+  Kozhikode: { markup: 30, tier: '30% Increased Price' },
+};
+
 function Services({ navigate, initialGroup = null, initialCategory = null, user = null, unreadCount = 0 }) {
   const [categories, setCategories] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -152,6 +186,8 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
   const [loadingPros, setLoadingPros] = useState(false);
   const [location, setLocation] = useState(null);
   const [locationName, setLocationName] = useState('Thiruvananthapuram');
+  const [selectedDistrict, setSelectedDistrict] = useState('Thiruvananthapuram');
+  const [districtPricingTiers, setDistrictPricingTiers] = useState(DEFAULT_DISTRICT_TIERS);
   const [locationStatus, setLocationStatus] = useState('idle');
   const [locationError, setLocationError] = useState('');
   const [booking, setBooking] = useState(null);
@@ -165,6 +201,38 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
   const { toast, showToast } = useToast();
   const { t, i18n } = useTranslation();
   const nearbyLimitKm = 15;
+
+  useEffect(() => {
+    fetch(`${API}/district-pricing`)
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          const map = {};
+          data.forEach(item => {
+            map[item.district] = {
+              markup: Number(item.markup_percentage) || 0,
+              tier: item.tier_name,
+            };
+          });
+          setDistrictPricingTiers(prev => ({ ...prev, ...map }));
+        }
+      })
+      .catch(err => console.error('Failed to load district pricing in Services:', err));
+  }, []);
+
+  const handleSelectDistrict = (dist) => {
+    setSelectedDistrict(dist);
+    setLocationName(dist);
+    const center = DISTRICT_CENTERS[dist];
+    const newLoc = center
+      ? { latitude: center.latitude, longitude: center.longitude, placeName: dist, district: dist }
+      : { placeName: dist, district: dist };
+    setLocation(newLoc);
+    setLocationStatus('ready');
+    if (selected) {
+      selectCategory(selected, dist, newLoc);
+    }
+  };
 
   const calculateDistanceInKm = (firstLatitude, firstLongitude, secondLatitude, secondLongitude) => {
     if (![firstLatitude, firstLongitude, secondLatitude, secondLongitude].every(Number.isFinite)) return null;
@@ -251,24 +319,29 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
     );
   });
 
-  const selectCategory = async (cat) => {
+  const selectCategory = async (cat, targetDistrict = selectedDistrict, targetLoc = location) => {
     setSelected(cat);
     setProfessionals([]);
     setLoadingPros(true);
     
-    if (!location && locationStatus !== 'requesting' && locationStatus !== 'denied') {
+    if (!targetLoc && locationStatus !== 'requesting' && locationStatus !== 'denied') {
       requestLocation().catch(() => {});
     }
 
     try {
       const query = new URLSearchParams({ category: cat.name });
+      if (targetDistrict) query.set('district', targetDistrict);
+      if (targetLoc?.latitude && targetLoc?.longitude) {
+        query.set('latitude', targetLoc.latitude);
+        query.set('longitude', targetLoc.longitude);
+      }
       const res = await fetch(`${API}/professionals?${query}`);
       const data = await res.json();
       setProfessionals(Array.isArray(data) ? data.map(professional => ({
         ...professional,
-        distance_from_user: location ? calculateDistanceInKm(
-          location.latitude,
-          location.longitude,
+        distance_from_user: targetLoc ? calculateDistanceInKm(
+          targetLoc.latitude,
+          targetLoc.longitude,
           Number(professional.effective_latitude || professional.current_latitude || professional.registered_latitude),
           Number(professional.effective_longitude || professional.current_longitude || professional.registered_longitude)
         ) : null,
@@ -405,9 +478,10 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
         >
           <MapPin size={16} />
           <span>
-            {locationStatus === 'ready' 
-              ? location?.placeName || t('services.location_found') 
-              : t('services.enable_location')}
+            {location?.placeName || locationName}
+            {districtPricingTiers[selectedDistrict]?.markup > 0
+              ? ` (+${districtPricingTiers[selectedDistrict].markup}% Surge)`
+              : ''}
           </span>
           <ChevronRight size={14} />
         </button>
@@ -793,6 +867,70 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
                   <p className="map-info"><strong>{location.placeName || locationName}</strong> is shown on the map.</p>
                 </div>
               )}
+
+              {/* District Selection Section */}
+              <div style={{ marginTop: 16, padding: '14px', background: '#F8FAFC', borderRadius: 12, border: '1px solid #E2E8F0' }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#1E293B', marginBottom: 6 }}>
+                  Choose Kerala District
+                </label>
+                <p style={{ margin: '0 0 10px', fontSize: 12, color: '#64748B' }}>
+                  Select your service district to see available professionals and district pricing.
+                </p>
+                <select
+                  value={selectedDistrict}
+                  onChange={(e) => handleSelectDistrict(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: 8,
+                    border: '1.5px solid #CBD5E1',
+                    fontSize: 13.5,
+                    fontWeight: 600,
+                    color: '#0F172A',
+                    background: '#FFFFFF',
+                    outline: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <optgroup label="Tier 1: Current Pricing (0% Surge)">
+                    <option value="Kasaragod">Kasaragod (Current Pricing)</option>
+                    <option value="Pathanamthitta">Pathanamthitta (Current Pricing)</option>
+                    <option value="Idukki">Idukki (Current Pricing)</option>
+                    <option value="Wayanad">Wayanad (Current Pricing)</option>
+                    <option value="Kannur">Kannur (Current Pricing)</option>
+                    <option value="Palakkad">Palakkad (Current Pricing)</option>
+                  </optgroup>
+                  <optgroup label="Tier 2: 20% Increased Price">
+                    <option value="Thrissur">Thrissur (+20% Surge)</option>
+                    <option value="Kollam">Kollam (+20% Surge)</option>
+                    <option value="Alappuzha">Alappuzha (+20% Surge)</option>
+                    <option value="Kottayam">Kottayam (+20% Surge)</option>
+                    <option value="Malappuram">Malappuram (+20% Surge)</option>
+                  </optgroup>
+                  <optgroup label="Tier 3: 30% Increased Price">
+                    <option value="Ernakulam">Ernakulam (+30% Surge)</option>
+                    <option value="Thiruvananthapuram">Thiruvananthapuram (+30% Surge)</option>
+                    <option value="Kozhikode">Kozhikode (+30% Surge)</option>
+                  </optgroup>
+                </select>
+
+                <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
+                  <span style={{ color: '#475569' }}>Active Pricing Tier:</span>
+                  <span
+                    style={{
+                      background: districtPricingTiers[selectedDistrict]?.markup === 30 ? '#FEE2E2' : districtPricingTiers[selectedDistrict]?.markup === 20 ? '#FEF3C7' : '#E0F2FE',
+                      color: districtPricingTiers[selectedDistrict]?.markup === 30 ? '#991B1B' : districtPricingTiers[selectedDistrict]?.markup === 20 ? '#92400E' : '#0369A1',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: 6,
+                    }}
+                  >
+                    {districtPricingTiers[selectedDistrict]?.markup > 0
+                      ? `+${districtPricingTiers[selectedDistrict]?.markup}% Surge`
+                      : 'Current Pricing (0%)'}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -803,7 +941,7 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
         <BookingModal
           professional={booking.professional}
           category={booking.category}
-          currentLocation={booking.location}
+          currentLocation={booking.location || { ...(location || {}), placeName: selectedDistrict, district: selectedDistrict, ...(DISTRICT_CENTERS[selectedDistrict] || {}) }}
           initialTitle={booking.initialTitle || ''}
           initialDescription={booking.initialDescription || ''}
           subcategories={subcategories}

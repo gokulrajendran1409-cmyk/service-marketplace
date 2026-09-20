@@ -11,12 +11,14 @@ const {
 	deleteUserAddress,
 	getCategories,
 	getSubcategories,
+	getDistrictPricing,
 	getProfessionals,
 	getCategoryReviews,
 	createRequest,
 	getMyRequests,
 	streamNotifications,
 	confirmPayment,
+	cancelRequest,
 	createReview,
 	getNotifications,
 	markNotificationRead
@@ -34,6 +36,7 @@ const upload = multer({
 
 router.get('/categories', getCategories);
 router.get('/subcategories', getSubcategories);
+router.get('/district-pricing', getDistrictPricing);
 router.get('/professionals', getProfessionals);
 router.get('/reviews', getCategoryReviews);
 router.get('/profile', protectCustomer, getProfile);
@@ -48,6 +51,7 @@ router.post('/requests', protectCustomer, upload.fields([
 	{ name: 'voice', maxCount: 1 }
 ]), createRequest);
 router.get('/requests', protectCustomer, getMyRequests);
+router.post('/requests/:id/cancel', protectCustomer, cancelRequest);
 router.post('/requests/:id/confirm-payment', protectCustomer, confirmPayment);
 router.post('/requests/:id/review', protectCustomer, createReview);
 router.get('/notifications', protectCustomer, getNotifications);

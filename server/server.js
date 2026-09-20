@@ -5,6 +5,7 @@ const professionalRoutes = require("./routes/professionalRoutes");
 const userRoutes = require("./routes/userRoutes");
 const authRoutes = require("./routes/authRoutes");
 const pool = require("./config/database");
+const { startReminderScheduler } = require("./services/reminderService");
 
 const app = express();
 
@@ -110,8 +111,19 @@ async function startServer() {
             const sql021 = fs.readFileSync(migration021Path, 'utf-8');
             await pool.query(sql021);
         }
+        const migration022Path = path.join(__dirname, 'migrations', '022_add_district_pricing_tiers.sql');
+        if (fs.existsSync(migration022Path)) {
+            const sql022 = fs.readFileSync(migration022Path, 'utf-8');
+            await pool.query(sql022);
+        }
     } catch (error) {
         console.error('Migrations execution error:', error.message);
+    }
+
+    try {
+        startReminderScheduler(30000);
+    } catch (err) {
+        console.error('Failed to start reminder scheduler:', err.message);
     }
 }
 
