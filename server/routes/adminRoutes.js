@@ -1,5 +1,18 @@
 const express = require("express");
-const { getDashboard, getUsers, getPendingVerifications, approveProfessional, rejectProfessional, getVerifiedProfessionals, getAllVerifications, getCategories, getServiceRequests, getReviews } = require("../controllers/adminController");
+const { 
+    getDashboard, 
+    getUsers, 
+    getPendingVerifications, 
+    approveProfessional, 
+    rejectProfessional, 
+    getVerifiedProfessionals, 
+    getAllVerifications, 
+    getCategories, 
+    updateCategoryPrice,
+    updateSubcategoryPrice,
+    getServiceRequests, 
+    getReviews 
+} = require("../controllers/adminController");
 const { addClient, removeClient } = require("../utils/sseClients");
 
 const router = express.Router();
@@ -12,6 +25,10 @@ router.post("/verifications/:id/approve", approveProfessional);
 router.post("/verifications/:id/reject", rejectProfessional);
 router.get("/professionals", getVerifiedProfessionals);
 router.get("/categories", getCategories);
+router.patch("/categories/:id/price", updateCategoryPrice);
+router.put("/categories/:id/price", updateCategoryPrice);
+router.patch("/subcategories/:id/price", updateSubcategoryPrice);
+router.put("/subcategories/:id/price", updateSubcategoryPrice);
 router.get("/service-requests", getServiceRequests);
 router.get("/reviews", getReviews);
 

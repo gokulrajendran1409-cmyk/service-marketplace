@@ -5,6 +5,7 @@ const professionalRoutes = require("./routes/professionalRoutes");
 const userRoutes = require("./routes/userRoutes");
 const authRoutes = require("./routes/authRoutes");
 const pool = require("./config/database");
+const { startReminderScheduler } = require("./services/reminderService");
 
 const app = express();
 
@@ -75,6 +76,54 @@ async function startServer() {
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_user_addresses_user_id ON user_addresses(user_id)`);
     } catch (error) {
         console.error('User addresses table initialization failed:', error.message);
+    }
+
+    try {
+        const fs = require('fs');
+        const path = require('path');
+        const migration016Path = path.join(__dirname, 'migrations', '016_add_requested_subcategories.sql');
+        if (fs.existsSync(migration016Path)) {
+            const sql = fs.readFileSync(migration016Path, 'utf-8');
+            await pool.query(sql);
+        }
+        const migration017Path = path.join(__dirname, 'migrations', '017_delete_requested_service_categories.sql');
+        if (fs.existsSync(migration017Path)) {
+            const sql017 = fs.readFileSync(migration017Path, 'utf-8');
+            await pool.query(sql017);
+        }
+        const migration018Path = path.join(__dirname, 'migrations', '018_add_plumbing_and_vehicle_recovery.sql');
+        if (fs.existsSync(migration018Path)) {
+            const sql018 = fs.readFileSync(migration018Path, 'utf-8');
+            await pool.query(sql018);
+        }
+        const migration019Path = path.join(__dirname, 'migrations', '019_persist_notifications_read_status.sql');
+        if (fs.existsSync(migration019Path)) {
+            const sql019 = fs.readFileSync(migration019Path, 'utf-8');
+            await pool.query(sql019);
+        }
+        const migration020Path = path.join(__dirname, 'migrations', '020_add_professional_logins.sql');
+        if (fs.existsSync(migration020Path)) {
+            const sql020 = fs.readFileSync(migration020Path, 'utf-8');
+            await pool.query(sql020);
+        }
+        const migration021Path = path.join(__dirname, 'migrations', '021_add_category_prices.sql');
+        if (fs.existsSync(migration021Path)) {
+            const sql021 = fs.readFileSync(migration021Path, 'utf-8');
+            await pool.query(sql021);
+        }
+        const migration022Path = path.join(__dirname, 'migrations', '022_add_district_pricing_tiers.sql');
+        if (fs.existsSync(migration022Path)) {
+            const sql022 = fs.readFileSync(migration022Path, 'utf-8');
+            await pool.query(sql022);
+        }
+    } catch (error) {
+        console.error('Migrations execution error:', error.message);
+    }
+
+    try {
+        startReminderScheduler(30000);
+    } catch (err) {
+        console.error('Failed to start reminder scheduler:', err.message);
     }
 }
 

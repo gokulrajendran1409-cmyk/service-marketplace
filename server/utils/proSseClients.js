@@ -1,3 +1,5 @@
+const db = require('../db');
+
 /**
  * Professional-specific SSE client store.
  * Maps professionalId -> Set of response objects.
@@ -20,18 +22,31 @@ function removeProClient(professionalId, res) {
     }
 }
 
-function notifyPro(professionalId, event, data) {
+async function notifyPro(professionalId, event, data) {
     const clients = proClients.get(professionalId);
-    if (clients) {
-        const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-        for (const res of clients) {
-            try {
-                res.write(payload);
-            } catch {
-                clients.delete(res);
+    if (!clients || clients.size === 0) return;
+
+    if (event === 'new_service_request') {
+        try {
+            const check = await db.query('SELECT is_online FROM professionals WHERE id = $1', [professionalId]);
+            if (!check.rows.length || !check.rows[0].is_online) {
+                return; // Do not notify pro if they are offline
             }
+        } catch (err) {
+            console.error('Error checking professional online status before notifying:', err);
+            return;
+        }
+    }
+
+    const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+    for (const res of clients) {
+        try {
+            res.write(payload);
+        } catch {
+            clients.delete(res);
         }
     }
 }
 
 module.exports = { addProClient, removeProClient, notifyPro };
+

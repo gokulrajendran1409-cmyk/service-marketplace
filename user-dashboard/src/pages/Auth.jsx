@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Wrench, Loader2, Camera, X, User } from 'lucide-react';
 import { useToast, Toast } from '../components/Toast';
 
-const API = `${import.meta.env.VITE_API_URL || 'https://service-marketplace-af7p.onrender.com'}/api/auth`;
+import { AUTH_API as API } from '../constants';
 const GOOGLE_CLIENT_ID = '215103121223-i90tgh8pdlcug4ft1ij78i67h5go75es.apps.googleusercontent.com';
 let googleScriptPromise;
 let googleInitialized = false;
@@ -94,6 +94,12 @@ function Auth({ onLogin }) {
               });
               const data = await result.json();
               if (!result.ok) throw new Error(data.message || 'Google authentication failed');
+              if (data.user) {
+                if (data.user.profile_photo) {
+                  localStorage.setItem('user_profile_photo', data.user.profile_photo);
+                }
+                localStorage.setItem('userData', JSON.stringify(data.user));
+              }
               onLoginRef.current(data.user, data.token);
             } catch (error) {
               showToastRef.current(error.message, 'error');
@@ -137,7 +143,7 @@ function Auth({ onLogin }) {
         res = await fetch(`${API}/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: form.email, password: form.password })
+          body: JSON.stringify({ email: form.email.trim(), password: form.password })
         });
       } else {
         const formData = new FormData();
@@ -161,8 +167,11 @@ function Auth({ onLogin }) {
         throw new Error(data.message || 'Authentication failed');
       }
 
-      if (data.user?.profile_photo) {
-        localStorage.setItem('user_profile_photo', data.user.profile_photo);
+      if (data.user) {
+        if (data.user.profile_photo) {
+          localStorage.setItem('user_profile_photo', data.user.profile_photo);
+        }
+        localStorage.setItem('userData', JSON.stringify(data.user));
       }
 
       onLogin(data.user, data.token);

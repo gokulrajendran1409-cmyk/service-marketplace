@@ -72,7 +72,8 @@ exports.login = async (req, res) => {
             return res.status(400).json({ message: 'Email and password are required' });
         }
 
-        const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        const normalizedEmail = email.trim().toLowerCase();
+        const result = await pool.query('SELECT * FROM users WHERE LOWER(TRIM(email)) = $1', [normalizedEmail]);
         const user = result.rows[0];
 
         if (!user) {
@@ -101,7 +102,14 @@ exports.login = async (req, res) => {
         res.json({
             message: 'Logged in successfully',
             token,
-            user
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                phone: user.phone,
+                address: user.address,
+                profile_photo: user.profile_photo || null
+            }
         });
     } catch (error) {
         console.error('Login error:', error);
@@ -138,7 +146,7 @@ exports.googleLogin = async (req, res) => {
 
         // Check existing user
         let result = await pool.query(
-            'SELECT id, name, email, phone, profile_photo FROM users WHERE email = $1',
+            'SELECT id, name, email, phone, address, profile_photo FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))',
             [email]
         );
 

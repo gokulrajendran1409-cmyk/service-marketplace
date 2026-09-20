@@ -163,6 +163,9 @@ function Dashboard() {
       if (statsRes.status === 401 || requestsRes.status === 401) {
         localStorage.removeItem("professionalToken");
         localStorage.removeItem("professional");
+        window.dispatchEvent(new CustomEvent('professional-online-changed', {
+          detail: { is_online: false }
+        }));
         navigate("/login");
         return;
       }

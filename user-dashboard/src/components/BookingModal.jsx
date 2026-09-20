@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   X,
   ArrowLeft,
@@ -28,21 +28,138 @@ import {
   Briefcase,
   RefreshCw,
   AlertCircle,
-  QrCode,
-  Smartphone,
   Sparkles,
-  ExternalLink,
 } from 'lucide-react';
-import QRCode from 'qrcode';
-import { API } from '../constants';
+import { API, categoryIcons } from '../constants';
 
-const DEFAULT_SUB_SERVICES = {
-  Plumbing: ['Tap Repair', 'Pipe Fitting', 'Water Heater Repair', 'Drain Cleaning', 'Sink Leakage'],
-  Electrical: ['Switch & Socket', 'Fan Repair & Install', 'MCB & Fuse Box', 'Wiring Issues', 'Appliance Install'],
-  'AC & Appliance Repair': ['AC Service & Filter Clean', 'Cooling Problem', 'Gas Leak & Refill', 'Compressor Check'],
-  Cleaning: ['Deep Home Cleaning', 'Bathroom Deep Clean', 'Kitchen Scrubbing', 'Sofa & Upholstery'],
-  Painting: ['Interior Wall Painting', 'Exterior Painting', 'Waterproofing', 'Touch-up & Putty'],
-  Carpentry: ['Furniture Assembly', 'Door & Window Repair', 'Lock Replacement', 'Custom Woodwork'],
+// Comprehensive default fallback subcategories matching database for all active categories
+const CATEGORY_DEFAULT_SUBCATEGORIES = {
+  'Plumbing': [
+    'Pipe leak & burst repair',
+    'Tap, faucet & mixer fix',
+    'Drain & sewer unclogging',
+    'Toilet & cistern repair',
+    'Water heater & geyser service',
+    'Water tank cleaning & sanitization',
+    'Motor & water pump repair',
+    'Bathroom & kitchen pipe fitting',
+  ],
+  'Vehicle': [
+    'Bike mechanic',
+    'Car mechanic',
+    'Car wash/detailing',
+    'Battery/jump-start',
+    'Tyre/puncture service',
+    'Vehicle recovery services',
+  ],
+  'Electrical': [
+    'Switch, Socket & Dimmer Repair',
+    'Ceiling Fan Fitting & Repair',
+    'Chandelier & Designer Lighting',
+    'Circuit Breaker & MCB Fuse Box',
+    'Complete House Rewiring',
+    'Inverter & UPS Setup',
+  ],
+  'AC & Appliances': [
+    'AC service',
+    'AC repair',
+    'Refrigerator',
+    'Washing machine',
+    'Microwave',
+    'Geyser',
+    'TV',
+    'RO/water purifier',
+  ],
+  'Cleaning': [
+    'Full house cleaning',
+    'Bathroom cleaning',
+    'Kitchen cleaning',
+    'Sofa cleaning',
+    'Carpet cleaning',
+    'Move-in/move-out cleaning',
+    'Basic Express House Cleaning',
+    'Intensive Home Deep Clean & Scrub',
+  ],
+  'Pest Control': [
+    'Cockroach',
+    'Termite',
+    'Mosquito',
+    'Rodent',
+    'General pest control',
+  ],
+  'Home Improvement': [
+    'Painting',
+    'Wall repair',
+    'Tile work',
+    'Waterproofing',
+    'Wallpaper',
+    'False ceiling',
+  ],
+  'Personal & Daily Help': [
+    'Barber',
+    'Beauty services',
+    'Home tutor',
+    'Cook',
+    'Elder care',
+    'Babysitter',
+    'Driver',
+  ],
+  'Personal Care': [
+    "Men's Haircut & Beard Grooming",
+    'Bridal Makeup & Traditional Styling',
+    'Facial, Bleach & Skin Glow Spa',
+    'Hair Spa, Coloring & Keratin Care',
+    'Manicure, Pedicure & Nail Art',
+    'Barber and Beautician Services',
+  ],
+  'CCTV & Security': [
+    'HD Dome & Bullet CCTV Installation',
+    'DVR / NVR & Mobile Remote Setup',
+    'Smart Video Doorbell Fitting',
+    'Biometric & Smart Digital Door Lock',
+    'Motion Sensor & Alarm System',
+    'Security Camera Wiring & Repair',
+  ],
+  'Gardening & Landscaping': [
+    'Lawn Mowing & Turf Care',
+    'Garden Weeding & Soil Enrichment',
+    'Hedge Trimming & Shrub Shaping',
+    'Plant Pest & Fungus Control',
+    'Landscape & Patio Garden Design',
+    'Automatic Drip Irrigation Setup',
+  ],
+  'Computer & Mobile Repair': [
+    'Laptop Screen & Battery Swap',
+    'Virus Removal & OS Reinstallation',
+    'Smartphone Screen & Glass Repair',
+    'Data Recovery & Hard Drive Backup',
+    'RAM & NVMe SSD Storage Upgrade',
+    'Wi-Fi Router & Network Setup',
+  ],
+  'Photography & Videography': [
+    'Wedding & Engagement Photography',
+    'Family & Newborn Studio Portrait',
+    'E-commerce Product & Brand Shoot',
+    '4K Drone Aerial Videography',
+    'Birthday, Gala & Party Coverage',
+    'Video Editing & Color Grading',
+  ],
+};
+
+const CATEGORY_TAGLINES = {
+  'Plumbing': 'Fix leaking pipes, taps, faucets, drainage and sanitary fittings.',
+  'Vehicle': 'Doorstep bike & car servicing, emergency recovery & detailing.',
+  'Electrical': 'Safe wiring, switch repairs, fan installation & electrical setups.',
+  'AC & Appliances': 'AC servicing, gas refills, and home appliance repairs.',
+  'Cleaning': 'Deep home cleaning, bathroom descaling & sanitization.',
+  'Pest Control': 'Targeted eradication for cockroaches, termites & pests.',
+  'Home Improvement': 'Painting, waterproofing, wall repair, and false ceiling.',
+  'Personal & Daily Help': 'Verified home tutors, barbers, cooks, and daily helpers.',
+  'Personal Care': 'Salon, beauty styling, grooming, and wellness care.',
+  'CCTV & Security': 'CCTV installation, smart locks, and security alarms.',
+  'Gardening & Landscaping': 'Lawn mowing, pruning, garden care & drip irrigation.',
+  'Computer & Mobile Repair': 'Hardware repairs, virus removal, and network setup.',
+  'Photography & Videography': 'Event photography, portraits, and video production.',
 };
 
 const ENGLISH_MONTHS = [
@@ -62,6 +179,97 @@ const ENGLISH_MONTHS = [
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+// Comprehensive default Kerala District Pricing Tiers
+const DEFAULT_DISTRICT_TIERS = {
+  'Kasaragod': { markup: 0, tier: 'Current Pricing (Standard)' },
+  'Pathanamthitta': { markup: 0, tier: 'Current Pricing (Standard)' },
+  'Idukki': { markup: 0, tier: 'Current Pricing (Standard)' },
+  'Wayanad': { markup: 0, tier: 'Current Pricing (Standard)' },
+  'Kannur': { markup: 0, tier: 'Current Pricing (Standard)' },
+  'Palakkad': { markup: 0, tier: 'Current Pricing (Standard)' },
+  'Thrissur': { markup: 20, tier: 'Tier 2 (+20% Surge)' },
+  'Kollam': { markup: 20, tier: 'Tier 2 (+20% Surge)' },
+  'Alappuzha': { markup: 20, tier: 'Tier 2 (+20% Surge)' },
+  'Kottayam': { markup: 20, tier: 'Tier 2 (+20% Surge)' },
+  'Malappuram': { markup: 20, tier: 'Tier 2 (+20% Surge)' },
+  'Ernakulam': { markup: 30, tier: 'Tier 3 (+30% Surge)' },
+  'Thiruvananthapuram': { markup: 30, tier: 'Tier 3 (+30% Surge)' },
+  'Kozhikode': { markup: 30, tier: 'Tier 3 (+30% Surge)' },
+};
+
+const DISTRICT_CENTERS = {
+  'Kasaragod': { latitude: 12.5102, longitude: 75.0000 },
+  'Kannur': { latitude: 11.8745, longitude: 75.3704 },
+  'Wayanad': { latitude: 11.6103, longitude: 76.0827 },
+  'Kozhikode': { latitude: 11.2588, longitude: 75.7804 },
+  'Malappuram': { latitude: 11.0510, longitude: 76.0711 },
+  'Palakkad': { latitude: 10.7867, longitude: 76.6548 },
+  'Thrissur': { latitude: 10.5276, longitude: 76.2144 },
+  'Ernakulam': { latitude: 9.9816, longitude: 76.2999 },
+  'Idukki': { latitude: 9.8497, longitude: 76.9806 },
+  'Kottayam': { latitude: 9.5916, longitude: 76.5222 },
+  'Alappuzha': { latitude: 9.4981, longitude: 76.3388 },
+  'Pathanamthitta': { latitude: 9.2648, longitude: 76.7870 },
+  'Kollam': { latitude: 8.8932, longitude: 76.6141 },
+  'Thiruvananthapuram': { latitude: 8.5241, longitude: 76.9366 },
+};
+
+const DISTRICT_ALIASES = {
+  'trivandrum': 'Thiruvananthapuram',
+  'thiruvananthapuram': 'Thiruvananthapuram',
+  'kochi': 'Ernakulam',
+  'cochin': 'Ernakulam',
+  'ernakulam': 'Ernakulam',
+  'calicut': 'Kozhikode',
+  'kozhikode': 'Kozhikode',
+  'alleppey': 'Alappuzha',
+  'alappuzha': 'Alappuzha',
+  'trichur': 'Thrissur',
+  'thrissur': 'Thrissur',
+  'palghat': 'Palakkad',
+  'palakkad': 'Palakkad',
+  'kollam': 'Kollam',
+  'quilon': 'Kollam',
+  'kottayam': 'Kottayam',
+  'malappuram': 'Malappuram',
+  'kasaragod': 'Kasaragod',
+  'kasargod': 'Kasaragod',
+  'pathanamthitta': 'Pathanamthitta',
+  'idukki': 'Idukki',
+  'wayanad': 'Wayanad',
+  'kannur': 'Kannur',
+};
+
+const detectDistrictFromTextOrCoords = (text, coords) => {
+  if (text && typeof text === 'string') {
+    const lower = text.toLowerCase();
+    for (const [alias, standard] of Object.entries(DISTRICT_ALIASES)) {
+      const regex = new RegExp(`\\b${alias}\\b`, 'i');
+      if (regex.test(lower)) {
+        return standard;
+      }
+    }
+  }
+  const lat = Number(coords?.latitude);
+  const lon = Number(coords?.longitude);
+  if (Number.isFinite(lat) && Number.isFinite(lon)) {
+    let closest = 'Thiruvananthapuram';
+    let minD = Infinity;
+    for (const [dist, c] of Object.entries(DISTRICT_CENTERS)) {
+      const dLat = (c.latitude - lat) * Math.PI / 180;
+      const dLon = (c.longitude - lon) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat * Math.PI / 180) * Math.cos(c.latitude * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+      const d = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      if (d < minD) {
+        minD = d;
+        closest = dist;
+      }
+    }
+    if (minD <= 90) return closest;
+  }
+  return 'Thiruvananthapuram';
+};
+
 const SERVER_BASE = import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com';
 
 export function BookingModal({
@@ -70,6 +278,8 @@ export function BookingModal({
   currentLocation = null,
   initialTitle = '',
   initialDescription = '',
+  subcategories: propSubcategories = null,
+  categories: propCategories = null,
   onClose,
   onSuccess,
 }) {
@@ -81,8 +291,95 @@ export function BookingModal({
 
   // Form State
   const [serviceCategory, setServiceCategory] = useState(category || 'Plumbing');
-  const availableSubServices = DEFAULT_SUB_SERVICES[serviceCategory] || ['General Service', 'Repair & Fix', 'Inspection'];
-  const [subService, setSubService] = useState(initialTitle || availableSubServices[0] || 'Tap Repair');
+  const [isChangingCategory, setIsChangingCategory] = useState(false);
+  const [dbSubcategories, setDbSubcategories] = useState(
+    Array.isArray(propSubcategories) && propSubcategories.length > 0 ? propSubcategories : []
+  );
+  const [dbCategories, setDbCategories] = useState(
+    Array.isArray(propCategories) && propCategories.length > 0 ? propCategories : []
+  );
+
+  // Load subcategories dynamically from API if not provided in props
+  useEffect(() => {
+    if (propSubcategories && propSubcategories.length > 0) {
+      setDbSubcategories(propSubcategories);
+    } else {
+      fetch(`${API}/subcategories`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) setDbSubcategories(data);
+        })
+        .catch((err) => console.error('Failed to fetch subcategories for booking modal:', err));
+    }
+  }, [propSubcategories]);
+
+  // Load categories dynamically from API if not provided in props
+  useEffect(() => {
+    if (propCategories && propCategories.length > 0) {
+      setDbCategories(propCategories);
+    } else {
+      fetch(`${API}/categories`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) setDbCategories(data);
+        })
+        .catch((err) => console.error('Failed to fetch categories for booking modal:', err));
+    }
+  }, [propCategories]);
+
+  // Available categories list for changing category
+  const activeCategoryList = useMemo(() => {
+    if (dbCategories && dbCategories.length > 0) {
+      const names = dbCategories.map((c) => c.name || c).filter(Boolean);
+      return Array.from(new Set(names));
+    }
+    return Object.keys(CATEGORY_DEFAULT_SUBCATEGORIES);
+  }, [dbCategories]);
+
+  // Filter ONLY AND ALL subcategories for the particular serviceCategory
+  const availableSubServices = useMemo(() => {
+    if (!serviceCategory) return [];
+    const targetNorm = serviceCategory.trim().toLowerCase();
+
+    if (dbSubcategories && dbSubcategories.length > 0) {
+      const matched = dbSubcategories
+        .filter((sub) => {
+          const catName = (sub.category_name || sub.category || '').trim().toLowerCase();
+          return catName === targetNorm;
+        })
+        .map((sub) => sub.name)
+        .filter(Boolean);
+
+      if (matched.length > 0) {
+        return Array.from(new Set(matched));
+      }
+    }
+
+    for (const [catKey, subs] of Object.entries(CATEGORY_DEFAULT_SUBCATEGORIES)) {
+      if (catKey.toLowerCase() === targetNorm) {
+        return subs;
+      }
+    }
+
+    return ['General Service', 'Repair & Fix', 'Inspection'];
+  }, [dbSubcategories, serviceCategory]);
+
+  const [subService, setSubService] = useState(() => {
+    if (initialTitle && initialTitle.trim()) return initialTitle.trim();
+    return availableSubServices[0] || 'General Service';
+  });
+
+  // Keep subService strictly in sync with availableSubServices for that serviceCategory
+  useEffect(() => {
+    if (availableSubServices.length > 0) {
+      if (initialTitle && availableSubServices.includes(initialTitle)) {
+        setSubService(initialTitle);
+      } else if (!availableSubServices.includes(subService)) {
+        setSubService(availableSubServices[0]);
+      }
+    }
+  }, [availableSubServices, serviceCategory, initialTitle]);
+
   const [description, setDescription] = useState(
     initialDescription || 'The kitchen tap is leaking and the water flow is very slow.'
   );
@@ -105,6 +402,51 @@ export function BookingModal({
   const [landmark, setLandmark] = useState('Near the main gate. 3rd floor.');
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
+
+  const [destinationDistrict, setDestinationDistrict] = useState(() => {
+    return detectDistrictFromTextOrCoords(
+      currentLocation?.placeName || '',
+      currentLocation
+    );
+  });
+  const [customerCurrentDistrict, setCustomerCurrentDistrict] = useState(() => {
+    return detectDistrictFromTextOrCoords(
+      currentLocation?.placeName || '',
+      currentLocation
+    );
+  });
+  const [districtPricingTiers, setDistrictPricingTiers] = useState(DEFAULT_DISTRICT_TIERS);
+
+  // Fetch live district pricing tiers from backend
+  useEffect(() => {
+    fetch(`${API}/district-pricing`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          const map = {};
+          data.forEach((item) => {
+            map[item.district] = {
+              markup: Number(item.markup_percentage) || 0,
+              tier: item.tier_name,
+            };
+          });
+          setDistrictPricingTiers((prev) => ({ ...prev, ...map }));
+        }
+      })
+      .catch((err) => console.error('Failed to fetch district pricing tiers:', err));
+  }, []);
+
+  const currentMarkup = districtPricingTiers[destinationDistrict]?.markup ?? 0;
+  const currentTierName = districtPricingTiers[destinationDistrict]?.tier ?? (currentMarkup > 0 ? `+${currentMarkup}% Surge` : 'Current Pricing (Standard)');
+  const isCrossDistrict = Boolean(customerCurrentDistrict && destinationDistrict && customerCurrentDistrict.toLowerCase() !== destinationDistrict.toLowerCase());
+
+  const handleDestinationDistrictChange = (dist) => {
+    setDestinationDistrict(dist);
+    const center = DISTRICT_CENTERS[dist];
+    if (center) {
+      setDetectedCoords({ latitude: center.latitude, longitude: center.longitude });
+    }
+  };
 
   // Fetch saved addresses on mount
   useEffect(() => {
@@ -212,16 +554,22 @@ export function BookingModal({
             : data.display_name || `Location (${lat.toFixed(4)}, ${lon.toFixed(4)}), Thiruvananthapuram, Kerala`;
 
           setAddressLine(formatted);
+          const detectedDist = detectDistrictFromTextOrCoords(formatted, { latitude: lat, longitude: lon });
+          setCustomerCurrentDistrict(detectedDist);
+          setDestinationDistrict(detectedDist);
           if (locality || street) {
             setLandmark(`Near ${locality || street}`);
           }
           setLocationFeedback({
             type: 'success',
-            text: 'Current location detected accurately!'
+            text: `Detected location in ${detectedDist} (${DEFAULT_DISTRICT_TIERS[detectedDist]?.tier || 'Standard Pricing'})`
           });
         } catch {
           const fallback = `Current Location (${lat.toFixed(4)}, ${lon.toFixed(4)}), Thiruvananthapuram, Kerala`;
           setAddressLine(fallback);
+          const fallbackDist = detectDistrictFromTextOrCoords(fallback, { latitude: lat, longitude: lon });
+          setCustomerCurrentDistrict(fallbackDist);
+          setDestinationDistrict(fallbackDist);
           setLocationFeedback({
             type: 'success',
             text: 'GPS coordinates detected successfully!'
@@ -259,12 +607,19 @@ export function BookingModal({
     if (addr.landmark) {
       setLandmark(addr.landmark);
     }
+    const detectedDist = detectDistrictFromTextOrCoords(fullLine || addr.address_line, {
+      latitude: addr.latitude ? parseFloat(addr.latitude) : null,
+      longitude: addr.longitude ? parseFloat(addr.longitude) : null,
+    });
+    setDestinationDistrict(detectedDist);
     if (addr.latitude && addr.longitude) {
       setDetectedCoords({ latitude: parseFloat(addr.latitude), longitude: parseFloat(addr.longitude) });
+    } else if (DISTRICT_CENTERS[detectedDist]) {
+      setDetectedCoords(DISTRICT_CENTERS[detectedDist]);
     }
     setLocationFeedback({
       type: 'success',
-      text: `Selected ${addr.address_type?.toUpperCase() || 'saved'} address`
+      text: `Selected ${addr.address_type?.toUpperCase() || 'saved'} address (${detectedDist})`
     });
   };
 
@@ -410,38 +765,25 @@ export function BookingModal({
   const [proSearch, setProSearch] = useState('');
   const [selectedPro, setSelectedPro] = useState(professional || null);
 
-  // Step 7: Payment Gateway State (UPI & QR Code)
-  const [paymentMethod, setPaymentMethod] = useState('upi'); // 'upi' | 'cash' | 'card' | 'wallet'
-  const [upiRef, setUpiRef] = useState('');
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
-  const [verifyingPayment, setVerifyingPayment] = useState(false);
-  const [paymentVerified, setPaymentVerified] = useState(false);
-
-  // Payable amount calculations
-  const bookingPayableTotal = (selectedPro?.hourly_rate || 300) + 170;
-  const MERCHANT_UPI_ID = 'libinpu6-1@okhdfcbank';
-  const upiDeepLink = `upi://pay?pa=${MERCHANT_UPI_ID}&pn=ServiceMarketplace&am=${bookingPayableTotal}&cu=INR&tn=${encodeURIComponent(`Booking ${subService || 'Service'}`)}`;
-
-  useEffect(() => {
-    QRCode.toDataURL(upiDeepLink, {
-      width: 220,
-      margin: 1,
-      color: {
-        dark: '#0f172a',
-        light: '#ffffff',
-      },
-    })
-      .then((url) => setQrCodeDataUrl(url))
-      .catch((err) => console.error('Error generating UPI QR Code:', err));
-  }, [upiDeepLink]);
+  // Destination district dynamic pricing calculations
+  const baseProRate = selectedPro?.base_hourly_rate || (selectedPro?.hourly_rate ? Math.round(selectedPro.hourly_rate / (1 + (currentMarkup / 100))) : 300);
+  const proRate = Math.round(baseProRate * (1 + currentMarkup / 100));
+  const baseEstimatedServiceCost = 150;
+  const estimatedServiceCost = Math.round(baseEstimatedServiceCost * (1 + currentMarkup / 100));
+  const platformFee = 20;
+  const surgeDifference = Math.max(0, (proRate - baseProRate) + (estimatedServiceCost - baseEstimatedServiceCost));
+  const bookingPayableTotal = proRate + estimatedServiceCost + platformFee;
 
   // Step 9: Confirmed details
   const [confirmedRequest, setConfirmedRequest] = useState(null);
 
-  // Load real professionals strictly from database
+  // Load real professionals strictly from database for destination district
   useEffect(() => {
     setLoadingPros(true);
-    fetch(`${API}/professionals?category=${encodeURIComponent(serviceCategory)}`)
+    const coordsQuery = detectedCoords?.latitude && detectedCoords?.longitude
+      ? `&latitude=${detectedCoords.latitude}&longitude=${detectedCoords.longitude}`
+      : '';
+    fetch(`${API}/professionals?category=${encodeURIComponent(serviceCategory)}&district=${encodeURIComponent(destinationDistrict)}${coordsQuery}`)
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         if (Array.isArray(data)) {
@@ -449,16 +791,21 @@ export function BookingModal({
             const photo = p.profile_photo
               ? (p.profile_photo.startsWith('http') ? p.profile_photo : `${SERVER_BASE}${p.profile_photo}`)
               : null;
+            const bRate = 200 + Math.min(Number(p.experience_years) || 0, 12) * 25;
+            const adjRate = Math.round(bRate * (1 + currentMarkup / 100));
             return {
               id: p.id,
               full_name: p.full_name,
               category: p.category || serviceCategory,
+              district: p.district || destinationDistrict,
+              city: p.city,
               verification_status: p.verification_status || 'verified',
               avg_rating: Number(p.avg_rating) || 5.0,
               review_count: Number(p.review_count) || 0,
               experience_years: p.experience_years || 0,
               distance_km: p.distance_from_user || (1.2 + idx * 0.8).toFixed(1),
-              hourly_rate: 200 + Math.min(Number(p.experience_years) || 0, 12) * 25,
+              base_hourly_rate: bRate,
+              hourly_rate: adjRate,
               tags: p.sub_category
                 ? p.sub_category.split(/[,|/]+/).map((s) => s.trim()).filter(Boolean).slice(0, 3)
                 : [subService, 'Verified Professional'],
@@ -485,7 +832,7 @@ export function BookingModal({
       .finally(() => {
         setLoadingPros(false);
       });
-  }, [serviceCategory, professional, subService]);
+  }, [serviceCategory, professional, subService, destinationDistrict, currentMarkup]);
 
   // Handle Photo Upload
   const handlePhotoSelect = (e) => {
@@ -552,6 +899,7 @@ export function BookingModal({
       const extraNotes = [
         description,
         landmark ? `Landmark: ${landmark}` : '',
+        `Service District: ${destinationDistrict} (${currentTierName})`,
         accessInstructions ? `Access Instructions: ${accessInstructions}` : '',
         reqBringTools ? 'Tools required' : '',
         reqNeedInvoice ? 'Invoice required' : '',
@@ -562,6 +910,8 @@ export function BookingModal({
       formData.append('description', extraNotes);
       formData.append('requested_at', getScheduledTimestamp());
       formData.append('location', addressLine);
+      formData.append('district', destinationDistrict);
+      formData.append('pricing_markup_percentage', currentMarkup);
       formData.append('category', serviceCategory);
 
       if (selectedPro?.id) {
@@ -580,15 +930,9 @@ export function BookingModal({
         formData.append('photos', photo);
       });
 
-      const payableTotal = (selectedPro?.hourly_rate || 300) + 170;
-      const generatedTxId = upiRef.trim() || (paymentMethod === 'upi' ? `UPI-${Date.now().toString(36).toUpperCase()}` : null);
-
-      formData.append('wage', payableTotal);
-      formData.append('payment_status', paymentMethod === 'upi' ? 'paid' : 'pending');
-      formData.append('payment_method', paymentMethod);
-      if (generatedTxId) {
-        formData.append('transaction_id', generatedTxId);
-      }
+      formData.append('wage', bookingPayableTotal);
+      formData.append('payment_status', 'pending');
+      formData.append('payment_method', 'cash');
 
       const res = await fetch(`${API}/requests`, {
         method: 'POST',
@@ -613,15 +957,18 @@ export function BookingModal({
         title: subService,
         category: serviceCategory,
         location: addressLine,
+        district: destinationDistrict,
+        pricing_markup_percentage: currentMarkup,
         requested_at: getScheduledTimestamp(),
       };
 
       setConfirmedRequest({
         ...created,
-        payment_status: paymentMethod === 'upi' ? 'paid' : 'pending',
-        payment_method: paymentMethod,
-        transaction_id: generatedTxId || created.transaction_id,
-        wage: payableTotal,
+        district: destinationDistrict,
+        pricing_markup_percentage: currentMarkup,
+        payment_status: 'pending',
+        payment_method: 'cash',
+        wage: bookingPayableTotal,
       });
       setStep(9); // Screen 9: Booking Confirmed!
     } catch (err) {
@@ -667,10 +1014,6 @@ export function BookingModal({
           <h2 className="visily-header-title">
             {step === 6
               ? 'Booking Summary'
-              : step === 7
-              ? 'Payment Method'
-              : step === 8
-              ? 'Review & Confirm'
               : step === 9
               ? 'Booking Confirmed'
               : 'Book Service'}
@@ -681,7 +1024,7 @@ export function BookingModal({
           </button>
         </header>
 
-        {/* 5-Step Stepper (Visible for Steps 1 through 8) */}
+        {/* 5-Step Stepper (Visible for Steps 1 through 6) */}
         {step < 9 && (
           <div className="visily-stepper-wrap">
             <div className="visily-stepper-track" />
@@ -690,7 +1033,7 @@ export function BookingModal({
               { num: 2, label: 'Location' },
               { num: 3, label: 'Time' },
               { num: 4, label: 'Professional' },
-              { num: 5, label: 'Payment' },
+              { num: 5, label: 'Confirm' },
             ].map(({ num, label }) => {
               const isPast = num < currentStepIndex;
               const isCurrent = num === currentStepIndex;
@@ -727,30 +1070,61 @@ export function BookingModal({
             </div>
 
             {/* Selected Service Card */}
-            <div className="visily-service-preview-card">
-              <div className="visily-icon-mint-box">
-                <Wrench size={24} />
-              </div>
-              <div>
-                <strong style={{ fontSize: 15, color: '#0F172A', display: 'block' }}>
-                  {serviceCategory}
-                </strong>
-                <small style={{ fontSize: 12, color: '#64748B' }}>
-                  Fix leaking or faulty fittings and get smooth service.
-                </small>
-              </div>
-              <button
-                className="visily-change-btn"
-                onClick={() => {
-                  const categories = Object.keys(DEFAULT_SUB_SERVICES);
-                  const nextCat =
-                    categories[(categories.indexOf(serviceCategory) + 1) % categories.length];
-                  setServiceCategory(nextCat);
-                  setSubService(DEFAULT_SUB_SERVICES[nextCat][0]);
-                }}
-              >
-                Change
-              </button>
+            <div className="visily-service-preview-card" style={{ flexDirection: isChangingCategory ? 'column' : 'row', alignItems: isChangingCategory ? 'stretch' : 'center', gap: 12 }}>
+              {!isChangingCategory ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
+                    <div className="visily-icon-mint-box">
+                      {(() => {
+                        const CatIcon = categoryIcons[serviceCategory] || Wrench;
+                        return <CatIcon size={24} />;
+                      })()}
+                    </div>
+                    <div>
+                      <strong style={{ fontSize: 15, color: '#0F172A', display: 'block' }}>
+                        {serviceCategory}
+                      </strong>
+                      <small style={{ fontSize: 12, color: '#64748B' }}>
+                        {CATEGORY_TAGLINES[serviceCategory] || 'Professional certified services at upfront rates.'}
+                      </small>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="visily-change-btn"
+                    onClick={() => setIsChangingCategory(true)}
+                  >
+                    Change
+                  </button>
+                </>
+              ) : (
+                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>Select Service Category</span>
+                    <button
+                      type="button"
+                      style={{ background: 'none', border: 'none', color: '#00796B', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}
+                      onClick={() => setIsChangingCategory(false)}
+                    >
+                      Done
+                    </button>
+                  </div>
+                  <select
+                    className="visily-select"
+                    value={serviceCategory}
+                    onChange={(e) => {
+                      setServiceCategory(e.target.value);
+                      setIsChangingCategory(false);
+                    }}
+                  >
+                    {activeCategoryList.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Sub Service Dropdown */}
@@ -1074,6 +1448,7 @@ export function BookingModal({
                 </div>
               </div>
             )}
+
 
             {/* Address Details Card */}
             <div className="visily-card" style={{ marginTop: 4 }}>
@@ -1501,8 +1876,49 @@ export function BookingModal({
         {step === 5 && (
           <div className="visily-body">
             <div className="visily-title-group">
-              <h3 className="visily-screen-title">Choose a Professional</h3>
-              <p className="visily-screen-subtitle">Select from trusted and verified professionals.</p>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+                <h3 className="visily-screen-title" style={{ margin: 0 }}>Choose a Professional</h3>
+                <span
+                  style={{
+                    background: currentMarkup === 30 ? '#FEE2E2' : currentMarkup === 20 ? '#FEF3C7' : '#E0F2FE',
+                    color: currentMarkup === 30 ? '#991B1B' : currentMarkup === 20 ? '#92400E' : '#0369A1',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    padding: '3px 10px',
+                    borderRadius: 9999,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                  }}
+                >
+                  <MapPin size={12} /> {destinationDistrict}
+                  {currentMarkup > 0 ? ` (+${currentMarkup}% Surge)` : ' (Current Pricing)'}
+                </span>
+              </div>
+              <p className="visily-screen-subtitle">
+                Select from verified professionals available in {destinationDistrict}.
+              </p>
+              {isCrossDistrict && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '8px 12px',
+                    background: '#FFFBEB',
+                    border: '1px solid #FDE68A',
+                    borderRadius: 10,
+                    fontSize: 12,
+                    color: '#92400E',
+                    marginTop: 6,
+                  }}
+                >
+                  <Info size={14} style={{ flexShrink: 0 }} />
+                  <span>
+                    Your service location is in <strong>{destinationDistrict}</strong>. Showing verified professionals stationed in this district.
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Search Input */}
@@ -1702,6 +2118,8 @@ export function BookingModal({
                           <span>({pro.review_count} reviews)</span>
                           <span>•</span>
                           <span>{pro.experience_years}+ yrs exp</span>
+                          <span>•</span>
+                          <span style={{ color: '#0369A1', fontWeight: 600 }}>📍 {pro.district || destinationDistrict}</span>
                           {pro.distance_km && (
                             <>
                               <span>•</span>
@@ -1718,8 +2136,13 @@ export function BookingModal({
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                         <span className="visily-pro-price">₹{pro.hourly_rate}/hr</span>
+                        {currentMarkup > 0 && (
+                          <span style={{ fontSize: 10, color: '#D97706', fontWeight: 700, background: '#FEF3C7', padding: '1px 5px', borderRadius: 4 }}>
+                            +{currentMarkup}% {destinationDistrict}
+                          </span>
+                        )}
                         <div className={`visily-radio-circle ${isSelected ? 'active' : ''}`}>
                           {isSelected && <div className="visily-radio-circle-dot" />}
                         </div>
@@ -1879,214 +2302,61 @@ export function BookingModal({
 
             {/* Cost Breakdown Card */}
             <div className="visily-cost-card">
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingBottom: 8,
+                  marginBottom: 8,
+                  borderBottom: '1px dashed #CBD5E1',
+                  fontSize: 12,
+                }}
+              >
+                <span style={{ color: '#475569', fontWeight: 600 }}>Service District Tier</span>
+                <span
+                  style={{
+                    background: currentMarkup === 30 ? '#FEE2E2' : currentMarkup === 20 ? '#FEF3C7' : '#E0F2FE',
+                    color: currentMarkup === 30 ? '#991B1B' : currentMarkup === 20 ? '#92400E' : '#0369A1',
+                    fontWeight: 700,
+                    fontSize: 11,
+                    padding: '2px 8px',
+                    borderRadius: 6,
+                  }}
+                >
+                  {destinationDistrict} • {currentMarkup > 0 ? `+${currentMarkup}% Surge` : 'Standard Pricing'}
+                </span>
+              </div>
+
               <div className="visily-cost-row">
                 <span>Professional Rate</span>
-                <strong>₹{selectedPro?.hourly_rate || 300}</strong>
+                <strong>₹{proRate}</strong>
               </div>
               <div className="visily-cost-row">
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   Estimated Service Cost <Info size={13} color="#94A3B8" />
                 </span>
-                <strong>₹150 - ₹300</strong>
+                <strong>₹{estimatedServiceCost}</strong>
               </div>
               <div className="visily-cost-row">
                 <span>Platform Fee</span>
-                <strong>₹20</strong>
+                <strong>₹{platformFee}</strong>
               </div>
+              {currentMarkup > 0 && (
+                <div className="visily-cost-row" style={{ color: '#D97706' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Sparkles size={13} /> District Dynamic Surge (+{currentMarkup}%)
+                  </span>
+                  <strong>+₹{surgeDifference} included</strong>
+                </div>
+              )}
               <div className="visily-cost-row total">
-                <span>Estimated Total</span>
-                <span>
-                  ₹{(selectedPro?.hourly_rate || 300) + 170} - ₹
-                  {(selectedPro?.hourly_rate || 300) + 320}
-                </span>
+                <span>Payable Total</span>
+                <span>₹{bookingPayableTotal}</span>
               </div>
               <small style={{ fontSize: 11, color: '#94A3B8', fontStyle: 'italic' }}>
-                Final amount may vary based on actual work done.
+                Inclusive of all destination district rates. Final amount may adjust if extra scope is added during service.
               </small>
-            </div>
-
-            <div style={{ marginTop: 'auto', paddingTop: 10 }}>
-              <button className="visily-pill-btn" onClick={() => setStep(7)}>
-                Next <ArrowRight size={18} />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ──────── SCREEN 7: UPI Payment Gateway ──────── */}
-        {step === 7 && (
-          <div className="visily-body">
-            <div className="visily-title-group">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <h3 className="visily-screen-title" style={{ margin: 0 }}>Payment Gateway</h3>
-                <span className="gateway-secure-tag">
-                  <ShieldCheck size={13} /> 256-Bit Encrypted
-                </span>
-              </div>
-              <p className="visily-screen-subtitle">
-                Pay securely via UPI QR Code or choose your preferred payment method.
-              </p>
-            </div>
-
-            {/* Payment Method Selector Tabs */}
-            <div className="gateway-tabs-wrap">
-              <button
-                type="button"
-                className={`gateway-tab-btn ${paymentMethod === 'upi' ? 'active' : ''}`}
-                onClick={() => setPaymentMethod('upi')}
-              >
-                <QrCode size={15} />
-                <span>UPI (Scan & Pay)</span>
-                <span className="gateway-recommended-chip">Recommended</span>
-              </button>
-              <button
-                type="button"
-                className={`gateway-tab-btn ${paymentMethod === 'cash' ? 'active' : ''}`}
-                onClick={() => setPaymentMethod('cash')}
-              >
-                <Banknote size={15} />
-                <span>Cash after Service</span>
-              </button>
-            </div>
-
-            {paymentMethod === 'upi' ? (
-              <div className="gateway-upi-container">
-                {/* Total Payable Banner */}
-                <div className="gateway-amount-card">
-                  <div className="amount-meta">
-                    <span className="amount-label">TOTAL PAYABLE AMOUNT</span>
-                    <h2 className="amount-val">₹{bookingPayableTotal}</h2>
-                  </div>
-                  <div className="amount-breakdown-chip">
-                    <span>Rate ₹{selectedPro?.hourly_rate || 300} + Est. ₹150 + Fee ₹20</span>
-                  </div>
-                </div>
-
-                {/* Scannable QR Code Frame */}
-                <div className="gateway-qr-frame">
-                  <div className="qr-badge-top">
-                    <Sparkles size={14} color="#0D9488" />
-                    <span>Instant UPI Payment</span>
-                  </div>
-                  <div className="qr-image-box">
-                    {qrCodeDataUrl ? (
-                      <img src={qrCodeDataUrl} alt="UPI Payment QR Code" className="qr-code-img" />
-                    ) : (
-                      <div className="qr-loading-box">
-                        <Loader2 size={32} className="spin" color="#00796B" />
-                        <span>Generating Secure QR...</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="qr-supported-apps">
-                    <span className="app-badge gpay">GPay</span>
-                    <span className="app-badge phonepe">PhonePe</span>
-                    <span className="app-badge paytm">Paytm</span>
-                    <span className="app-badge bhim">BHIM UPI</span>
-                    <span className="app-badge cred">CRED</span>
-                  </div>
-                  <p className="qr-scan-hint">
-                    Scan using any UPI app on your smartphone to pay directly.
-                  </p>
-                </div>
-
-                {/* Deep link for mobile devices */}
-                <a
-                  href={upiDeepLink}
-                  className="gateway-intent-link"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Smartphone size={15} />
-                  <span>Pay via UPI App Directly</span>
-                  <ExternalLink size={13} style={{ marginLeft: 'auto' }} />
-                </a>
-
-                {/* UTR / Transaction Reference Input */}
-                <div className="gateway-utr-card">
-                  <div className="utr-header">
-                    <label htmlFor="utr-input" className="utr-label">
-                      Transaction Reference / UTR Number
-                    </label>
-                    <button
-                      type="button"
-                      className="auto-utr-btn"
-                      onClick={() =>
-                        setUpiRef(`UTR${Math.floor(100000000000 + Math.random() * 900000000000)}`)
-                      }
-                      title="Auto-fill sample UTR"
-                    >
-                      Auto-fill UTR
-                    </button>
-                  </div>
-                  <div className="utr-input-wrap">
-                    <input
-                      id="utr-input"
-                      type="text"
-                      className="visily-input utr-input"
-                      placeholder="e.g. 423589123456 (or leave to auto-generate)"
-                      value={upiRef}
-                      onChange={(e) => setUpiRef(e.target.value)}
-                    />
-                  </div>
-                  <small className="utr-hint">
-                    Enter the 12-digit UTR from your bank confirmation SMS or UPI app receipt.
-                  </small>
-                </div>
-              </div>
-            ) : (
-              /* Cash after Service Option */
-              <div className="gateway-cash-container">
-                <div className="visily-card" style={{ padding: 18, border: '1.5px solid #00796B20', background: '#F0FDF4' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                    <div className="visily-icon-mint-box" style={{ width: 44, height: 44, flexShrink: 0 }}>
-                      <Banknote size={24} color="#00796B" />
-                    </div>
-                    <div>
-                      <strong style={{ fontSize: 15, color: '#0F172A', display: 'block' }}>
-                        Pay Cash After Service
-                      </strong>
-                      <p style={{ fontSize: 13, color: '#475569', margin: '4px 0 10px', lineHeight: 1.45 }}>
-                        No advance payment needed. You can pay ₹{bookingPayableTotal} directly in cash or UPI to{' '}
-                        {selectedPro?.full_name || 'the professional'} after the job is finished.
-                      </p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#059669', fontWeight: 600 }}>
-                        <CheckCircle2 size={14} /> Zero cancellation charges up to 2 hours before scheduled time.
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="visily-trust-banner" style={{ marginTop: 8 }}>
-              <ShieldCheck size={18} style={{ flexShrink: 0 }} />
-              <div>ServiceMarketplace 100% verified payment guarantee.</div>
-            </div>
-
-            <div style={{ marginTop: 'auto', paddingTop: 12 }}>
-              <button
-                className="visily-pill-btn"
-                onClick={() => {
-                  if (paymentMethod === 'upi' && !upiRef.trim()) {
-                    setUpiRef(`UPI-${Date.now().toString(36).toUpperCase()}`);
-                  }
-                  setStep(8);
-                }}
-              >
-                {paymentMethod === 'upi' ? 'I Have Paid • Proceed to Review' : 'Continue to Review'}
-                <ArrowRight size={18} />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ──────── SCREEN 8: Review & Confirm ──────── */}
-        {step === 8 && (
-          <div className="visily-body">
-            <div className="visily-title-group">
-              <h3 className="visily-screen-title">Review & Confirm</h3>
-              <p className="visily-screen-subtitle">Please verify all details before confirming.</p>
             </div>
 
             {errorMsg && (
@@ -2098,183 +2368,22 @@ export function BookingModal({
                   borderRadius: 12,
                   color: '#991B1B',
                   fontSize: 13,
+                  marginTop: 10,
                 }}
               >
                 {errorMsg}
               </div>
             )}
 
-            {/* Service & Pro Recap Card */}
-            <div className="visily-card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div className="visily-icon-mint-box" style={{ width: 40, height: 40 }}>
-                  <Wrench size={20} />
-                </div>
-                <div>
-                  <strong style={{ fontSize: 15, color: '#0F172A', display: 'block' }}>
-                    {subService}
-                  </strong>
-                  <small style={{ fontSize: 12, color: '#64748B' }}>
-                    Fix leaking or faulty fittings and get smooth service.
-                  </small>
-                </div>
-              </div>
-
-              {selectedPro ? (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    paddingTop: 10,
-                    borderTop: '1px solid #F1F5F9',
-                  }}
-                >
-                  {selectedPro.avatar ? (
-                    <img
-                      src={selectedPro.avatar}
-                      alt={selectedPro.full_name}
-                      style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: '50%',
-                        background: '#00796B',
-                        color: '#FFFFFF',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 700,
-                        fontSize: 15,
-                      }}
-                    >
-                      {selectedPro.full_name?.charAt(0) || 'P'}
-                    </div>
-                  )}
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <strong style={{ fontSize: 14, color: '#0F172A' }}>
-                        {selectedPro.full_name}
-                      </strong>
-                      <span className="visily-verified-chip">
-                        <CheckCircle2 size={11} /> Verified
-                      </span>
-                    </div>
-                    <small style={{ fontSize: 12, color: '#64748B' }}>
-                      ★ {selectedPro.avg_rating} • {selectedPro.experience_years}+ yrs exp
-                      {selectedPro.distance_km ? ` • ${selectedPro.distance_km} km away` : ''}
-                    </small>
-                  </div>
-                </div>
-              ) : (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    paddingTop: 10,
-                    borderTop: '1px solid #F1F5F9',
-                  }}
-                >
-                  <div className="visily-icon-mint-box" style={{ width: 38, height: 38, borderRadius: '50%' }}>
-                    <ShieldCheck size={20} color="#00796B" />
-                  </div>
-                  <div>
-                    <strong style={{ fontSize: 14, color: '#0F172A', display: 'block' }}>
-                      Auto-Matching Specialist
-                    </strong>
-                    <small style={{ fontSize: 12, color: '#64748B' }}>
-                      Top verified {serviceCategory} specialist nearby will be assigned
-                    </small>
-                  </div>
-                </div>
-              )}
-
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  paddingTop: 10,
-                  borderTop: '1px solid #F1F5F9',
-                }}
-              >
-                <Calendar size={16} color="#00796B" />
-                <span style={{ fontSize: 13, color: '#334155' }}>
-                  {formatSelectedDateFull()}, {selectedSlot}
-                </span>
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 10,
-                  paddingTop: 10,
-                  borderTop: '1px solid #F1F5F9',
-                }}
-              >
-                <MapPin size={16} color="#00796B" style={{ flexShrink: 0, marginTop: 2 }} />
-                <span style={{ fontSize: 13, color: '#334155', lineHeight: 1.4 }}>
-                  {addressLine}
-                </span>
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  paddingTop: 10,
-                  borderTop: '1px solid #F1F5F9',
-                }}
-              >
-                <span style={{ fontSize: 14, color: '#475569' }}>Total Amount</span>
-                <strong style={{ fontSize: 17, color: '#00796B' }}>
-                  ₹{bookingPayableTotal}
-                </strong>
-              </div>
-
-              {/* Payment Status row */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  paddingTop: 10,
-                  borderTop: '1px solid #F1F5F9',
-                  fontSize: 13,
-                  color: '#475569',
-                }}
-              >
-                {paymentMethod === 'upi' ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', flexWrap: 'wrap' }}>
-                    <CheckCircle2 size={16} color="#00796B" />
-                    <strong style={{ color: '#00796B' }}>UPI Payment:</strong>
-                    <span style={{ fontSize: 12, color: '#334155', fontWeight: 600 }}>Scan & Pay</span>
-                    <span style={{ marginLeft: 'auto', background: '#DCFCE7', color: '#15803D', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
-                      ₹{bookingPayableTotal} Ready
-                    </span>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Banknote size={16} color="#00796B" />
-                    <span>Cash after Service (₹{bookingPayableTotal} upon completion)</span>
-                  </div>
-                )}
+            {/* Zero Advance Payment / Cancellation Policy Notice */}
+            <div className="visily-trust-banner" style={{ marginTop: 10 }}>
+              <ShieldCheck size={20} color="#00796B" style={{ flexShrink: 0, marginTop: 1 }} />
+              <div>
+                <strong>Zero advance payment required.</strong> Pay ₹{bookingPayableTotal} directly to your professional after service completion. Free cancellation up to 2 hours before scheduled time.
               </div>
             </div>
 
-            {/* Reschedule / Cancellation Policy */}
-            <div className="visily-trust-banner">
-              <Info size={20} style={{ flexShrink: 0, marginTop: 1 }} />
-              <div>You can reschedule or cancel up to 2 hours before the scheduled time.</div>
-            </div>
-
-            <div style={{ marginTop: 'auto', paddingTop: 10 }}>
+            <div style={{ marginTop: 'auto', paddingTop: 12 }}>
               <button
                 className="visily-pill-btn"
                 onClick={handleFinalBooking}
@@ -2282,10 +2391,12 @@ export function BookingModal({
               >
                 {loading ? (
                   <>
-                    <Loader2 size={18} className="spin" /> Confirming...
+                    <Loader2 size={18} className="spin" /> Confirming Booking...
                   </>
                 ) : (
-                  'Confirm Booking'
+                  <>
+                    Confirm Booking <ArrowRight size={18} />
+                  </>
                 )}
               </button>
             </div>
@@ -2429,7 +2540,53 @@ export function BookingModal({
                   <span style={{ lineHeight: 1.4 }}>{addressLine}</span>
                 </div>
 
-                {/* Confirmed Payment Status Row */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 8,
+                    fontSize: 13,
+                    color: '#334155',
+                    paddingTop: 8,
+                    borderTop: '1px solid #F1F5F9',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <MapPin size={15} color="#00796B" />
+                    <span>Destination District</span>
+                  </div>
+                  <span
+                    style={{
+                      background: currentMarkup === 30 ? '#FEE2E2' : currentMarkup === 20 ? '#FEF3C7' : '#E0F2FE',
+                      color: currentMarkup === 30 ? '#991B1B' : currentMarkup === 20 ? '#92400E' : '#0369A1',
+                      padding: '2px 8px',
+                      borderRadius: 6,
+                      fontSize: 11.5,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {destinationDistrict} ({currentMarkup > 0 ? `+${currentMarkup}%` : 'Standard'})
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 8,
+                    fontSize: 13,
+                    color: '#334155',
+                    paddingTop: 8,
+                    borderTop: '1px solid #F1F5F9',
+                  }}
+                >
+                  <span style={{ fontWeight: 600 }}>Total Amount</span>
+                  <strong style={{ fontSize: 16, color: '#00796B' }}>₹{bookingPayableTotal}</strong>
+                </div>
+
+                {/* Confirmed Payment Terms */}
                 <div
                   style={{
                     display: 'flex',
@@ -2444,22 +2601,37 @@ export function BookingModal({
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <ShieldCheck size={16} color="#00796B" />
-                    <span>Payment Status</span>
+                    <span>Payment Term</span>
                   </div>
-                  {confirmedRequest?.payment_method === 'upi' || paymentMethod === 'upi' ? (
-                    <div style={{ textAlign: 'right' }}>
-                      <span style={{ background: '#DCFCE7', color: '#15803D', padding: '3px 9px', borderRadius: 6, fontSize: 11.5, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                        <CheckCircle2 size={13} /> PAID via UPI
-                      </span>
-                      <div style={{ fontSize: 11, color: '#64748B', marginTop: 3, fontFamily: 'monospace' }}>
-                        Ref: {confirmedRequest?.transaction_id || upiRef || 'UPI-VERIFIED'}
-                      </div>
-                    </div>
-                  ) : (
-                    <span style={{ background: '#FEF3C7', color: '#92400E', padding: '3px 8px', borderRadius: 6, fontSize: 11.5, fontWeight: 700 }}>
-                      Cash upon Service
-                    </span>
-                  )}
+                  <span
+                    style={{
+                      background: '#ECFDF5',
+                      color: '#047857',
+                      padding: '3px 9px',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    <CheckCircle2 size={13} /> Pay After Service
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: '#475569',
+                    background: '#F0FDFA',
+                    border: '1px solid #CCFBF1',
+                    borderRadius: 8,
+                    padding: '8px 12px',
+                    lineHeight: 1.45,
+                  }}
+                >
+                  Zero advance payment required. Pay ₹{bookingPayableTotal} directly to {selectedPro?.full_name || 'the professional'} via cash or UPI upon job completion.
                 </div>
               </div>
 

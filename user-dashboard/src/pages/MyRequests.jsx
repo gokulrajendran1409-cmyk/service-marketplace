@@ -261,6 +261,14 @@ function CustomerRouteMap({ request, onRouteDistance, onGeologicalInfo }) {
   );
 }
 
+const RATING_DEFINITIONS = {
+  1: { title: 'Poor service', color: '#EF4444', emoji: '😞' },
+  2: { title: 'Fair service', color: '#F97316', emoji: '😐' },
+  3: { title: 'Good service', color: '#EAB308', emoji: '🙂' },
+  4: { title: 'Very good service', color: '#10B981', emoji: '😊' },
+  5: { title: 'Excellent service', color: '#059669', emoji: '🌟' },
+};
+
 function MyRequests({ navigate }) {
   const { t } = useTranslation();
   const { toast, showToast } = useToast();
@@ -277,6 +285,64 @@ function MyRequests({ navigate }) {
   const [geoInfo, setGeoInfo] = useState({ landmark: 'MG Road Corridor, Thiruvananthapuram', lat: 8.5241, lon: 76.9366 });
   const [routeDistanceKm, setRouteDistanceKm] = useState(1.2);
   const [copiedOtp, setCopiedOtp] = useState(false);
+
+  // Review & Rating states (1 to 5 stars)
+  const [reviewRating, setReviewRating] = useState(5);
+  const [hoveredRating, setHoveredRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewTags, setReviewTags] = useState([]);
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+
+  // Cancellation states & logic (pre-OTP only)
+  const [cancelConfirmRequest, setCancelConfirmRequest] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
+
+  const canCancelRequest = (req) => {
+    if (!req) return false;
+    if (req.status === 'cancelled' || req.status === 'completed') return false;
+    if (req.is_otp_verified) return false;
+    const verifiedStatuses = ['arrived', 'working', 'awaiting_payment', 'completed'];
+    if (verifiedStatuses.includes(req.journey_status)) return false;
+    return true;
+  };
+
+  const handleCancelRequest = async (requestToCancel) => {
+    if (!requestToCancel?.id) return;
+    setCancelling(true);
+    try {
+      const res = await fetch(`${API}/requests/${requestToCancel.id}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('userToken')}`,
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to cancel booking');
+
+      setRequests((current) =>
+        current.map((r) =>
+          r.id === requestToCancel.id
+            ? { ...r, status: 'cancelled' }
+            : r
+        )
+      );
+
+      if (detailsRequest?.id === requestToCancel.id) {
+        setDetailsRequest((prev) => (prev ? { ...prev, status: 'cancelled' } : null));
+      }
+      if (trackingRequest?.id === requestToCancel.id) {
+        setTrackingRequest(null);
+      }
+
+      setCancelConfirmRequest(null);
+      showToast('Booking cancelled successfully.', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   const handleCopyOtp = (otpText) => {
     if (!otpText) return;
@@ -835,17 +901,126 @@ function MyRequests({ navigate }) {
                   <strong style={{ fontSize: 16, color: '#00796B' }}>{priceEst}</strong>
                 </div>
 
-                {/* Bottom Action Buttons (Matching Screen 10) */}
-                <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
+                {/* Bottom Action Buttons */}
+                <div style={{ display: 'flex', gap: 10, paddingTop: 4, flexWrap: 'wrap' }}>
                   {['accepted', 'in_progress'].includes(req.status) ? (
                     <>
                       <button
                         className="visily-pill-btn"
-                        style={{ flex: 1, height: 42, fontSize: 13.5 }}
+                        style={{ flex: 1, minWidth: 140, height: 42, fontSize: 13.5 }}
                         onClick={() => setTrackingRequest(req)}
                       >
                         <Navigation size={15} /> Track Professional
                       </button>
+                      <button
+                        className="visily-pill-btn-outline"
+                        style={{ flex: 1, minWidth: 100, height: 42, fontSize: 13.5 }}
+                        onClick={() => setDetailsRequest(req)}
+                      >
+                        View Details
+                      </button>
+                      {canCancelRequest(req) ? (
+                        <button
+                          type="button"
+                          className="visily-pill-btn-danger"
+                          style={{
+                            height: 42,
+                            padding: '0 14px',
+                            fontSize: 13,
+                            background: '#FFF1F2',
+                            color: '#E11D48',
+                            border: '1.5px solid #FECDD3',
+                            borderRadius: 24,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 5,
+                          }}
+                          onClick={() => setCancelConfirmRequest(req)}
+                          title="Cancel service booking (Available until OTP verification)"
+                        >
+                          <XCircle size={15} /> Cancel Booking
+                        </button>
+                      ) : (
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 5,
+                            padding: '6px 12px',
+                            background: '#DCFCE7',
+                            borderRadius: 16,
+                            border: '1px solid #BBF7D0',
+                            fontSize: 11.5,
+                            fontWeight: 700,
+                            color: '#15803D',
+                          }}
+                          title="Job has started with OTP verification. Cancellation is closed."
+                        >
+                          <ShieldCheck size={14} color="#15803D" />
+                          <span>OTP Verified • Job Started</span>
+                        </div>
+                      )}
+                    </>
+                  ) : req.status === 'completed' ? (
+                    <>
+                      {req.review_rating ? (
+                        <div
+                          style={{
+                            flex: 1,
+                            minWidth: 150,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            background: '#FEF3C7',
+                            padding: '8px 14px',
+                            borderRadius: 24,
+                            border: '1px solid #FDE68A',
+                          }}
+                        >
+                          <Star size={15} fill="#F59E0B" color="#F59E0B" />
+                          <span style={{ fontSize: 12.5, fontWeight: 700, color: '#92400E' }}>
+                            Rated {req.review_rating}/5 ★ ({RATING_DEFINITIONS[req.review_rating]?.title || 'Rated'})
+                          </span>
+                        </div>
+                      ) : (
+                        <button
+                          className="visily-pill-btn"
+                          style={{ flex: 1, minWidth: 140, height: 42, fontSize: 13.5 }}
+                          onClick={() => {
+                            setRatingRequest(req);
+                            setReviewRating(5);
+                            setReviewComment('');
+                            setReviewTags([]);
+                          }}
+                        >
+                          <Star size={15} /> Rate Professional
+                        </button>
+                      )}
+                      {req.review_rating && (
+                        <button
+                          className="visily-pill-btn-outline"
+                          style={{ height: 42, fontSize: 12.5, padding: '0 12px' }}
+                          onClick={() => {
+                            setRatingRequest(req);
+                            setReviewRating(req.review_rating);
+                            setReviewComment(req.review_comment || '');
+                          }}
+                        >
+                          Edit Rating
+                        </button>
+                      )}
+                      <button
+                        className="visily-pill-btn-outline"
+                        style={{ flex: req.review_rating ? '0 0 auto' : 1, height: 42, fontSize: 13.5, padding: '0 16px' }}
+                        onClick={() => setDetailsRequest(req)}
+                      >
+                        View Invoice
+                      </button>
+                    </>
+                  ) : req.status === 'pending' ? (
+                    <>
                       <button
                         className="visily-pill-btn-outline"
                         style={{ flex: 1, height: 42, fontSize: 13.5 }}
@@ -853,23 +1028,30 @@ function MyRequests({ navigate }) {
                       >
                         View Details
                       </button>
-                    </>
-                  ) : req.status === 'completed' ? (
-                    <>
-                      <button
-                        className="visily-pill-btn"
-                        style={{ flex: 1, height: 42, fontSize: 13.5 }}
-                        onClick={() => setRatingRequest(req)}
-                      >
-                        <Star size={15} /> Rate Professional
-                      </button>
-                      <button
-                        className="visily-pill-btn-outline"
-                        style={{ flex: 1, height: 42, fontSize: 13.5 }}
-                        onClick={() => setDetailsRequest(req)}
-                      >
-                        View Invoice
-                      </button>
+                      {canCancelRequest(req) && (
+                        <button
+                          type="button"
+                          className="visily-pill-btn-danger"
+                          style={{
+                            flex: 1,
+                            height: 42,
+                            fontSize: 13.5,
+                            background: '#FFF1F2',
+                            color: '#E11D48',
+                            border: '1.5px solid #FECDD3',
+                            borderRadius: 24,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 6,
+                          }}
+                          onClick={() => setCancelConfirmRequest(req)}
+                        >
+                          <XCircle size={15} /> Cancel Booking
+                        </button>
+                      )}
                     </>
                   ) : (
                     <>
@@ -1202,30 +1384,96 @@ function MyRequests({ navigate }) {
                 </div>
               </div>
 
-              {/* Experience Question */}
+              {/* Experience Question & 1 to 5 Star Rating Scale */}
               <div style={{ textAlign: 'center', marginTop: 10 }}>
-                <h3 style={{ fontSize: 17, fontWeight: 700, color: '#0F172A', marginBottom: 6 }}>
-                  How was your experience?
+                <h3 style={{ fontSize: 17, fontWeight: 700, color: '#0F172A', marginBottom: 4 }}>
+                  How was your service experience?
                 </h3>
-                <p style={{ fontSize: 13, color: '#64748B', margin: 0 }}>
-                  Your feedback helps maintain quality on the platform.
+                <p style={{ fontSize: 12.5, color: '#64748B', margin: '0 0 14px' }}>
+                  1 star means poor service • 5 stars means excellent service
                 </p>
 
-                {/* 5 Big Stars */}
-                <div className="visily-star-picker">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      className={`visily-star-picker-btn ${
-                        star <= reviewRating ? 'active' : ''
-                      }`}
-                      onClick={() => setReviewRating(star)}
-                      aria-label={`${star} star`}
-                    >
-                      ★
-                    </button>
-                  ))}
+                {/* 5 Big Interactive Stars */}
+                <div
+                  className="visily-star-picker"
+                  onMouseLeave={() => setHoveredRating(0)}
+                  style={{ display: 'flex', justifyContent: 'center', gap: 10 }}
+                >
+                  {[1, 2, 3, 4, 5].map((star) => {
+                    const currentVal = hoveredRating || reviewRating;
+                    const isLit = star <= currentVal;
+                    return (
+                      <button
+                        key={star}
+                        type="button"
+                        className={`visily-star-picker-btn ${isLit ? 'active' : ''}`}
+                        onClick={() => setReviewRating(star)}
+                        onMouseEnter={() => setHoveredRating(star)}
+                        aria-label={`${star} star: ${RATING_DEFINITIONS[star]?.title}`}
+                        style={{
+                          fontSize: 34,
+                          cursor: 'pointer',
+                          background: 'none',
+                          border: 'none',
+                          color: isLit ? '#F59E0B' : '#CBD5E1',
+                          transform: isLit ? 'scale(1.12)' : 'scale(1)',
+                          transition: 'all 0.15s ease',
+                          padding: '4px',
+                        }}
+                      >
+                        ★
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Current Selected Rating Quality Tag */}
+                <div style={{ marginTop: 10, minHeight: 32, display: 'flex', justifyContent: 'center' }}>
+                  {(() => {
+                    const currentVal = hoveredRating || reviewRating;
+                    const def = RATING_DEFINITIONS[currentVal] || RATING_DEFINITIONS[5];
+                    return (
+                      <div
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '5px 16px',
+                          borderRadius: 20,
+                          backgroundColor: `${def.color}15`,
+                          border: `1.5px solid ${def.color}40`,
+                          color: def.color,
+                          fontWeight: 700,
+                          fontSize: 13.5,
+                        }}
+                      >
+                        <span>{def.emoji}</span>
+                        <span>
+                          {currentVal} {currentVal === 1 ? 'Star' : 'Stars'} — {def.title}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* 1 to 5 Star Legend Guide */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    padding: '10px 10px 0',
+                    fontSize: 11,
+                    color: '#94A3B8',
+                    fontWeight: 600,
+                    borderTop: '1px dashed #E2E8F0',
+                    marginTop: 12,
+                  }}
+                >
+                  <span style={{ color: '#EF4444' }}>★ 1: Poor</span>
+                  <span>★ 2: Fair</span>
+                  <span>★ 3: Good</span>
+                  <span>★ 4: Very Good</span>
+                  <span style={{ color: '#059669' }}>★ 5: Excellent</span>
                 </div>
               </div>
 
@@ -1642,8 +1890,36 @@ function MyRequests({ navigate }) {
 
               {/* Modal Footer Actions */}
               <div className="visily-modal-footer">
+                {canCancelRequest(detailsRequest) && (
+                  <button
+                    type="button"
+                    className="visily-pill-btn-danger"
+                    style={{
+                      padding: '0 16px',
+                      height: 44,
+                      background: '#FFF1F2',
+                      color: '#E11D48',
+                      border: '1.5px solid #FECDD3',
+                      borderRadius: 24,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontSize: 13.5,
+                    }}
+                    onClick={() => {
+                      const target = detailsRequest;
+                      setDetailsRequest(null);
+                      setCancelConfirmRequest(target);
+                    }}
+                  >
+                    <XCircle size={15} /> Cancel Booking
+                  </button>
+                )}
+
                 {['accepted', 'in_progress'].includes(detailsRequest.status) ? (
-                  <div style={{ display: 'flex', gap: 10, width: '100%' }}>
+                  <div style={{ display: 'flex', gap: 10, flex: 1 }}>
                     <button
                       type="button"
                       className="visily-pill-btn"
@@ -1666,7 +1942,7 @@ function MyRequests({ navigate }) {
                     </button>
                   </div>
                 ) : detailsRequest.status === 'completed' && !detailsRequest.review_rating ? (
-                  <div style={{ display: 'flex', gap: 10, width: '100%' }}>
+                  <div style={{ display: 'flex', gap: 10, flex: 1 }}>
                     <button
                       type="button"
                       className="visily-pill-btn"
@@ -1675,6 +1951,9 @@ function MyRequests({ navigate }) {
                         const target = detailsRequest;
                         setDetailsRequest(null);
                         setRatingRequest(target);
+                        setReviewRating(5);
+                        setReviewComment('');
+                        setReviewTags([]);
                       }}
                     >
                       <Star size={16} /> Rate Professional
@@ -1692,6 +1971,7 @@ function MyRequests({ navigate }) {
                   <button
                     type="button"
                     className="visily-pill-btn"
+                    style={{ flex: 1 }}
                     onClick={() => setDetailsRequest(null)}
                   >
                     Close
@@ -1702,6 +1982,115 @@ function MyRequests({ navigate }) {
           </div>
         );
       })()}
+
+      {/* ──────── Cancellation Confirmation Modal ──────── */}
+      {cancelConfirmRequest && (
+        <div
+          className="visily-modal-overlay"
+          style={{ zIndex: 1100 }}
+          onClick={(e) => e.target === e.currentTarget && !cancelling && setCancelConfirmRequest(null)}
+        >
+          <div
+            className="visily-modal-container"
+            style={{
+              maxWidth: 420,
+              padding: 24,
+              borderRadius: 20,
+              boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+            }}
+          >
+            <div style={{ textAlign: 'center', padding: '10px 0 16px' }}>
+              <div
+                style={{
+                  width: 58,
+                  height: 58,
+                  borderRadius: '50%',
+                  background: '#FEE2E2',
+                  color: '#DC2626',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 16px',
+                }}
+              >
+                <XCircle size={32} />
+              </div>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: '#0F172A', margin: '0 0 8px' }}>
+                Cancel Service Booking?
+              </h3>
+              <p style={{ fontSize: 13.5, color: '#64748B', lineHeight: 1.5, margin: 0 }}>
+                Are you sure you want to cancel your booking for{' '}
+                <strong style={{ color: '#0F172A' }}>
+                  {cancelConfirmRequest.title || 'this service'}
+                </strong>
+                ? This action cannot be undone.
+              </p>
+
+              <div
+                style={{
+                  marginTop: 16,
+                  padding: '10px 14px',
+                  background: '#FFFBEB',
+                  borderRadius: 12,
+                  border: '1px solid #FDE68A',
+                  fontSize: 12,
+                  color: '#92400E',
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 8,
+                }}
+              >
+                <Info size={16} color="#D97706" style={{ flexShrink: 0, marginTop: 1 }} />
+                <span>
+                  Free cancellation is available until the specialist verifies your arrival OTP. Once verified, the job is in progress and cancellation will be closed.
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              <button
+                type="button"
+                className="visily-pill-btn-outline"
+                style={{ flex: 1, height: 44, fontSize: 14 }}
+                disabled={cancelling}
+                onClick={() => setCancelConfirmRequest(null)}
+              >
+                Keep Booking
+              </button>
+              <button
+                type="button"
+                className="visily-pill-btn-danger"
+                style={{
+                  flex: 1,
+                  height: 44,
+                  fontSize: 14,
+                  background: '#DC2626',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: 24,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                }}
+                disabled={cancelling}
+                onClick={() => handleCancelRequest(cancelConfirmRequest)}
+              >
+                {cancelling ? (
+                  <>
+                    <RefreshCw size={15} className="spin" /> Cancelling...
+                  </>
+                ) : (
+                  'Yes, Cancel Service'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Toast toast={toast} />
     </div>

@@ -1,4 +1,5 @@
 import {
+  Bug,
   Camera,
   Car,
   Hammer,
@@ -8,77 +9,86 @@ import {
   Paintbrush,
   Scissors,
   Shield,
+  ShieldCheck,
+  Snowflake,
   Sparkles,
   Tags,
-  Wrench,
+  Users,
   Wind,
+  Wrench,
   Zap,
 } from 'lucide-react';
 
 // Maps category names to the same Lucide icons used by the admin dashboard.
 export const categoryIcons = {
   'Plumbing': Wrench,
-  'Electrical': Zap,
-  'AC & Appliance Repair': Wind,
-  'Carpentry': Hammer,
-  'Painting': Paintbrush,
+  'AC & Appliances': Snowflake,
   'Cleaning': Sparkles,
-  'Home Repair & Maintenance': Home,
+  'Pest Control': Bug,
+  'Home Improvement': Paintbrush,
+  'Vehicle': Car,
+  'Personal & Daily Help': Users,
+  'Electrical': Zap,
   'CCTV & Security': Shield,
   'Gardening & Landscaping': Leaf,
   'Computer & Mobile Repair': Monitor,
   'Photography & Videography': Camera,
-  'Vehicle Services': Car,
   'Personal Care': Scissors,
   'Barber and Beautician Services': Scissors,
 };
 
 export const categoryColors = {
   'Plumbing': '#3b82f6',
-  'Electrical': '#f59e0b',
-  'AC & Appliance Repair': '#06b6d4',
-  'Carpentry': '#a16207',
-  'Painting': '#ec4899',
+  'AC & Appliances': '#06b6d4',
   'Cleaning': '#8b5cf6',
-  'Home Repair & Maintenance': '#6366F1',
+  'Pest Control': '#ef4444',
+  'Home Improvement': '#ec4899',
+  'Vehicle': '#f97316',
+  'Personal & Daily Help': '#8b5cf6',
+  'Electrical': '#f59e0b',
   'CCTV & Security': '#6366f1',
   'Gardening & Landscaping': '#10b981',
   'Computer & Mobile Repair': '#0ea5e9',
   'Photography & Videography': '#d946ef',
-  'Vehicle Services': '#f97316',
   'Personal Care': '#ec4899',
 };
 
 export const serviceGroups = [
   {
-    name: 'Personal Care',
+    name: 'Home & Improvement',
+    icon: Home,
+    color: '#ec4899',
+    categories: ['Plumbing', 'Home Improvement', 'Electrical', 'CCTV & Security'],
+  },
+  {
+    name: 'AC & Appliances',
+    icon: Snowflake,
+    color: '#06b6d4',
+    categories: ['AC & Appliances'],
+  },
+  {
+    name: 'Cleaning & Pest',
     icon: Sparkles,
     color: '#8b5cf6',
-    categories: ['Personal Care', 'Cleaning', 'Gardening & Landscaping'],
+    categories: ['Cleaning', 'Pest Control'],
   },
   {
-    name: 'Education',
-    icon: Monitor,
-    color: '#0ea5e9',
-    categories: ['Computer & Mobile Repair'],
-  },
-  {
-    name: 'Home Services',
-    icon: Home,
-    color: '#6366F1',
-    categories: ['CCTV & Security', 'Photography & Videography'],
-  },
-  {
-    name: 'Home Repairs',
-    icon: Tags,
-    color: '#6366F1',
-    categories: ['Plumbing', 'Electrical', 'AC & Appliance Repair', 'Carpentry', 'Painting', 'Home Repair & Maintenance'],
-  },
-  {
-    name: 'Vehicle Services',
+    name: 'Vehicle Care',
     icon: Car,
     color: '#f97316',
-    categories: ['Vehicle Services'],
+    categories: ['Vehicle'],
+  },
+  {
+    name: 'Personal & Daily Help',
+    icon: Users,
+    color: '#8b5cf6',
+    categories: ['Personal & Daily Help', 'Personal Care', 'Gardening & Landscaping'],
+  },
+  {
+    name: 'Digital & Media',
+    icon: Monitor,
+    color: '#0ea5e9',
+    categories: ['Computer & Mobile Repair', 'Photography & Videography'],
   },
 ];
 
@@ -154,6 +164,8 @@ export const CLEANING_SUBCATEGORIES = [
   }
 ];
 
-export const API = `${import.meta.env.VITE_API_URL || 'https://service-marketplace-af7p.onrender.com'}/api/user`;
+export const SERVER_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com');
+export const API = `${SERVER_BASE}/api/user`;
+export const AUTH_API = `${SERVER_BASE}/api/auth`;
 
 

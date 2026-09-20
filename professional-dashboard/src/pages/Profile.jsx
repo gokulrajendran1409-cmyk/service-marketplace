@@ -90,10 +90,25 @@ function Profile() {
     fetchProfile();
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("professionalToken");
-    localStorage.removeItem("professional");
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem("professionalToken");
+      if (token) {
+        await fetch(`${API}/api/professionals/logout`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch(() => {});
+      }
+    } catch {
+      // Ignore network errors on logout
+    } finally {
+      localStorage.removeItem("professionalToken");
+      localStorage.removeItem("professional");
+      window.dispatchEvent(new CustomEvent('professional-online-changed', {
+        detail: { is_online: false }
+      }));
+      navigate("/login");
+    }
   };
 
   const handleSave = async () => {

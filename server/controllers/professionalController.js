@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const { broadcast } = require('../utils/sseClients');
 const { notifyPro } = require('../utils/proSseClients');
 const { notifyCustomer } = require('../utils/customerSseClients');
+const { checkAndSend1HourReminders } = require('../services/reminderService');
 
 const JOURNEY_STEPS = ['accepted', 'start_navigation', 'on_the_way', 'arrived', 'working'];
 
@@ -118,7 +119,28 @@ exports.loginProfessional = async (req, res) => {
         if (!professional || !(await bcrypt.compare(password, professional.password_hash))) {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
-        // verification_status is no longer blocking login, token is issued normally.
+        // Close any existing active login sessions for this professional
+        await db.query(
+            `UPDATE professional_logins 
+             SET is_active = FALSE, logout_time = CURRENT_TIMESTAMP 
+             WHERE professional_id = $1 AND is_active = TRUE`,
+            [professional.professional_id]
+        );
+
+        // Record the new login event in the database
+        const ipAddress = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || req.ip || '').toString().split(',')[0].trim() || null;
+        const userAgent = req.headers['user-agent'] || null;
+        await db.query(
+            `INSERT INTO professional_logins (professional_id, user_id, login_time, ip_address, user_agent, is_active)
+             VALUES ($1, $2, CURRENT_TIMESTAMP, $3, $4, TRUE)`,
+            [professional.professional_id, professional.user_id, ipAddress, userAgent]
+        );
+
+        // Automatically mark the professional active (online) upon logging in
+        await db.query(
+            'UPDATE professionals SET is_online = TRUE WHERE id = $1',
+            [professional.professional_id]
+        );
 
         const token = jwt.sign({ id: professional.user_id, professionalId: professional.professional_id, role: 'professional' }, JWT_SECRET, { expiresIn: '7d' });
         res.json({
@@ -130,7 +152,7 @@ exports.loginProfessional = async (req, res) => {
                 email: professional.email,
                 verification_status: professional.verification_status,
                 profile_photo: professional.profile_photo,
-                is_online: Boolean(professional.is_online)
+                is_online: true
             }
         });
     } catch (err) {
@@ -279,11 +301,13 @@ exports.getDashboardStats = async (req, res) => {
         const statsQuery = `
             SELECT 
                 COUNT(*) as total_requests,
-                COUNT(*) FILTER (WHERE so.status = 'pending') as pending_requests,
+                COUNT(*) FILTER (WHERE so.status = 'pending' AND COALESCE(p.is_online, false) = true) as pending_requests,
                 COUNT(*) FILTER (WHERE so.status = 'accepted' AND sr.status = 'completed') as completed_requests
             FROM service_offers so
             JOIN service_requests sr ON sr.id = so.request_id
+            JOIN professionals p ON p.id = so.professional_id
             WHERE so.professional_id = $1
+              AND (COALESCE(p.is_online, false) = true OR so.status != 'pending')
         `;
         
         const reviewQuery = `
@@ -336,6 +360,7 @@ exports.getMyRequests = async (req, res) => {
         const professionalId = req.professionalId;
         
         // Get service requests where this professional has made an offer
+        // When offline, do NOT return pending available job requests.
         const query = `
             SELECT 
                 sr.*, 
@@ -346,7 +371,9 @@ exports.getMyRequests = async (req, res) => {
             FROM service_requests sr
             JOIN users u ON sr.customer_id = u.id
             JOIN service_offers so ON sr.id = so.request_id
+            JOIN professionals p ON p.id = so.professional_id
             WHERE so.professional_id = $1
+              AND (COALESCE(p.is_online, false) = true OR so.status != 'pending')
             ORDER BY sr.created_at DESC
         `;
         
@@ -482,6 +509,10 @@ exports.respondToRequest = async (req, res) => {
             timestamp: new Date().toISOString()
         });
         res.json({ message: `Request ${decision}`, request: requestResult.rows[0] });
+
+        if (decision === 'accepted') {
+            checkAndSend1HourReminders().catch(e => console.error('Reminder check error on accept:', e.message));
+        }
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Request response error:', error);
@@ -611,18 +642,23 @@ exports.verifyOtp = async (req, res) => {
 
         const result = await client.query(
             `UPDATE service_requests
-             SET journey_status = 'arrived', journey_updated_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+             SET journey_status = 'arrived',
+                 is_otp_verified = TRUE,
+                 otp_verified_at = CURRENT_TIMESTAMP,
+                 journey_updated_at = CURRENT_TIMESTAMP,
+                 updated_at = CURRENT_TIMESTAMP
              WHERE id = $1
              RETURNING *`,
             [requestId]
         );
         await client.query('COMMIT');
 
-        // Notify customer about arrival
+        // Notify customer about arrival and OTP verification
         notifyCustomer(customerId, 'requestUpdate', {
             requestId: requestId,
             newStatus: 'in_progress',
             journeyStatus: 'arrived',
+            is_otp_verified: true,
             updateType: 'journey_update',
             professionalName: professionalName
         });
@@ -633,6 +669,7 @@ exports.verifyOtp = async (req, res) => {
             professional_id: professionalId,
             status: 'in_progress',
             journey_status: 'arrived',
+            is_otp_verified: true,
             timestamp: new Date().toISOString()
         });
         res.json({ message: 'OTP verified successfully, status updated to arrived', request: result.rows[0] });
@@ -950,6 +987,19 @@ exports.completeTask = async (req, res) => {
             [requestId]
         );
 
+        await client.query(
+            `INSERT INTO notifications (user_id, request_id, professional_id, type, title, message, is_read, metadata, created_at)
+             VALUES ($1, $2, $3, 'task_completed', 'Task Completed! 🎉', $4, false, $5, CURRENT_TIMESTAMP)
+             ON CONFLICT (user_id, request_id, type) DO NOTHING`,
+            [
+                customerId,
+                requestId,
+                professionalId,
+                `${professionalName} has completed your service "${serviceTitle}". Please rate your experience!`,
+                JSON.stringify({ requestId, professionalName, serviceTitle })
+            ]
+        );
+
         await client.query('COMMIT');
 
         // Real-time SSE notification to the customer
@@ -1013,7 +1063,7 @@ exports.updateOnlineStatus = async (req, res) => {
             `UPDATE professionals 
              SET is_online = $1 
              WHERE id = $2 
-             RETURNING id, full_name, is_online`,
+             RETURNING id, user_id, full_name, is_online`,
             [is_online, professionalId]
         );
 
@@ -1021,13 +1071,125 @@ exports.updateOnlineStatus = async (req, res) => {
             return res.status(404).json({ message: 'Professional not found' });
         }
 
+        const pro = result.rows[0];
+
+        if (!is_online) {
+            // When turning offline, close any active login sessions
+            await db.query(
+                `UPDATE professional_logins 
+                 SET is_active = FALSE, logout_time = CURRENT_TIMESTAMP 
+                 WHERE professional_id = $1 AND is_active = TRUE`,
+                [professionalId]
+            );
+        } else {
+            // When turning online, ensure there is an active session
+            const activeSession = await db.query(
+                'SELECT id FROM professional_logins WHERE professional_id = $1 AND is_active = TRUE LIMIT 1',
+                [professionalId]
+            );
+            if (!activeSession.rows.length) {
+                const ipAddress = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || req.ip || '').toString().split(',')[0].trim() || null;
+                const userAgent = req.headers['user-agent'] || null;
+                await db.query(
+                    `INSERT INTO professional_logins (professional_id, user_id, login_time, ip_address, user_agent, is_active)
+                     VALUES ($1, $2, CURRENT_TIMESTAMP, $3, $4, TRUE)`,
+                    [professionalId, pro.user_id, ipAddress, userAgent]
+                );
+            }
+        }
+
         res.json({
             message: `Professional is now ${is_online ? 'online' : 'offline'}`,
-            professional: result.rows[0]
+            professional: {
+                id: pro.id,
+                full_name: pro.full_name,
+                is_online: pro.is_online
+            }
         });
     } catch (error) {
         console.error('Update online status error:', error);
         res.status(500).json({ message: 'Failed to update online status' });
+    }
+};
+
+exports.logoutProfessional = async (req, res) => {
+    try {
+        const professionalId = req.professionalId;
+        if (!professionalId) {
+            return res.status(400).json({ message: 'Professional ID not found' });
+        }
+
+        // Set professional offline
+        await db.query(
+            'UPDATE professionals SET is_online = FALSE WHERE id = $1',
+            [professionalId]
+        );
+
+        // Mark active login records as logged out
+        await db.query(
+            `UPDATE professional_logins 
+             SET is_active = FALSE, logout_time = CURRENT_TIMESTAMP 
+             WHERE professional_id = $1 AND is_active = TRUE`,
+            [professionalId]
+        );
+
+        res.json({
+            message: 'Logged out successfully',
+            is_online: false
+        });
+    } catch (error) {
+        console.error('Professional logout error:', error);
+        res.status(500).json({ message: 'Failed to log out' });
+    }
+};
+
+// GET /api/professionals/notifications - Get persistent notifications for logged in professional
+exports.getNotifications = async (req, res) => {
+    try {
+        const professionalId = req.professionalId;
+        const userId = req.user.id;
+        const result = await db.query(
+            `SELECT id, request_id, professional_id, user_id, type, title, message, is_read, created_at, metadata
+             FROM notifications
+             WHERE professional_id = $1 OR (user_id = $2 AND type LIKE '%_pro%')
+             ORDER BY created_at DESC
+             LIMIT 50`,
+            [professionalId, userId]
+        );
+        res.json({
+            notifications: result.rows.map(n => ({
+                id: n.id,
+                type: n.type,
+                request_id: n.request_id,
+                title: n.title,
+                message: n.message,
+                timestamp: n.created_at,
+                read: n.is_read,
+                metadata: n.metadata
+            })),
+            unreadCount: result.rows.filter(n => !n.is_read).length
+        });
+    } catch (err) {
+        console.error('getProfessionalNotifications error:', err);
+        res.status(500).json({ message: 'Failed to fetch notifications' });
+    }
+};
+
+// PATCH /api/professionals/notifications/:id/read - Mark notification as read
+exports.markNotificationRead = async (req, res) => {
+    try {
+        const professionalId = req.professionalId;
+        const notifId = Number(req.params.id);
+        if (Number.isInteger(notifId)) {
+            await db.query(
+                `UPDATE notifications SET is_read = true WHERE id = $1 AND (professional_id = $2 OR user_id = $3)`,
+                [notifId, professionalId, req.user.id]
+            );
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error('markProfessionalNotificationRead error:', err);
+        res.status(500).json({ message: 'Failed to mark notification read' });
     }
 };
 

@@ -75,18 +75,18 @@ import otherServicesIcon from '../assets/category-icons/other_services.png';
 
 const PROFESSION_LABELS = {
   'Plumbing': 'Plumber',
-  'Electrical': 'Electrician',
-  'AC & Appliance Repair': 'AC & Appliance Tech',
-  'Carpentry': 'Carpenter',
+  'AC & Appliances': 'AC & Appliance Tech',
   'Cleaning': 'Cleaner',
-  'Painting': 'Painter',
-  'Vehicle Services': 'Mechanic',
-  'Personal Care': 'Beauty Professional',
-  'Gardening & Landscaping': 'Gardener',
+  'Pest Control': 'Pest Control Expert',
+  'Home Improvement': 'Renovation Specialist',
+  'Vehicle': 'Mechanic',
+  'Personal & Daily Help': 'Assistant / Specialist',
+  'Electrical': 'Electrician',
   'CCTV & Security': 'Security Tech',
+  'Gardening & Landscaping': 'Gardener',
   'Computer & Mobile Repair': 'IT Tech',
   'Photography & Videography': 'Photographer',
-  'Home Repair & Maintenance': 'Handyman'
+  'Personal Care': 'Beauty Professional',
 };
 
 const getProfessionLabel = (category) => PROFESSION_LABELS[category] || category || 'Professional';
@@ -95,74 +95,87 @@ const scrollAppToTop = (behavior = 'smooth') => {
 };
 
 const categoryImages = {
-  'Gardening & Landscaping': keralaGardening,
-  'Gardening': keralaGardening,
-  'AC & Appliance Repair': keralaAcRepair,
-  'AC Repair': keralaAcRepair,
-  'Appliances': keralaAcRepair,
-  'CCTV & Security': keralaCctv,
-  'Security': keralaCctv,
-  'Computer & Mobile Repair': keralaComputerRepair,
-  'Computer Repair': keralaComputerRepair,
-  'Computer Repairing': keralaComputerRepair,
-  'Carpentry': keralaCarpentry,
-  'Cleaning': keralaCleaning,
-  'Electrical': keralaElectrical,
-  'Painting': keralaPainting,
   'Plumbing': keralaPlumbing,
-  'Home Repair & Maintenance': keralaHomeRepair,
+  'AC & Appliances': keralaAcRepair,
+  'Cleaning': keralaCleaning,
+  'Pest Control': 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=800&q=80',
+  'Home Improvement': 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=800&q=80',
+  'Vehicle': keralaVehicle,
+  'Personal & Daily Help': 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=800&q=80',
+  'Electrical': keralaElectrical,
+  'CCTV & Security': keralaCctv,
+  'Gardening & Landscaping': keralaGardening,
+  'Computer & Mobile Repair': keralaComputerRepair,
   'Photography & Videography': keralaPhotography,
-  'Vehicle Services': keralaVehicle,
-  'Vehicle Servicing': keralaVehicle,
   'Personal Care': 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=800&q=80',
-  'Barber and Beautician Services': 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=800&q=80',
 };
 
 const localCategoryFallbacks = {
-  'Gardening & Landscaping': gardeningFallback,
-  'Gardening': gardeningFallback,
-  'AC & Appliance Repair': acRepairFallback,
-  'AC Repair': acRepairFallback,
-  'CCTV & Security': cctvSecurityFallback,
-  'Security': cctvSecurityFallback,
-  'Appliances': appliancesFallback,
-  'Computer & Mobile Repair': computerRepairFallback,
-  'Computer Repair': computerRepairFallback,
-  'Carpentry': carpentryFallback,
-  'Cleaning': cleaningFallback,
-  'Electrical': electricalFallback,
-  'Painting': paintingFallback,
   'Plumbing': plumbingFallback,
-  'Home Repair & Maintenance': keralaHomeRepair,
+  'AC & Appliances': acRepairFallback,
+  'Cleaning': cleaningFallback,
+  'Pest Control': 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=800&q=80',
+  'Home Improvement': paintingFallback,
+  'Vehicle': keralaVehicle,
+  'Personal & Daily Help': 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=800&q=80',
+  'Electrical': electricalFallback,
+  'CCTV & Security': cctvSecurityFallback,
+  'Gardening & Landscaping': gardeningFallback,
+  'Computer & Mobile Repair': computerRepairFallback,
   'Photography & Videography': keralaPhotography,
-  'Vehicle Services': keralaVehicle,
   'Personal Care': 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=800&q=80',
-  'Barber and Beautician Services': 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=800&q=80',
 };
 
-// 20 Exact Categories from design image with respective professional counts & icons
+// Clean, non-duplicated active service categories with real-time professional counts & icons
 const BROWSE_CATEGORIES = [
-  { id: 'plumbing', name: 'Plumbing', count: '124 Professionals', icon: plumbingIcon, dbCategory: 'Plumbing', group: 'Home Repairs', keywords: ['plumber', 'pipe', 'leak', 'drain', 'water', 'tap', 'sink', 'toilet'] },
-  { id: 'electrical', name: 'Electrical', count: '98 Professionals', icon: electricalIcon, dbCategory: 'Electrical', group: 'Home Repairs', keywords: ['electrician', 'wiring', 'switch', 'light', 'fan', 'fuse', 'power', 'socket'] },
-  { id: 'ac_repair', name: 'AC Repair', count: '76 Professionals', icon: acRepairIcon, dbCategory: 'AC & Appliance Repair', group: 'Home Repairs', keywords: ['ac', 'air conditioner', 'cooling', 'hvac', 'gas refill', 'servicing'] },
-  { id: 'carpentry', name: 'Carpentry', count: '68 Professionals', icon: carpentryIcon, dbCategory: 'Carpentry', group: 'Home Repairs', keywords: ['carpenter', 'wood', 'furniture', 'door', 'table', 'chair', 'cabinet'] },
-  { id: 'cleaning', name: 'Cleaning', count: '142 Professionals', icon: cleaningIcon, dbCategory: 'Cleaning', group: 'Home Services', keywords: ['maid', 'cleaner', 'deep clean', 'sanitize', 'mop', 'housekeeping', 'dusting'] },
-  { id: 'painting', name: 'Painting', count: '58 Professionals', icon: paintingIcon, dbCategory: 'Painting', group: 'Home Repairs', keywords: ['painter', 'wall', 'paint', 'whitewash', 'texture', 'interior', 'exterior'] },
-  { id: 'mechanic', name: 'Mechanic', count: '71 Professionals', icon: mechanicIcon, dbCategory: 'Vehicle Services', group: 'Vehicle Services', keywords: ['car', 'bike', 'motor', 'vehicle', 'repair', 'auto', 'breakdown', 'garage'] },
-  { id: 'cctv', name: 'CCTV Installation', count: '46 Professionals', icon: cctvIcon, dbCategory: 'CCTV & Security', group: 'Home Services', keywords: ['cctv', 'camera', 'security', 'surveillance', 'monitoring', 'alarm'] },
-  { id: 'appliance_repair', name: 'Appliance Repair', count: '63 Professionals', icon: applianceRepairIcon, dbCategory: 'AC & Appliance Repair', group: 'Home Repairs', keywords: ['fridge', 'refrigerator', 'washing machine', 'microwave', 'oven', 'tv', 'appliance'] },
-  { id: 'beauty_wellness', name: 'Beauty & Wellness', count: '52 Professionals', icon: beautyWellnessIcon, dbCategory: 'Personal Care', group: 'Personal Care', keywords: ['salon', 'spa', 'massage', 'haircut', 'facial', 'grooming', 'makeup', 'barber'] },
-  { id: 'tutoring', name: 'Tutoring', count: '38 Professionals', icon: tutoringIcon, dbCategory: 'Computer & Mobile Repair', group: 'Education', keywords: ['tutor', 'teacher', 'maths', 'science', 'tuition', 'coaching', 'study'] },
-  { id: 'photography', name: 'Photography', count: '29 Professionals', icon: photographyIcon, dbCategory: 'Photography & Videography', group: 'Personal Care', keywords: ['photo', 'video', 'photographer', 'candid', 'wedding', 'event', 'shoot'] },
-  { id: 'event_planning', name: 'Event Planning', count: '21 Professionals', icon: eventPlanningIcon, dbCategory: 'Personal Care', group: 'Personal Care', keywords: ['event', 'party', 'birthday', 'wedding', 'planner', 'stage', 'catering'] },
-  { id: 'landscaping', name: 'Landscaping', count: '34 Professionals', icon: landscapingIcon, dbCategory: 'Gardening & Landscaping', group: 'Home Services', keywords: ['garden', 'lawn', 'plants', 'trees', 'grass', 'irrigation', 'landscaping'] },
-  { id: 'moving_packing', name: 'Moving & Packing', count: '27 Professionals', icon: movingPackingIcon, dbCategory: 'Home Repair & Maintenance', group: 'Home Services', keywords: ['packers', 'movers', 'shifting', 'relocation', 'transport', 'cargo'] },
-  { id: 'home_renovation', name: 'Home Renovation', count: '19 Professionals', icon: homeRenovationIcon, dbCategory: 'Home Repair & Maintenance', group: 'Home Repairs', keywords: ['renovation', 'remodeling', 'tiles', 'masonry', 'contractor', 'upgrade'] },
-  { id: 'it_support', name: 'IT & Computer Support', count: '42 Professionals', icon: itSupportIcon, dbCategory: 'Computer & Mobile Repair', group: 'Education', keywords: ['computer', 'laptop', 'wifi', 'networking', 'windows', 'mac', 'printer', 'it'] },
-  { id: 'language_classes', name: 'Language Classes', count: '16 Professionals', icon: languageClassesIcon, dbCategory: 'Computer & Mobile Repair', group: 'Education', keywords: ['english', 'malayalam', 'hindi', 'french', 'german', 'ielts', 'learning'] },
-  { id: 'pet_care', name: 'Pet Care', count: '24 Professionals', icon: petCareIcon, dbCategory: 'Personal Care', group: 'Personal Care', keywords: ['dog', 'cat', 'pet', 'grooming', 'vet', 'walking', 'boarding'] },
-  { id: 'other_services', name: 'Other Services', count: '33 Professionals', icon: otherServicesIcon, dbCategory: 'Home Repair & Maintenance', group: 'Home Services', keywords: ['other', 'misc', 'custom', 'handyman', 'general'] }
+  { id: 'plumbing', name: 'Plumbing', count: '110+ Professionals', icon: plumbingIcon, dbCategory: 'Plumbing', group: 'Home & Improvement', keywords: ['plumbing', 'plumber', 'pipe', 'leak', 'burst', 'tap', 'faucet', 'drain', 'toilet', 'cistern', 'geyser', 'water tank', 'motor', 'pump'] },
+  { id: 'ac_appliances', name: 'AC & Appliances', count: '85+ Professionals', icon: applianceRepairIcon, dbCategory: 'AC & Appliances', group: 'AC & Appliances', keywords: ['ac & appliances', 'ac service', 'ac repair', 'refrigerator', 'washing machine', 'microwave', 'geyser', 'tv', 'ro', 'water purifier'] },
+  { id: 'cleaning', name: 'Cleaning', count: '142 Professionals', icon: cleaningIcon, dbCategory: 'Cleaning', group: 'Cleaning & Pest', keywords: ['cleaning', 'full house cleaning', 'bathroom cleaning', 'kitchen cleaning', 'sofa cleaning', 'carpet cleaning', 'move-in', 'move-out cleaning', 'maid'] },
+  { id: 'pest_control', name: 'Pest Control', count: '45+ Professionals', icon: petCareIcon, dbCategory: 'Pest Control', group: 'Cleaning & Pest', keywords: ['pest control', 'cockroach', 'termite', 'mosquito', 'rodent', 'general pest control', 'bugs', 'insects'] },
+  { id: 'home_improvement', name: 'Home Improvement', count: '60+ Professionals', icon: paintingIcon, dbCategory: 'Home Improvement', group: 'Home & Improvement', keywords: ['home improvement', 'painting', 'wall repair', 'tile work', 'waterproofing', 'wallpaper', 'false ceiling'] },
+  { id: 'vehicle', name: 'Vehicle', count: '75+ Professionals', icon: mechanicIcon, dbCategory: 'Vehicle', group: 'Vehicle Care', keywords: ['vehicle', 'bike mechanic', 'car mechanic', 'car wash', 'detailing', 'battery', 'jump-start', 'tyre', 'puncture service', 'vehicle recovery', 'recovery', 'towing', 'breakdown'] },
+  { id: 'personal_daily_help', name: 'Personal & Daily Help', count: '65+ Professionals', icon: beautyWellnessIcon, dbCategory: 'Personal & Daily Help', group: 'Personal & Daily Help', keywords: ['personal & daily help', 'barber', 'beauty services', 'home tutor', 'cook', 'elder care', 'babysitter', 'driver'] },
+  { id: 'electrical', name: 'Electrical', count: '98 Professionals', icon: electricalIcon, dbCategory: 'Electrical', group: 'Home & Improvement', keywords: ['electrician', 'wiring', 'switch', 'light', 'fan', 'fuse', 'power', 'socket'] },
+  { id: 'cctv', name: 'CCTV & Security', count: '46 Professionals', icon: cctvIcon, dbCategory: 'CCTV & Security', group: 'Home & Improvement', keywords: ['cctv', 'camera', 'security', 'surveillance', 'monitoring', 'alarm'] },
+  { id: 'gardening', name: 'Gardening & Landscaping', count: '34 Professionals', icon: landscapingIcon, dbCategory: 'Gardening & Landscaping', group: 'Personal & Daily Help', keywords: ['garden', 'lawn', 'plants', 'trees', 'grass', 'irrigation', 'landscaping'] },
+  { id: 'computer_repair', name: 'Computer & Mobile Repair', count: '42 Professionals', icon: itSupportIcon, dbCategory: 'Computer & Mobile Repair', group: 'Digital & Media', keywords: ['computer', 'laptop', 'mobile', 'wifi', 'networking', 'windows', 'mac', 'printer', 'it'] },
+  { id: 'photography', name: 'Photography & Videography', count: '29 Professionals', icon: photographyIcon, dbCategory: 'Photography & Videography', group: 'Digital & Media', keywords: ['photo', 'video', 'photographer', 'candid', 'wedding', 'event', 'shoot'] },
+  { id: 'personal_care', name: 'Personal Care', count: '52 Professionals', icon: beautyWellnessIcon, dbCategory: 'Personal Care', group: 'Personal & Daily Help', keywords: ['salon', 'spa', 'massage', 'haircut', 'facial', 'grooming', 'makeup', 'barber'] },
 ];
+
+const DISTRICT_CENTERS = {
+  Ernakulam: { latitude: 9.9816, longitude: 76.2999 },
+  Thiruvananthapuram: { latitude: 8.5241, longitude: 76.9366 },
+  Kozhikode: { latitude: 11.2588, longitude: 75.7804 },
+  Thrissur: { latitude: 10.5276, longitude: 76.2144 },
+  Kollam: { latitude: 8.8932, longitude: 76.6141 },
+  Alappuzha: { latitude: 9.4981, longitude: 76.3388 },
+  Kottayam: { latitude: 9.5916, longitude: 76.5222 },
+  Malappuram: { latitude: 11.0510, longitude: 76.0711 },
+  Kasaragod: { latitude: 12.4996, longitude: 74.9869 },
+  Pathanamthitta: { latitude: 9.2648, longitude: 76.7870 },
+  Idukki: { latitude: 9.8494, longitude: 76.9804 },
+  Wayanad: { latitude: 11.6854, longitude: 76.1320 },
+  Kannur: { latitude: 11.8745, longitude: 75.3704 },
+  Palakkad: { latitude: 10.7867, longitude: 76.6548 },
+};
+
+const DEFAULT_DISTRICT_TIERS = {
+  Kasaragod: { markup: 0, tier: 'Current Pricing (0%)' },
+  Pathanamthitta: { markup: 0, tier: 'Current Pricing (0%)' },
+  Idukki: { markup: 0, tier: 'Current Pricing (0%)' },
+  Wayanad: { markup: 0, tier: 'Current Pricing (0%)' },
+  Kannur: { markup: 0, tier: 'Current Pricing (0%)' },
+  Palakkad: { markup: 0, tier: 'Current Pricing (0%)' },
+  Thrissur: { markup: 20, tier: '20% Increased Price' },
+  Kollam: { markup: 20, tier: '20% Increased Price' },
+  Alappuzha: { markup: 20, tier: '20% Increased Price' },
+  Kottayam: { markup: 20, tier: '20% Increased Price' },
+  Malappuram: { markup: 20, tier: '20% Increased Price' },
+  Ernakulam: { markup: 30, tier: '30% Increased Price' },
+  Thiruvananthapuram: { markup: 30, tier: '30% Increased Price' },
+  Kozhikode: { markup: 30, tier: '30% Increased Price' },
+};
 
 function Services({ navigate, initialGroup = null, initialCategory = null, user = null, unreadCount = 0 }) {
   const [categories, setCategories] = useState([]);
@@ -173,6 +186,8 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
   const [loadingPros, setLoadingPros] = useState(false);
   const [location, setLocation] = useState(null);
   const [locationName, setLocationName] = useState('Thiruvananthapuram');
+  const [selectedDistrict, setSelectedDistrict] = useState('Thiruvananthapuram');
+  const [districtPricingTiers, setDistrictPricingTiers] = useState(DEFAULT_DISTRICT_TIERS);
   const [locationStatus, setLocationStatus] = useState('idle');
   const [locationError, setLocationError] = useState('');
   const [booking, setBooking] = useState(null);
@@ -187,6 +202,38 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
   const { t, i18n } = useTranslation();
   const nearbyLimitKm = 15;
 
+  useEffect(() => {
+    fetch(`${API}/district-pricing`)
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          const map = {};
+          data.forEach(item => {
+            map[item.district] = {
+              markup: Number(item.markup_percentage) || 0,
+              tier: item.tier_name,
+            };
+          });
+          setDistrictPricingTiers(prev => ({ ...prev, ...map }));
+        }
+      })
+      .catch(err => console.error('Failed to load district pricing in Services:', err));
+  }, []);
+
+  const handleSelectDistrict = (dist) => {
+    setSelectedDistrict(dist);
+    setLocationName(dist);
+    const center = DISTRICT_CENTERS[dist];
+    const newLoc = center
+      ? { latitude: center.latitude, longitude: center.longitude, placeName: dist, district: dist }
+      : { placeName: dist, district: dist };
+    setLocation(newLoc);
+    setLocationStatus('ready');
+    if (selected) {
+      selectCategory(selected, dist, newLoc);
+    }
+  };
+
   const calculateDistanceInKm = (firstLatitude, firstLongitude, secondLatitude, secondLongitude) => {
     if (![firstLatitude, firstLongitude, secondLatitude, secondLongitude].every(Number.isFinite)) return null;
     const earthRadiusKm = 6371;
@@ -199,7 +246,7 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
     return earthRadiusKm * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
   };
 
-  useEffect(() => {
+  const loadCategoriesAndSubcategories = () => {
     fetch(`${API}/categories?lang=${i18n.language}`)
       .then(r => r.json())
       .then(data => setCategories(Array.isArray(data) ? data : []))
@@ -211,6 +258,21 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
       .then(data => setSubcategories(Array.isArray(data) ? data : []))
       .catch(err => console.error('Failed to load subcategories:', err))
       .finally(() => setLoadingSubcats(false));
+  };
+
+  useEffect(() => {
+    loadCategoriesAndSubcategories();
+
+    const handleFocus = () => {
+      loadCategoriesAndSubcategories();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
   }, [i18n.language]);
 
   const requestLocation = () => new Promise((resolve, reject) => {
@@ -257,24 +319,29 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
     );
   });
 
-  const selectCategory = async (cat) => {
+  const selectCategory = async (cat, targetDistrict = selectedDistrict, targetLoc = location) => {
     setSelected(cat);
     setProfessionals([]);
     setLoadingPros(true);
     
-    if (!location && locationStatus !== 'requesting' && locationStatus !== 'denied') {
+    if (!targetLoc && locationStatus !== 'requesting' && locationStatus !== 'denied') {
       requestLocation().catch(() => {});
     }
 
     try {
       const query = new URLSearchParams({ category: cat.name });
+      if (targetDistrict) query.set('district', targetDistrict);
+      if (targetLoc?.latitude && targetLoc?.longitude) {
+        query.set('latitude', targetLoc.latitude);
+        query.set('longitude', targetLoc.longitude);
+      }
       const res = await fetch(`${API}/professionals?${query}`);
       const data = await res.json();
       setProfessionals(Array.isArray(data) ? data.map(professional => ({
         ...professional,
-        distance_from_user: location ? calculateDistanceInKm(
-          location.latitude,
-          location.longitude,
+        distance_from_user: targetLoc ? calculateDistanceInKm(
+          targetLoc.latitude,
+          targetLoc.longitude,
           Number(professional.effective_latitude || professional.current_latitude || professional.registered_latitude),
           Number(professional.effective_longitude || professional.current_longitude || professional.registered_longitude)
         ) : null,
@@ -411,9 +478,10 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
         >
           <MapPin size={16} />
           <span>
-            {locationStatus === 'ready' 
-              ? location?.placeName || t('services.location_found') 
-              : t('services.enable_location')}
+            {location?.placeName || locationName}
+            {districtPricingTiers[selectedDistrict]?.markup > 0
+              ? ` (+${districtPricingTiers[selectedDistrict].markup}% Surge)`
+              : ''}
           </span>
           <ChevronRight size={14} />
         </button>
@@ -492,7 +560,7 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
                 const displayName = dbCat?.name || item.name;
                 
                 return (
-                  <div key={idx} className="browse-category-card fade-up" onClick={() => setSelected(item)}>
+                  <div key={idx} className="browse-category-card fade-up" onClick={() => handleCategoryCardClick(item)}>
                     <div className="browse-card-icon-wrap" style={{ color: categoryColors[item.name] || 'var(--accent-primary)' }}>
                       {typeof item.icon === 'string' ? (
                         <img src={item.icon} alt={displayName} className="browse-card-icon-img" />
@@ -524,7 +592,7 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
           ========================================================================= */}
       {selected && !selectedSubcat && (() => {
         const browseItem = BROWSE_CATEGORIES.find(
-          item => item.dbCategory.toLowerCase() === selected.name?.toLowerCase()
+          item => item.dbCategory.toLowerCase() === selected.name?.toLowerCase() || item.name.toLowerCase() === selected.name?.toLowerCase()
         );
         const catSubcats = subcategories.filter(
           s => s.category_name?.toLowerCase() === selected.name?.toLowerCase()
@@ -799,6 +867,70 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
                   <p className="map-info"><strong>{location.placeName || locationName}</strong> is shown on the map.</p>
                 </div>
               )}
+
+              {/* District Selection Section */}
+              <div style={{ marginTop: 16, padding: '14px', background: '#F8FAFC', borderRadius: 12, border: '1px solid #E2E8F0' }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#1E293B', marginBottom: 6 }}>
+                  Choose Kerala District
+                </label>
+                <p style={{ margin: '0 0 10px', fontSize: 12, color: '#64748B' }}>
+                  Select your service district to see available professionals and district pricing.
+                </p>
+                <select
+                  value={selectedDistrict}
+                  onChange={(e) => handleSelectDistrict(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: 8,
+                    border: '1.5px solid #CBD5E1',
+                    fontSize: 13.5,
+                    fontWeight: 600,
+                    color: '#0F172A',
+                    background: '#FFFFFF',
+                    outline: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <optgroup label="Tier 1: Current Pricing (0% Surge)">
+                    <option value="Kasaragod">Kasaragod (Current Pricing)</option>
+                    <option value="Pathanamthitta">Pathanamthitta (Current Pricing)</option>
+                    <option value="Idukki">Idukki (Current Pricing)</option>
+                    <option value="Wayanad">Wayanad (Current Pricing)</option>
+                    <option value="Kannur">Kannur (Current Pricing)</option>
+                    <option value="Palakkad">Palakkad (Current Pricing)</option>
+                  </optgroup>
+                  <optgroup label="Tier 2: 20% Increased Price">
+                    <option value="Thrissur">Thrissur (+20% Surge)</option>
+                    <option value="Kollam">Kollam (+20% Surge)</option>
+                    <option value="Alappuzha">Alappuzha (+20% Surge)</option>
+                    <option value="Kottayam">Kottayam (+20% Surge)</option>
+                    <option value="Malappuram">Malappuram (+20% Surge)</option>
+                  </optgroup>
+                  <optgroup label="Tier 3: 30% Increased Price">
+                    <option value="Ernakulam">Ernakulam (+30% Surge)</option>
+                    <option value="Thiruvananthapuram">Thiruvananthapuram (+30% Surge)</option>
+                    <option value="Kozhikode">Kozhikode (+30% Surge)</option>
+                  </optgroup>
+                </select>
+
+                <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
+                  <span style={{ color: '#475569' }}>Active Pricing Tier:</span>
+                  <span
+                    style={{
+                      background: districtPricingTiers[selectedDistrict]?.markup === 30 ? '#FEE2E2' : districtPricingTiers[selectedDistrict]?.markup === 20 ? '#FEF3C7' : '#E0F2FE',
+                      color: districtPricingTiers[selectedDistrict]?.markup === 30 ? '#991B1B' : districtPricingTiers[selectedDistrict]?.markup === 20 ? '#92400E' : '#0369A1',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: 6,
+                    }}
+                  >
+                    {districtPricingTiers[selectedDistrict]?.markup > 0
+                      ? `+${districtPricingTiers[selectedDistrict]?.markup}% Surge`
+                      : 'Current Pricing (0%)'}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -809,9 +941,11 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
         <BookingModal
           professional={booking.professional}
           category={booking.category}
-          currentLocation={booking.location}
+          currentLocation={booking.location || { ...(location || {}), placeName: selectedDistrict, district: selectedDistrict, ...(DISTRICT_CENTERS[selectedDistrict] || {}) }}
           initialTitle={booking.initialTitle || ''}
           initialDescription={booking.initialDescription || ''}
+          subcategories={subcategories}
+          categories={categories}
           onClose={() => setBooking(null)}
           onSuccess={handleRequestSuccess}
         />
