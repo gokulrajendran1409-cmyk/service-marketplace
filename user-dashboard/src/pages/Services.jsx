@@ -1,34 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import {
   ArrowLeft,
-  ArrowRight,
-  Bell,
   BriefcaseBusiness,
-  Car,
   CheckCircle2,
-  ChevronDown,
   ChevronRight,
-  Hammer,
-  Home,
   Link,
   MapPin,
-  Monitor,
   RefreshCw,
   Search,
   Sparkles,
   Star,
-  Tags,
-  Wrench
+  Tags
 } from 'lucide-react';
 import { categoryColors, categoryIcons, API } from '../constants';
 import { BookingModal } from '../components/BookingModal';
 import { useToast, Toast } from '../components/Toast';
 import { useTranslation } from 'react-i18next';
 import ServiceDetail from './ServiceDetail';
-import SubcategorySlideshow from '../components/SubcategorySlideshow';
-import userAvatarImg from '../assets/category-icons/user_avatar.png';
-
-import keralaCarpentry from '../assets/kerala/carpentry.jpg';
 import keralaGardening from '../assets/kerala/gardening.jpg';
 import keralaPlumbing from '../assets/kerala/plumbing.jpg';
 import keralaElectrical from '../assets/kerala/electrical.jpg';
@@ -36,11 +24,9 @@ import keralaCleaning from '../assets/kerala/cleaning.jpg';
 import keralaAcRepair from '../assets/kerala/ac_repair.jpg';
 import keralaPainting from '../assets/kerala/painting.jpg';
 import keralaCctv from '../assets/kerala/cctv.jpg';
-import keralaHomeRepair from '../assets/kerala/home_repair.jpg';
 import keralaComputerRepair from '../assets/kerala/computer_repair.jpg';
 import keralaPhotography from '../assets/kerala/photography.jpg';
 import keralaVehicle from '../assets/kerala/vehicle.jpg';
-
 import gardeningFallback from '../assets/service-icons/gardening.jpg';
 import acRepairFallback from '../assets/service-icons/ac-appliance-repair.jpg';
 import cctvSecurityFallback from '../assets/service-icons/cctv-security.jpg';
