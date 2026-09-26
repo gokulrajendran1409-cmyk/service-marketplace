@@ -13,6 +13,7 @@ import Notifications from './pages/Notifications';
 import Profile from './pages/Profile';
 import ServiceAcceptedModal from './components/ServiceAcceptedModal';
 import ServiceCompletedModal from './components/ServiceCompletedModal';
+import Verification from './pages/Verification';
 import { API } from './constants';
 
 const PAGES = [
@@ -109,7 +110,7 @@ function App() {
       } catch (_) {
         setUser({});
       }
-      setStage('app');
+      setStage('verification');
       fetchUserProfile(savedToken);
     }
   }, [fetchUserProfile]);
@@ -122,7 +123,7 @@ function App() {
     if (userData?.profile_photo) {
       localStorage.setItem('user_profile_photo', userData.profile_photo);
     }
-    setStage('app');
+    setStage('verification');
     fetchUserProfile(userToken);
   };
 
@@ -403,6 +404,10 @@ function App() {
   if (stage === 'auth') {
     return <Auth onLogin={handleLogin} />;
   }
+  
+  if (stage === 'verification') {
+    return <Verification user={user} token={token} onVerified={() => setStage('app')} onLogout={handleLogout} />;
+  }
 
   return (
     <div className="app-layout">
@@ -432,7 +437,7 @@ function App() {
               setNearbyAlert(null);
             }}
             aria-label="Close"
-          >
+            >
             ×
           </button>
         </div>

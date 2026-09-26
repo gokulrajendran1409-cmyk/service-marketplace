@@ -101,5 +101,21 @@
     "cancel": "Cancel",
     "loading": "Loading...",
     "error": "An error occurred"
+  },
+  "verification": {
+    "verifyAccount": "Verify your account",
+    "emailVerification": "Email verification",
+    "phoneVerification": "Phone verification",
+    "sendCode": "Send Code",
+    "verifyCode": "Verify",
+    "resendCode": "Resend Code",
+    "resendIn": "Resend in",
+    "codeExpired": "Verification code expired.",
+    "invalidCode": "Invalid verification code.",
+    "tooManyAttempts": "Too many attempts. Please request a new code.",
+    "sentViaWhatsApp": "Code sent via WhatsApp.",
+    "sentViaSMS": "Code sent via SMS.",
+    "whatsappUnavailable": "WhatsApp unavailable. Code sent via SMS.",
+    "verificationSuccessful": "Verification successful."
   }
 }

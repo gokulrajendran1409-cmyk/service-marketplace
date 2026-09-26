@@ -19,6 +19,7 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
     "pg": "^8.23.0",
-    "react-router-dom": "^7.18.2"
+    "react-router-dom": "^7.18.2",
+    "zod": "^4.6.5"
   }
 }

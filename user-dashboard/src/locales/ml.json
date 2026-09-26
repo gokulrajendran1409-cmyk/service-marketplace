@@ -101,5 +101,21 @@
     "cancel": "റദ്ദാക്കുക",
     "loading": "ലോഡുചെയ്യുന്നു...",
     "error": "ഒരു പിശക് സംഭവിച്ചു"
+  },
+  "verification": {
+    "verifyAccount": "നിങ്ങളുടെ അക്കൗണ്ട് പരിശോധിക്കുക",
+    "emailVerification": "ഇമെയിൽ പരിശോധന",
+    "phoneVerification": "ഫോൺ പരിശോധന",
+    "sendCode": "കോഡ് അയയ്ക്കുക",
+    "verifyCode": "പരിശോധിക്കുക",
+    "resendCode": "വീണ്ടും അയയ്ക്കുക",
+    "resendIn": "വീണ്ടും അയയ്ക്കുക",
+    "codeExpired": "പരിശോധനാ കോഡ് കാലഹരണപ്പെട്ടു.",
+    "invalidCode": "തെറ്റായ പരിശോധനാ കോഡ്.",
+    "tooManyAttempts": "വളരെ കൂടുതൽ ശ്രമങ്ങൾ. ദയവായി പുതിയ കോഡ് അഭ്യർത്ഥിക്കുക.",
+    "sentViaWhatsApp": "WhatsApp വഴി കോഡ് അയച്ചു.",
+    "sentViaSMS": "SMS വഴി കോഡ് അയച്ചു.",
+    "whatsappUnavailable": "WhatsApp ലഭ്യമല്ല. SMS വഴി കോഡ് അയച്ചു.",
+    "verificationSuccessful": "പരിശോധന വിജയകരം."
   }
 }

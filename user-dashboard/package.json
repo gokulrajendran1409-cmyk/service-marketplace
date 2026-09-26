@@ -20,7 +20,8 @@
     "react-i18next": "^17.0.14",
     "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.18.2",
-    "run": "^2.1.4"
+    "run": "^2.1.4",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",

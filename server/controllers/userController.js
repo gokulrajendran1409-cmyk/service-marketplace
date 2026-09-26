@@ -76,16 +76,19 @@ exports.updateProfile = async (req, res) => {
             ? profile_photo 
             : (current.profile_photo || null);
 
+        const phoneChanged = updatedPhone !== current.phone;
+        const phoneVerifiedUpdate = phoneChanged ? ', phone_verified = false, phone_verified_at = NULL' : '';
+
         let result;
         try {
             result = await pool.query(
-                `UPDATE users SET phone = $1, address = $2, profile_photo = $3
+                `UPDATE users SET phone = $1, address = $2, profile_photo = $3${phoneVerifiedUpdate}
                  WHERE id = $4 RETURNING id, name, email, phone, address, profile_photo`,
                 [updatedPhone, updatedAddress, updatedPhoto, req.user.id]
             );
         } catch {
             result = await pool.query(
-                `UPDATE users SET phone = $1, address = $2
+                `UPDATE users SET phone = $1, address = $2${phoneVerifiedUpdate}
                  WHERE id = $3 RETURNING id, name, email, phone, address`,
                 [updatedPhone, updatedAddress, req.user.id]
             );
@@ -569,6 +572,29 @@ exports.createRequest = async (req, res) => {
         }
         if (!Number.isFinite(new Date(requested_at).getTime()) || new Date(requested_at).getTime() <= Date.now()) {
             return res.status(400).json({ message: 'Expected professional arrival time must be in the future' });
+        }
+
+        // Verify that the user has verified email and phone
+        try {
+            const verificationCheck = await pool.query(
+                'SELECT email_verified, phone_verified FROM users WHERE id = $1',
+                [customerId]
+            );
+            const userStatus = verificationCheck.rows[0];
+            if (!userStatus || !userStatus.email_verified || !userStatus.phone_verified) {
+                const required = [];
+                if (!userStatus?.phone_verified) required.push('phone');
+                if (!userStatus?.email_verified) required.push('email');
+                
+                return res.status(403).json({
+                    success: false,
+                    code: 'VERIFICATION_REQUIRED',
+                    required,
+                    message: 'Account verification is required to book a service.'
+                });
+            }
+        } catch (err) {
+            console.error('Verification check error during booking:', err);
         }
 
         // Determine destination district where the service will take place

@@ -116,6 +116,11 @@ async function startServer() {
             const sql022 = fs.readFileSync(migration022Path, 'utf-8');
             await pool.query(sql022);
         }
+        const migration023Path = path.join(__dirname, 'migrations', '023_add_verification_fields.sql');
+        if (fs.existsSync(migration023Path)) {
+            const sql023 = fs.readFileSync(migration023Path, 'utf-8');
+            await pool.query(sql023);
+        }
     } catch (error) {
         console.error('Migrations execution error:', error.message);
     }
