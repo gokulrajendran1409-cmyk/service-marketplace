@@ -1853,7 +1853,7 @@ h1, h2, h3, h4, h5, h6 {
 /* Professional Card in Booking Screen 5 */
 .visily-pro-list-card {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 14px;
   padding: 14px 16px;
   border-radius: 18px;
@@ -1921,9 +1921,11 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 12px;
   color: #64748B;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 6px;
+  line-height: 1.4;
 }
 .visily-pro-tags {
   display: flex;

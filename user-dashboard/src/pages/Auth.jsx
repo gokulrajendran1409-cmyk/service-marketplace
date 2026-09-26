@@ -182,58 +182,6 @@ function Auth({ onLogin }) {
     }
   };
 
-  const handleDemoLogin = async () => {
-    setLoading(true);
-    try {
-      // Attempt live login with verified demo user
-      const res = await fetch(`${API}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'demo.user@marketplace.com', password: 'password123' })
-      });
-
-      let data;
-      if (res.ok) {
-        data = await res.json();
-      } else {
-        // Auto-register demo user if not present
-        const regRes = await fetch(`${API}/register`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: 'Demo Customer',
-            email: 'demo.user@marketplace.com',
-            phone: '9876543210',
-            password: 'password123'
-          })
-        });
-        data = await regRes.json();
-      }
-
-      if (data?.token && data?.user) {
-        onLogin(data.user, data.token);
-        return;
-      }
-      throw new Error('Live auth unavailable');
-    } catch {
-      // Guaranteed offline demo session with valid unexpired JWT
-      const expiry = Math.floor(Date.now() / 1000) + 86400 * 30;
-      const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-      const payload = btoa(JSON.stringify({ id: 1, role: 'customer', name: 'Demo Customer', exp: expiry }));
-      const mockToken = `${header}.${payload}.demoSignature`;
-      const mockUser = {
-        id: 1,
-        name: 'Demo Customer',
-        email: 'demo@marketplace.com',
-        phone: '9876543210',
-        profile_photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80'
-      };
-      onLogin(mockUser, mockToken);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="registration-wrapper">
       <div className="registration-card fade-up">
@@ -346,31 +294,7 @@ function Auth({ onLogin }) {
           </button>
         </form>
 
-        <div style={{ marginTop: '12px' }}>
-          <button
-            type="button"
-            onClick={handleDemoLogin}
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '12px',
-              borderRadius: '12px',
-              border: '1.5px solid #00796B',
-              background: '#E0F2F1',
-              color: '#00796B',
-              fontWeight: 700,
-              fontSize: '14px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              transition: 'all 0.2s',
-            }}
-          >
-            ✨ Quick Demo Login (Instant Access)
-          </button>
-        </div>
+
 
         <div className="auth-divider"><span>or</span></div>
         <div className="google-signin-wrap" ref={googleButtonRef} />

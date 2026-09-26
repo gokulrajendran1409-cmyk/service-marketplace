@@ -2136,7 +2136,7 @@ export function BookingModal({
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
                         <span className="visily-pro-price">₹{pro.hourly_rate}/hr</span>
                         {currentMarkup > 0 && (
                           <span style={{ fontSize: 10, color: '#D97706', fontWeight: 700, background: '#FEF3C7', padding: '1px 5px', borderRadius: 4 }}>
