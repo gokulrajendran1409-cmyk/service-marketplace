@@ -3,13 +3,13 @@ const { z } = require('zod');
 // Malayalam unicode regex (includes base Malayalam characters and common marks)
 const malayalamRegex = /^[\u0D00-\u0D7F\s]+$/;
 // Allows English letters, numbers, spaces, common punctuation and Malayalam characters.
-const generalTextRegex = /^[\w\s\.,\-\'\u0D00-\u0D7F]+$/u;
+const generalTextRegex = /^[\w\s.,\-'\u0D00-\u0D7F]+$/u;
 
 const commonValidations = {
     name: z.string()
         .min(2, "Name must be at least 2 characters")
         .max(100, "Name must be less than 100 characters")
-        .regex(/^[\w\s\-\'\u0D00-\u0D7F]+$/u, "Name contains invalid characters")
+        .regex(/^[\w\s\-'\u0D00-\u0D7F]+$/u, "Name contains invalid characters")
         .transform(val => val.trim().replace(/\s+/g, ' ')), // Normalize spaces
 
     email: z.string()

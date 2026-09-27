@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ShieldCheck, Mail, Smartphone, Loader2, ArrowRight } from 'lucide-react';
+import { ShieldCheck, Mail, Smartphone, Loader2, AlertCircle } from 'lucide-react';
 import { useToast, Toast } from '../components/Toast';
 import { AUTH_API as API } from '../constants';
 
@@ -7,6 +7,7 @@ export default function Verification({ user, token, onVerified, onLogout }) {
   const { toast, showToast } = useToast();
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
 
   // Email State
   const [emailOtp, setEmailOtp] = useState('');
@@ -42,19 +43,70 @@ export default function Verification({ user, token, onVerified, onLogout }) {
   }, [phoneTimer]);
 
   const fetchStatus = async () => {
+    // If there is no token at all, don't spin — go back to login
+    if (!token) {
+      console.warn('Verification: no token available, redirecting to logout.');
+      onLogout();
+      return;
+    }
+
+    setLoading(true);
+    setFetchError(null);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 s hard timeout
+
     try {
       const res = await fetch(`${API}/verification-status`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
+
+      if (res.status === 401) {
+        // Token is invalid or expired — clear auth and go to login
+        console.warn('Verification status: 401 Unauthorized. Logging out.');
+        onLogout();
+        return;
+      }
+
+      if (res.status === 403) {
+        setFetchError('Access denied. Please contact support if this persists.');
+        return;
+      }
+
+      if (res.status === 404) {
+        setFetchError('User account not found. Please log in again.');
+        return;
+      }
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || `Server error (${res.status})`);
+      }
+
       const data = await res.json();
+
       if (data.success) {
         setStatus(data.verification);
         if (data.verification.accountVerified) {
           onVerified();
         }
+      } else {
+        throw new Error(data.message || 'Unexpected response from server');
       }
     } catch (err) {
-      showToast('Failed to load verification status', 'error');
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        const msg = 'Request timed out. Is the server running? Please retry.';
+        setFetchError(msg);
+        showToast(msg, 'error');
+      } else {
+        const msg = err.message || 'Unable to reach the server. Please retry.';
+        setFetchError(msg);
+        showToast(msg, 'error');
+        console.warn('Verification status fetch failed:', err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -78,7 +130,7 @@ export default function Verification({ user, token, onVerified, onLogout }) {
       setEmailTimer(data.resendAfter || 60);
       showToast('Verification code sent to your email', 'success');
     } catch (err) {
-      showToast(err.message, 'error');
+      showToast(err.message || 'Failed to send email OTP', 'error');
     } finally {
       setEmailLoading(false);
     }
@@ -101,7 +153,7 @@ export default function Verification({ user, token, onVerified, onLogout }) {
       showToast('Email verified successfully', 'success');
       fetchStatus();
     } catch (err) {
-      showToast(err.message, 'error');
+      showToast(err.message || 'Failed to verify email OTP', 'error');
     } finally {
       setEmailLoading(false);
     }
@@ -131,7 +183,7 @@ export default function Verification({ user, token, onVerified, onLogout }) {
         showToast('WhatsApp unavailable. OTP sent by SMS.', 'success');
       }
     } catch (err) {
-      showToast(err.message, 'error');
+      showToast(err.message || 'Failed to send phone OTP', 'error');
     } finally {
       setPhoneLoading(false);
     }
@@ -154,13 +206,14 @@ export default function Verification({ user, token, onVerified, onLogout }) {
       showToast('Phone verified successfully', 'success');
       fetchStatus();
     } catch (err) {
-      showToast(err.message, 'error');
+      showToast(err.message || 'Failed to verify phone OTP', 'error');
     } finally {
       setPhoneLoading(false);
     }
   };
 
-  if (loading || !status) {
+  // ── Loading state ──────────────────────────────────────────────────────────
+  if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column' }}>
         <Loader2 className="spin" size={32} color="#00796B" />
@@ -169,8 +222,34 @@ export default function Verification({ user, token, onVerified, onLogout }) {
     );
   }
 
-  const needsEmail = !status.email.verified;
-  const needsPhone = !status.phone.verified;
+  // ── Error state (backend unreachable, timeout, 5xx, etc.) ──────────────────
+  if (!status) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column', gap: 16, padding: '0 24px', textAlign: 'center' }}>
+        <AlertCircle size={40} color="#EF4444" />
+        <p style={{ color: '#374151', fontSize: '16px', maxWidth: 360 }}>
+          {fetchError || 'Unable to check verification status.'}
+        </p>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button
+            onClick={fetchStatus}
+            style={{ padding: '10px 20px', background: '#00796B', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Retry
+          </button>
+          <button
+            onClick={onLogout}
+            style={{ padding: '10px 20px', background: 'none', color: '#EF4444', border: '1px solid #EF4444', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Logout
+          </button>
+        </div>
+        <Toast toast={toast} />
+      </div>
+    );
+  }
+
+  // ── Main verification UI ───────────────────────────────────────────────────
 
   return (
     <div style={{ maxWidth: '480px', margin: '40px auto', padding: '24px', background: '#fff', borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
