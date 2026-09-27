@@ -19,10 +19,15 @@ exports.register = async (req, res) => {
             return res.status(400).json({ message: 'All fields are required' });
         }
 
-        // Check if user exists
-        const existing = await pool.query('SELECT id FROM users WHERE email = $1 OR phone = $2', [email.trim().toLowerCase(), phone.trim()]);
-        if (existing.rows.length > 0) {
-            return res.status(409).json({ message: 'User with this email or phone already exists' });
+        // Check if user exists (email and phone separately for better error messages)
+        const emailCheck = await pool.query('SELECT id FROM users WHERE email = $1', [email.trim().toLowerCase()]);
+        if (emailCheck.rows.length > 0) {
+            return res.status(409).json({ message: 'User with this email already exists' });
+        }
+
+        const phoneCheck = await pool.query('SELECT id FROM users WHERE phone = $1', [phone.trim()]);
+        if (phoneCheck.rows.length > 0) {
+            return res.status(409).json({ message: 'User with this phone number already exists' });
         }
 
         // Determine profile photo URL
