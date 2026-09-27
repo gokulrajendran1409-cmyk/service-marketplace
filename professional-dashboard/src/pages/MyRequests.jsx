@@ -179,7 +179,7 @@ function MyRequests() {
   const [otpModalRequest, setOtpModalRequest] = useState(null);
   const [otpInput, setOtpInput] = useState('');
   const [wageModalRequest, setWageModalRequest] = useState(null);
-  const [wageInput, setWageInput] = useState('');
+  const [billsAmount, setBillsAmount] = useState('');
   const [wageDescription, setWageDescription] = useState('');
   const [filter, setFilter] = useState('all');
 
@@ -410,10 +410,23 @@ function MyRequests() {
   };
 
   const submitWageRequest = async () => {
-    const normalizedWage = wageInput.trim();
-    const amount = Number(normalizedWage);
-    if (!/^\d+(\.\d{1,2})?$/.test(normalizedWage) || !Number.isFinite(amount) || amount <= 0) {
-      alert('Please enter a valid wage amount with up to 2 decimal places.');
+    const req = requests.find(r => r.id === wageModalRequest);
+    let priceNum = 299; // fallback
+    if (req?.sub_price_estimate) {
+        const match = req.sub_price_estimate.match(/\d+/);
+        if (match) priceNum = parseInt(match[0], 10);
+    }
+    let hoursWorked = 1;
+    if (req?.otp_verified_at) {
+        const ms = new Date() - new Date(req.otp_verified_at);
+        hoursWorked = Math.max(1, Math.ceil(ms / (1000 * 60 * 60)));
+    }
+    
+    const bills = Number(billsAmount) || 0;
+    const amount = (hoursWorked * priceNum) + bills;
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      alert('Invalid calculated wage amount.');
       return;
     }
     setRespondingId(wageModalRequest);
@@ -432,7 +445,7 @@ function MyRequests() {
         ? { ...request, status: data.request.status, journey_status: data.request.journey_status, payment_status: data.request.payment_status, wage: data.request.wage, wage_description: data.request.wage_description }
         : request));
       setWageModalRequest(null);
-      setWageInput('');
+      setBillsAmount('');
       setWageDescription('');
     } catch (err) {
       alert(err.message);
@@ -548,31 +561,60 @@ function MyRequests() {
         </div>
       )}
 
-      {wageModalRequest && (
+      {wageModalRequest && (() => {
+        const req = requests.find(r => r.id === wageModalRequest);
+        let priceNum = 299; // fallback
+        if (req?.sub_price_estimate) {
+            const match = req.sub_price_estimate.match(/\d+/);
+            if (match) priceNum = parseInt(match[0], 10);
+        }
+        let hoursWorked = 1;
+        if (req?.otp_verified_at) {
+            const ms = new Date() - new Date(req.otp_verified_at);
+            hoursWorked = Math.max(1, Math.ceil(ms / (1000 * 60 * 60)));
+        }
+        
+        const bills = Number(billsAmount) || 0;
+        const autoWage = (hoursWorked * priceNum) + bills;
+        
+        return (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: 'var(--bg-surface)', padding: '28px 24px', borderRadius: '14px', width: '90%', maxWidth: '420px', boxShadow: '0 12px 30px rgba(0,0,0,0.15)' }}>
             <h3 style={{ margin: '0 0 6px 0', color: 'var(--text-primary)', fontSize: '18px' }}>Submit Wage</h3>
-            <p style={{ margin: '0 0 20px 0', color: 'var(--text-secondary)', fontSize: '14px' }}>Enter the amount you are charging for this job. The customer will review and confirm payment.</p>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>Wage Amount (₹) *</label>
+            <p style={{ margin: '0 0 20px 0', color: 'var(--text-secondary)', fontSize: '14px' }}>
+              Base amount is automatically calculated based on time worked and category hourly rate.
+            </p>
+
+            <div style={{ background: 'var(--bg-surface-hover)', padding: '12px', borderRadius: '8px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between' }}>
+               <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Hours worked:</span>
+               <span style={{ fontSize: '14px', fontWeight: '600' }}>{hoursWorked} hr (₹{priceNum}/hr)</span>
+            </div>
+
+            <div style={{ background: 'var(--bg-surface-hover)', padding: '12px', borderRadius: '8px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between' }}>
+               <span style={{ fontSize: '16px', color: 'var(--text-primary)', fontWeight: '600' }}>Total Automatic Wage:</span>
+               <span style={{ fontSize: '16px', fontWeight: '700', color: 'var(--accent-primary)' }}>₹{autoWage}</span>
+            </div>
+
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>Additional Bills / Material Costs (₹)</label>
             <input
               type="number"
-              min="1"
-              value={wageInput}
-              onChange={e => setWageInput(e.target.value)}
-              placeholder="e.g. 500"
-              style={{ width: '100%', padding: '12px', fontSize: '20px', borderRadius: '8px', border: '1px solid #d1d5db', marginBottom: '16px', boxSizing: 'border-box' }}
+              min="0"
+              value={billsAmount}
+              onChange={e => setBillsAmount(e.target.value)}
+              placeholder="e.g. 150"
+              style={{ width: '100%', padding: '12px', fontSize: '16px', borderRadius: '8px', border: '1px solid #d1d5db', marginBottom: '16px', boxSizing: 'border-box' }}
             />
             <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>Breakdown / Description (optional)</label>
             <textarea
               value={wageDescription}
               onChange={e => setWageDescription(e.target.value)}
-              placeholder="e.g. 2 hours labour + ₹150 parts"
+              placeholder="e.g. Bought spare parts..."
               rows={3}
               style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '8px', border: '1px solid #d1d5db', marginBottom: '20px', resize: 'vertical', boxSizing: 'border-box' }}
             />
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
-                onClick={() => { setWageModalRequest(null); setWageInput(''); setWageDescription(''); }}
+                onClick={() => { setWageModalRequest(null); setBillsAmount(''); setWageDescription(''); }}
                 style={{ flex: 1, padding: '12px', background: 'var(--bg-surface-hover)', color: 'var(--text-primary)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>
                 Cancel
               </button>
@@ -585,7 +627,8 @@ function MyRequests() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'color-mix(in srgb, var(--bg-base) 92%, transparent)', backdropFilter: 'blur(12px)', display: 'flex', flexWrap: 'nowrap', gap: '6px', padding: '16px 24px 12px', marginBottom: '8px', borderBottom: '1px solid var(--border-light)', width: '100%', boxSizing: 'border-box' }}>
         {['all', 'ongoing', 'completed', 'cancelled'].map(f => (
@@ -638,13 +681,11 @@ function MyRequests() {
                 || req.journey_status === 'completed'
                 || req.journey_status === 'awaiting_payment'
                 || req.payment_status === 'awaiting_payment'
+                || req.offer_status === 'rejected'
                 || (req.status === 'accepted' && req.offer_status !== 'accepted');
               const isCompleted = req.status === 'completed' || req.journey_status === 'completed';
               const isCancelled = req.status === 'cancelled' || req.status === 'rejected';
-              const workDate = isCompleted
-                ? (req.work_completed_at || req.updated_at || req.journey_updated_at)
-                : isCancelled ? null : req.requested_at;
-              const canShowLocation = !isRestricted && req.status !== 'cancelled' && req.status !== 'rejected';
+              const canShowLocation = !isRestricted && !isCancelled;
 
               return (
                 <div key={req.id} className="my-work-card">
@@ -659,53 +700,64 @@ function MyRequests() {
                       </div>
                     </div>
                     <p className="my-work-title">{req.title}</p>
-                    {workDate && (
-                      <p className="request-schedule">
-                        {isCompleted ? 'Work completed on: ' : 'Customer expects you: '}
-                        {new Date(workDate).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
-                      </p>
-                    )}
+                    {(() => {
+                      if (isCompleted) {
+                        return (
+                          <p className="request-schedule">
+                            Work completed on: {new Date(req.work_completed_at || req.updated_at || req.journey_updated_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                          </p>
+                        );
+                      }
+                      if (isCancelled || req.offer_status === 'rejected') {
+                        return (
+                          <div className="request-schedule" style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '8px' }}>
+                            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}><b>Booked at:</b> {new Date(req.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                            {req.requested_at && req.requested_at !== req.created_at && (
+                              <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}><b>Scheduled for:</b> {new Date(req.requested_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                            )}
+                            <span style={{ fontSize: '13px', color: 'var(--error)' }}><b>{req.offer_status === 'rejected' && !isCancelled ? 'Rejected' : 'Cancelled'} on:</b> {new Date(req.updated_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                          </div>
+                        );
+                      }
+                      if (req.requested_at) {
+                        return (
+                          <p className="request-schedule">
+                            Customer expects you: {new Date(req.requested_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                          </p>
+                        );
+                      }
+                      return null;
+                    })()}
                     {!isRestricted && <>
                       {req.description && <p style={{ margin: '4px 0 0', fontSize: '14px', color: 'var(--text-secondary)' }}>{req.description}</p>}
                       {canShowLocation && <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>{req.location}</p>}
-                      {(req.photo_urls?.length > 0 || req.video_url || req.voice_url) && (
-                        <div className="request-evidence">
-                          <strong>Customer evidence</strong>
-                          <div className="request-evidence-links">
-                            {req.photo_urls?.map((url, photoIndex) => <a key={url} href={`${API_BASE}${url}`} target="_blank" rel="noreferrer">Photo {photoIndex + 1}</a>)}
-                            {req.video_url && <a href={`${API_BASE}${req.video_url}`} target="_blank" rel="noreferrer">Watch video</a>}
-                            {req.voice_url && <a href={`${API_BASE}${req.voice_url}`} target="_blank" rel="noreferrer">Play voice note</a>}
+                    </>}
+                    {req.offer_status !== 'rejected' && (() => {
+                      let photos = [];
+                      if (Array.isArray(req.photo_urls)) {
+                        photos = req.photo_urls;
+                      } else if (typeof req.photo_urls === 'string' && req.photo_urls.length > 2) {
+                        photos = req.photo_urls.replace(/^\{|\}$/g, '').split(',').map(s => s.trim().replace(/^"|"$/g, '').replace(/\\"/g, '"')).filter(Boolean);
+                      }
+                      return (photos.length > 0 || req.video_url || req.voice_url) ? (
+                        <div className="request-evidence" style={{ marginTop: '12px' }}>
+                          <strong style={{ display: 'block', marginBottom: '8px', color: 'var(--text-primary)' }}>Customer evidence</strong>
+                          <div className="request-evidence-links" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {photos.map((url, photoIndex) => (
+                              <a key={url} href={`${API_BASE}${url}`} target="_blank" rel="noreferrer" style={{ display: 'inline-block' }}>
+                                <img src={`${API_BASE}${url}`} alt={`Evidence ${photoIndex + 1}`} style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--border-light)' }} />
+                              </a>
+                            ))}
+                            {req.video_url && <a href={`${API_BASE}${req.video_url}`} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', background: 'var(--bg-surface-hover)', borderRadius: '8px', fontSize: '11px', textAlign: 'center', color: 'var(--accent-primary)', textDecoration: 'none' }}>Video</a>}
+                            {req.voice_url && <a href={`${API_BASE}${req.voice_url}`} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', background: 'var(--bg-surface-hover)', borderRadius: '8px', fontSize: '11px', textAlign: 'center', color: 'var(--accent-primary)', textDecoration: 'none' }}>Audio</a>}
                           </div>
                         </div>
-                      )}
-                    </>}
+                      ) : null;
+                    })()}
                     {req.offer_status === 'accepted' && req.journey_status !== 'completed' && (
                       <div className="journey-controls">
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                           <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Update Customer / Progress</strong>
-                          <button
-                            type="button"
-                            onClick={() => handleCompleteTask(req.id, req.title)}
-                            disabled={respondingId === req.id}
-                            style={{
-                              background: '#059669',
-                              color: '#FFFFFF',
-                              border: 'none',
-                              padding: '6px 14px',
-                              borderRadius: '8px',
-                              fontWeight: 700,
-                              fontSize: '12.5px',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              boxShadow: '0 2px 6px rgba(5, 150, 105, 0.25)',
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            <CheckCircle2 size={15} />
-                            {respondingId === req.id ? 'Completing...' : 'Task Completed'}
-                          </button>
                         </div>
                         <div className="journey-step-buttons">
                           {JOURNEY_STEPS.map((step, index) => {

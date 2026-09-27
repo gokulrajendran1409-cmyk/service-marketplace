@@ -42,7 +42,7 @@ function Profile({ user, onUserUpdate, onLogout }) {
   const [photoDataUrl, setPhotoDataUrl] = useState(null);
   const fileInputRef = useRef(null);
   const { t, i18n } = useTranslation();
-  const [language, setLanguage] = useState(i18n.language === 'ml' ? 'Malayalam' : 'English');
+  const [language, setLanguage] = useState('English');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -509,7 +509,7 @@ function Profile({ user, onUserUpdate, onLogout }) {
 
   const changeLanguage = (value) => {
     setLanguage(value);
-    const langCode = value === 'Malayalam' ? 'ml' : 'en';
+    const langCode = 'en';
     i18n.changeLanguage(langCode);
     localStorage.setItem('preferredLanguage', value);
   };
@@ -802,7 +802,6 @@ function Profile({ user, onUserUpdate, onLogout }) {
         </div>
         <select value={language} onChange={(event) => changeLanguage(event.target.value)}>
           <option>English</option>
-          <option>Malayalam</option>
         </select>
       </section>
 

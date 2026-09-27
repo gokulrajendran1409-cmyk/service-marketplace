@@ -688,32 +688,6 @@ function Dashboard() {
                       {req.wage && (
                         <div className="pro-job-earnings">₹{Number(req.wage).toLocaleString()}</div>
                       )}
-                      {req.status !== 'completed' && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCompleteTask(req.id, req.title);
-                          }}
-                          style={{
-                            background: '#059669',
-                            color: '#ffffff',
-                            border: 'none',
-                            padding: '5px 11px',
-                            borderRadius: '8px',
-                            fontSize: '11.5px',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            marginTop: '6px',
-                            boxShadow: '0 2px 6px rgba(5, 150, 105, 0.25)'
-                          }}
-                        >
-                          <CheckCheck size={13} /> Task Completed
-                        </button>
-                      )}
                     </div>
                 </div>
               );

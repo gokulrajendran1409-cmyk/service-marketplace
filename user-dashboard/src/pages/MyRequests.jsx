@@ -282,6 +282,7 @@ function MyRequests({ navigate }) {
   const [trackingRequest, setTrackingRequest] = useState(null); // Screen 11: Track Professional
   const [ratingRequest, setRatingRequest] = useState(null); // Screen 12: Rate Your Professional
   const [detailsRequest, setDetailsRequest] = useState(null); // Full Detail Modal
+  const [invoiceRequest, setInvoiceRequest] = useState(null); // Invoice Modal
   const [geoInfo, setGeoInfo] = useState({ landmark: 'MG Road Corridor, Thiruvananthapuram', lat: 8.5241, lon: 76.9366 });
   const [routeDistanceKm, setRouteDistanceKm] = useState(1.2);
   const [copiedOtp, setCopiedOtp] = useState(false);
@@ -296,6 +297,7 @@ function MyRequests({ navigate }) {
   // Cancellation states & logic (pre-OTP only)
   const [cancelConfirmRequest, setCancelConfirmRequest] = useState(null);
   const [cancelling, setCancelling] = useState(false);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
 
   const canCancelRequest = (req) => {
     if (!req) return false;
@@ -341,6 +343,40 @@ function MyRequests({ navigate }) {
       showToast(err.message, 'error');
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const handleConfirmPayment = async (requestId) => {
+    if (!requestId) return;
+    setConfirmingPayment(true);
+    try {
+      const res = await fetch(`${API}/requests/${requestId}/confirm-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('userToken')}`
+        }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to confirm payment');
+      
+      setRequests((current) =>
+        current.map((r) =>
+          r.id === requestId
+            ? { ...r, payment_status: 'paid', status: 'completed', journey_status: 'completed' }
+            : r
+        )
+      );
+
+      if (detailsRequest?.id === requestId) {
+        setDetailsRequest((prev) => (prev ? { ...prev, payment_status: 'paid', status: 'completed', journey_status: 'completed' } : null));
+      }
+
+      showToast('Payment confirmed successfully!', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setConfirmingPayment(false);
     }
   };
 
@@ -998,23 +1034,10 @@ function MyRequests({ navigate }) {
                           <Star size={15} /> Rate Professional
                         </button>
                       )}
-                      {req.review_rating && (
-                        <button
-                          className="visily-pill-btn-outline"
-                          style={{ height: 42, fontSize: 12.5, padding: '0 12px' }}
-                          onClick={() => {
-                            setRatingRequest(req);
-                            setReviewRating(req.review_rating);
-                            setReviewComment(req.review_comment || '');
-                          }}
-                        >
-                          Edit Rating
-                        </button>
-                      )}
                       <button
                         className="visily-pill-btn-outline"
-                        style={{ flex: req.review_rating ? '0 0 auto' : 1, height: 42, fontSize: 13.5, padding: '0 16px' }}
-                        onClick={() => setDetailsRequest(req)}
+                        style={{ flex: 1, height: 42, fontSize: 13.5, padding: '0 16px' }}
+                        onClick={() => setInvoiceRequest(req)}
                       >
                         View Invoice
                       </button>
@@ -1919,6 +1942,27 @@ function MyRequests({ navigate }) {
                 )}
 
                 {['accepted', 'in_progress'].includes(detailsRequest.status) ? (
+                  detailsRequest.journey_status === 'awaiting_payment' ? (
+                  <div style={{ display: 'flex', gap: 10, flex: 1 }}>
+                    <button
+                      type="button"
+                      className="visily-pill-btn"
+                      style={{ flex: 1, background: '#16a34a', borderColor: '#16a34a', color: '#fff' }}
+                      disabled={confirmingPayment}
+                      onClick={() => handleConfirmPayment(detailsRequest.id)}
+                    >
+                      <CheckCheck size={16} /> {confirmingPayment ? 'Processing...' : `Pay ₹${totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+                    </button>
+                    <button
+                      type="button"
+                      className="visily-pill-btn-outline"
+                      style={{ flex: 1 }}
+                      onClick={() => setDetailsRequest(null)}
+                    >
+                      Close
+                    </button>
+                  </div>
+                  ) : (
                   <div style={{ display: 'flex', gap: 10, flex: 1 }}>
                     <button
                       type="button"
@@ -1941,6 +1985,7 @@ function MyRequests({ navigate }) {
                       Close
                     </button>
                   </div>
+                  )
                 ) : detailsRequest.status === 'completed' && !detailsRequest.review_rating ? (
                   <div style={{ display: 'flex', gap: 10, flex: 1 }}>
                     <button
@@ -2093,6 +2138,114 @@ function MyRequests({ navigate }) {
       )}
 
       <Toast toast={toast} />
+      {/* ──────── Invoice Only Modal ──────── */}
+      {invoiceRequest && (() => {
+        const baseWage = Number(invoiceRequest.wage) || 450;
+        const isFinalWage = Boolean(invoiceRequest.wage);
+        const platformFee = 49;
+        const gstRate = 0.05;
+        const gstAmount = Math.round((baseWage + platformFee) * gstRate);
+        const totalAmount = baseWage + platformFee + gstAmount;
+
+        const invoiceNumber = `INV-${new Date(invoiceRequest.created_at || Date.now()).getFullYear()}-${String(invoiceRequest.id).padStart(5, '0')}`;
+        const reqDate = invoiceRequest.requested_at || invoiceRequest.created_at;
+        const dateStr = new Date(reqDate).toLocaleDateString('en-IN', {
+          weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+        });
+
+        return (
+          <div className="visily-modal-overlay" onClick={(e) => e.target === e.currentTarget && setInvoiceRequest(null)}>
+            <div className="visily-modal-container visily-details-modal">
+              <header className="visily-header">
+                <button className="visily-header-btn" onClick={() => setInvoiceRequest(null)} aria-label="Back">
+                  <ArrowLeft size={18} />
+                </button>
+                <h3 className="visily-header-title">Tax Invoice</h3>
+                <div style={{ width: 18 }} />
+              </header>
+              <div className="visily-modal-content">
+                <div className="details-invoice-card" style={{ marginTop: 0 }}>
+                  <div className="details-invoice-top">
+                    <div className="details-invoice-brand">
+                      <div className="details-invoice-icon-box">
+                        <Receipt size={18} color="#00796B" />
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <h4 className="details-invoice-title">Tax Invoice</h4>
+                          <span
+                            className="details-payment-status-badge"
+                            style={{
+                              background: invoiceRequest.payment_status === 'paid' ? '#DCFCE7' : invoiceRequest.payment_status === 'awaiting_payment' ? '#FEF3C7' : '#F1F5F9',
+                              color: invoiceRequest.payment_status === 'paid' ? '#166534' : invoiceRequest.payment_status === 'awaiting_payment' ? '#92400E' : '#475569',
+                            }}
+                          >
+                            {invoiceRequest.payment_status === 'paid' ? 'PAID' : invoiceRequest.payment_status === 'awaiting_payment' ? 'PAYMENT DUE' : isFinalWage ? 'BILLED' : 'ESTIMATE'}
+                          </span>
+                        </div>
+                        <span className="details-invoice-ref">{invoiceNumber} • {dateStr}</span>
+                      </div>
+                    </div>
+                    <button type="button" className="details-print-btn" onClick={() => window.print()} title="Print / Save Tax Invoice as PDF">
+                      <Printer size={14} />
+                      <span>Print</span>
+                    </button>
+                  </div>
+
+                  <div className="details-invoice-body">
+                    <div className="details-invoice-line">
+                      <div>
+                        <span className="details-line-title">Labor & Service Wage</span>
+                        <span className="details-line-subtitle">{invoiceRequest.wage_description || `${invoiceRequest.title || 'Service'} execution and expert labor`}</span>
+                      </div>
+                      <span className="details-line-amount">₹{baseWage.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+
+                    <div className="details-invoice-line">
+                      <div>
+                        <span className="details-line-title">Platform & Trust Fee</span>
+                        <span className="details-line-subtitle">Includes verified professional insurance & 24/7 support</span>
+                      </div>
+                      <span className="details-line-amount">₹{platformFee.toFixed(2)}</span>
+                    </div>
+
+                    <div className="details-invoice-line">
+                      <div>
+                        <span className="details-line-title">Applicable Taxes (GST 5%)</span>
+                        <span className="details-line-subtitle">CGST (2.5%) + SGST (2.5%)</span>
+                      </div>
+                      <span className="details-line-amount">₹{gstAmount.toFixed(2)}</span>
+                    </div>
+
+                    <div className="details-invoice-separator" />
+
+                    <div className="details-invoice-total-row">
+                      <div>
+                        <strong className="details-total-title">{isFinalWage ? 'Total Amount Payable' : 'Estimated Total Amount'}</strong>
+                        <span className="details-total-tax-note">Inclusive of all taxes</span>
+                      </div>
+                      <strong className="details-total-figure">₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
+                    </div>
+
+                    {invoiceRequest.payment_status === 'paid' ? (
+                      <div className="details-payment-confirmed-strip">
+                        <CheckCheck size={16} color="#059669" />
+                        <span>Paid in Full • Digital Payment Verified</span>
+                      </div>
+                    ) : (
+                      <div className="details-payment-pending-strip">
+                        <Clock size={14} color="#D97706" />
+                        <span>Payment due upon job completion via UPI, Card, or Cash</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
     </div>
   );
 }
