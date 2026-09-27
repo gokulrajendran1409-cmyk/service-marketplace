@@ -262,7 +262,6 @@ function Profile() {
             <option value="hi">Hindi</option>
             <option value="te">Telugu</option>
             <option value="kn">Kannada</option>
-            <option value="ml">Malayalam</option>
           </select>
         </div>
 

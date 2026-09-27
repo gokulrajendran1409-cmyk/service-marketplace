@@ -875,7 +875,7 @@ exports.cancelRequest = async (req, res) => {
         // Cancel any pending or accepted offers associated with this request
         const offersRes = await client.query(
             `UPDATE service_offers
-             SET status = 'cancelled'
+             SET status = 'rejected'
              WHERE request_id = $1 AND status IN ('pending', 'accepted')
              RETURNING professional_id`,
             [requestId]

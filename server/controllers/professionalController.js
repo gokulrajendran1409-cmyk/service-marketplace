@@ -367,10 +367,12 @@ exports.getMyRequests = async (req, res) => {
                 sr.updated_at AS work_completed_at,
                 u.name as customer_name, 
                 u.phone as customer_phone,
-                so.status as offer_status
+                so.status as offer_status,
+                sub.price_estimate AS sub_price_estimate
             FROM service_requests sr
             JOIN users u ON sr.customer_id = u.id
             JOIN service_offers so ON sr.id = so.request_id
+            LEFT JOIN subcategories sub ON sub.name = sr.title
             JOIN professionals p ON p.id = so.professional_id
             WHERE so.professional_id = $1
               AND (COALESCE(p.is_online, false) = true OR so.status != 'pending')

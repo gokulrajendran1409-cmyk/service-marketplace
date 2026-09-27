@@ -179,6 +179,28 @@ function IncomingRequestPanel() {
         </div>
         <h3>{request.title || 'Service request'}</h3>
         {request.description && <p className="incoming-request-description">{request.description}</p>}
+        {(() => {
+          let photos = [];
+          if (Array.isArray(request.photo_urls)) {
+            photos = request.photo_urls;
+          } else if (typeof request.photo_urls === 'string' && request.photo_urls.length > 2) {
+            photos = request.photo_urls.replace(/^\{|\}$/g, '').split(',').map(s => s.trim().replace(/^"|"$/g, '').replace(/\\"/g, '"')).filter(Boolean);
+          }
+          return (photos.length > 0 || request.video_url || request.voice_url) ? (
+            <div className="request-evidence" style={{ marginTop: '12px', fontSize: '13px' }}>
+              <strong style={{ display: 'block', marginBottom: '8px', color: 'var(--text-primary)' }}>Customer evidence</strong>
+              <div className="request-evidence-links" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {photos.map((url, photoIndex) => (
+                  <a key={url} href={`${API}${url}`} target="_blank" rel="noreferrer" style={{ display: 'inline-block' }}>
+                    <img src={`${API}${url}`} alt={`Evidence ${photoIndex + 1}`} style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--border-light)' }} />
+                  </a>
+                ))}
+                {request.video_url && <a href={`${API}${request.video_url}`} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', background: 'var(--bg-surface-hover)', borderRadius: '8px', fontSize: '11px', textAlign: 'center', color: 'var(--accent-primary)', textDecoration: 'none' }}>Video</a>}
+                {request.voice_url && <a href={`${API}${request.voice_url}`} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', background: 'var(--bg-surface-hover)', borderRadius: '8px', fontSize: '11px', textAlign: 'center', color: 'var(--accent-primary)', textDecoration: 'none' }}>Audio</a>}
+              </div>
+            </div>
+          ) : null;
+        })()}
         <div className="incoming-request-details">
           {request.requested_at && <div><Clock size={16} /><span><b>Requested for</b>{new Date(request.requested_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span></div>}
           {request.location && <div><MapPin size={16} /><span><b>Service location</b>{request.location}</span></div>}
