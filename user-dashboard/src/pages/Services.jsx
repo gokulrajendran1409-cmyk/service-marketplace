@@ -1,3 +1,4 @@
+import { Geolocation } from "@capacitor/geolocation";
 import React, { useEffect, useState } from 'react';
 import {
   ArrowLeft,
@@ -261,48 +262,40 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
     };
   }, [i18n.language]);
 
-  const requestLocation = () => new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Location services are not supported by this browser.'));
-      return;
-    }
+  const requestLocation = () => new Promise(async (resolve, reject) => {
+    try {
+      const permissions = await Geolocation.requestPermissions();
+      if (permissions.location !== 'granted' && permissions.coarseLocation !== 'granted') {
+        reject(new Error('Location permission denied'));
+        return;
+      }
+      const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+      const current = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: Math.round(position.coords.accuracy),
+        placeName: ''
+      };
+      setLocation(current);
+      setLocationStatus('ready');
+      resolve(current);
 
-    setLocationStatus('requesting');
-    setLocationError('');
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const current = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: Math.round(position.coords.accuracy),
-          placeName: ''
-        };
-        setLocation(current);
-        setLocationStatus('ready');
-        resolve(current);
-
-        fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${current.latitude}&longitude=${current.longitude}&localityLanguage=en`)
-          .then(response => {
-            if (!response.ok) throw new Error('Reverse geocoding failed');
-            return response.json();
-          })
-          .then(data => {
-            const place = data.locality || data.city || data.principalSubdivision || 'Thiruvananthapuram';
-            setLocationName(place);
-            setLocation(prev => prev ? { ...prev, placeName: place } : prev);
-          })
-          .catch(() => {});
-      },
-      (error) => {
-        const message = error.code === error.PERMISSION_DENIED
-          ? 'Please allow location access in your browser to find professionals near you.'
-          : 'We could not retrieve your current location. Please try again.';
+      fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${current.latitude}&longitude=${current.longitude}&localityLanguage=en`)
+        .then(response => {
+          if (!response.ok) throw new Error('Reverse geocoding failed');
+          return response.json();
+        })
+        .then(data => {
+          const place = data.locality || data.city || data.principalSubdivision || 'Thiruvananthapuram';
+          setLocationName(place);
+          setLocation(prev => prev ? { ...prev, placeName: place } : prev);
+        })
+        .catch(() => {});
+    } catch(e) {
         setLocationStatus('denied');
-        setLocationError(message);
-        reject(new Error(message));
-      },
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
-    );
+        setLocationError('We could not retrieve your current location. Please try again.');
+        reject(e);
+    }
   });
 
   const selectCategory = async (cat, targetDistrict = selectedDistrict, targetLoc = location) => {

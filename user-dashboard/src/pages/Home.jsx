@@ -1,3 +1,4 @@
+import { Geolocation } from "@capacitor/geolocation";
 import { useEffect, useState, useRef } from 'react';
 import {
   Bell,
@@ -135,20 +136,22 @@ function Home({ navigate, unreadCount = 0, user: userProp }) {
 
   // Detect location
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setCurrentCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-          fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&localityLanguage=en`)
-            .then((r) => r.json())
-            .then((d) => {
-              setLocationName(d.locality || d.city || d.principalSubdivision || 'Thiruvananthapuram');
-            })
-            .catch(() => {});
-        },
-        () => {}
-      );
+    const fetchLocation = async () => {
+      try {
+        const perms = await Geolocation.requestPermissions();
+        if (perms.location !== 'granted' && perms.coarseLocation !== 'granted') return;
+        
+        const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+        setCurrentCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+        fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&localityLanguage=en`)
+          .then((r) => r.json())
+          .then((d) => {
+            setLocationName(d.locality || d.city || d.principalSubdivision || 'Thiruvananthapuram');
+          })
+          .catch(() => {});
+      } catch(e) {}
     }
+    fetchLocation();
   }, []);
 
   // Check active booking
@@ -443,3 +446,4 @@ function Home({ navigate, unreadCount = 0, user: userProp }) {
 }
 
 export default Home;
+

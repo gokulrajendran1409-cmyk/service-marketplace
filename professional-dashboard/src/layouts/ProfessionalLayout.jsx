@@ -1,5 +1,6 @@
 import { Outlet, NavLink } from "react-router-dom";
 import { useEffect, useState } from 'react';
+import { Geolocation } from "@capacitor/geolocation";
 import { 
   Home, 
   Briefcase, 
@@ -29,6 +30,7 @@ function IncomingRequestPanel() {
   const [showLocationMap, setShowLocationMap] = useState(false);
   const [professionalPoint, setProfessionalPoint] = useState(null);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState("");
   const [distanceKm, setDistanceKm] = useState(null);
   const [isOnline, setIsOnline] = useState(() => {
     try {
@@ -103,7 +105,7 @@ function IncomingRequestPanel() {
     setDistanceKm(null);
   }, [request?.id]);
 
-  const viewCustomerLocation = () => {
+  const getPhoneLocation = async () => {
     if (!request?.latitude || !request?.longitude) return;
     const professional = JSON.parse(localStorage.getItem('professional') || '{}');
     const customerLatitude = Number(request.latitude);
@@ -120,21 +122,47 @@ function IncomingRequestPanel() {
       setShowLocationMap(true);
     };
 
-    setLocationLoading(true);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        position => {
-          calculateDistance(position.coords.latitude, position.coords.longitude);
-          setLocationLoading(false);
-        },
-        () => {
-          if (professional.work_lat && professional.work_lng) calculateDistance(professional.work_lat, professional.work_lng);
-          setLocationLoading(false);
-        },
-        { maximumAge: 60000, timeout: 5000 }
+    try {
+      setLocationLoading(true);
+      setLocationError("");
+
+      // Ask Android for native location permission
+      const permissions = await Geolocation.requestPermissions();
+
+      if (
+        permissions.location !== "granted" &&
+        permissions.coarseLocation !== "granted"
+      ) {
+        setLocationError(
+          "Location permission is required to calculate your distance from the customer."
+        );
+        return;
+      }
+
+      // Get the phone's current GPS location
+      const position = await Geolocation.getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      });
+
+      const latitude = position.coords.latitude;
+      const longitude = position.coords.longitude;
+
+      console.log("Phone GPS location:", latitude, longitude);
+
+      // Use your existing function that calculates distance
+      calculateDistance(latitude, longitude);
+    } catch (error) {
+      console.error("Phone location error:", error);
+
+      setLocationError(
+        "Unable to get your phone location. Please turn on GPS/location services and try again."
       );
-    } else {
-      if (professional.work_lat && professional.work_lng) calculateDistance(professional.work_lat, professional.work_lng);
+      if (professional.work_lat && professional.work_lng) {
+        calculateDistance(professional.work_lat, professional.work_lng);
+      }
+    } finally {
       setLocationLoading(false);
     }
   };
@@ -205,7 +233,8 @@ function IncomingRequestPanel() {
           {request.requested_at && <div><Clock size={16} /><span><b>Requested for</b>{new Date(request.requested_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span></div>}
           {request.location && <div><MapPin size={16} /><span><b>Service location</b>{request.location}</span></div>}
         </div>
-            <button className="incoming-request-location-button" onClick={viewCustomerLocation} disabled={locationLoading || !request.latitude || !request.longitude}>
+            {locationError && <div className="location-error" style={{ color: 'var(--danger-primary)', fontSize: '13px', marginBottom: '8px' }}>{locationError}</div>}
+            <button className="incoming-request-location-button" onClick={getPhoneLocation} disabled={locationLoading || !request.latitude || !request.longitude}>
               {locationLoading ? <Loader2 size={15} className="spin" /> : <MapPin size={15} />}
               {locationLoading ? 'Getting your location...' : showLocationMap ? 'Hide customer location' : 'View customer location and distance'}
             </button>

@@ -511,86 +511,81 @@ export function BookingModal({
   }, []);
 
   // Active GPS location detection with Nominatim reverse-geocoding
-  const handleDetectCurrentLocation = () => {
+  const handleDetectCurrentLocation = async () => {
     setLocationType('current');
     setSelectedAddressId(null);
-    if (!navigator.geolocation) {
-      setLocationFeedback({
-        type: 'error',
-        text: 'Geolocation is not supported by your browser. Please enter address manually.'
-      });
-      return;
-    }
-
-    setDetectingLocation(true);
-    setLocationFeedback({
-      type: 'info',
-      text: 'Detecting your GPS position...'
-    });
-
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lon = pos.coords.longitude;
-        setDetectedCoords({ latitude: lat, longitude: lon });
-
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`
-          );
-          if (!res.ok) throw new Error('Geocoding lookup failed');
-          const data = await res.json();
-          const a = data.address || {};
-
-          const street = a.building || a.house_number || a.road || a.pedestrian || a.suburb || '';
-          const locality = a.neighbourhood || a.suburb || a.residential || '';
-          const city = a.city || a.town || a.village || a.county || 'Thiruvananthapuram';
-          const state = a.state || 'Kerala';
-          const pincode = a.postcode ? ` - ${a.postcode}` : '';
-
-          const parts = [street, locality, city, state].filter(Boolean);
-          const formatted = parts.length > 1
-            ? `${parts.join(', ')}${pincode}`
-            : data.display_name || `Location (${lat.toFixed(4)}, ${lon.toFixed(4)}), Thiruvananthapuram, Kerala`;
-
-          setAddressLine(formatted);
-          const detectedDist = detectDistrictFromTextOrCoords(formatted, { latitude: lat, longitude: lon });
-          setCustomerCurrentDistrict(detectedDist);
-          setDestinationDistrict(detectedDist);
-          if (locality || street) {
-            setLandmark(`Near ${locality || street}`);
-          }
-          setLocationFeedback({
-            type: 'success',
-            text: `Detected location in ${detectedDist} (${DEFAULT_DISTRICT_TIERS[detectedDist]?.tier || 'Standard Pricing'})`
-          });
-        } catch {
-          const fallback = `Current Location (${lat.toFixed(4)}, ${lon.toFixed(4)}), Thiruvananthapuram, Kerala`;
-          setAddressLine(fallback);
-          const fallbackDist = detectDistrictFromTextOrCoords(fallback, { latitude: lat, longitude: lon });
-          setCustomerCurrentDistrict(fallbackDist);
-          setDestinationDistrict(fallbackDist);
-          setLocationFeedback({
-            type: 'success',
-            text: 'GPS coordinates detected successfully!'
-          });
-        } finally {
-          setDetectingLocation(false);
-        }
-      },
-      (err) => {
-        setDetectingLocation(false);
-        const errMsg =
-          err.code === 1
-            ? 'Location permission was denied. Please allow location access or choose a saved address.'
-            : 'Unable to detect GPS position. Please check your location settings.';
+    try {
+      const perms = await Geolocation.requestPermissions();
+      if (perms.location !== 'granted' && perms.coarseLocation !== 'granted') {
         setLocationFeedback({
           type: 'error',
-          text: errMsg
+          text: 'Location permission was denied. Please allow location access or choose a saved address.'
         });
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
-    );
+        setDetectingLocation(false);
+        return;
+      }
+
+      setDetectingLocation(true);
+      setLocationFeedback({
+        type: 'info',
+        text: 'Detecting your GPS position...'
+      });
+
+      const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      setDetectedCoords({ latitude: lat, longitude: lon });
+
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`
+        );
+        if (!res.ok) throw new Error('Geocoding lookup failed');
+        const data = await res.json();
+        const a = data.address || {};
+
+        const street = a.building || a.house_number || a.road || a.pedestrian || a.suburb || '';
+        const locality = a.neighbourhood || a.suburb || a.residential || '';
+        const city = a.city || a.town || a.village || a.county || 'Thiruvananthapuram';
+        const state = a.state || 'Kerala';
+        const pincode = a.postcode ? ` - ${a.postcode}` : '';
+
+        const parts = [street, locality, city, state].filter(Boolean);
+        const formatted = parts.length > 1
+          ? `${parts.join(', ')}${pincode}`
+          : data.display_name || `Location (${lat.toFixed(4)}, ${lon.toFixed(4)}), Thiruvananthapuram, Kerala`;
+
+        setAddressLine(formatted);
+        const detectedDist = detectDistrictFromTextOrCoords(formatted, { latitude: lat, longitude: lon });
+        setCustomerCurrentDistrict(detectedDist);
+        setDestinationDistrict(detectedDist);
+        if (locality || street) {
+          setLandmark(`Near ${locality || street}`);
+        }
+        setLocationFeedback({
+          type: 'success',
+          text: `Detected location in ${detectedDist} (${DEFAULT_DISTRICT_TIERS[detectedDist]?.tier || 'Standard Pricing'})`
+        });
+      } catch {
+        const fallback = `Current Location (${lat.toFixed(4)}, ${lon.toFixed(4)}), Thiruvananthapuram, Kerala`;
+        setAddressLine(fallback);
+        const fallbackDist = detectDistrictFromTextOrCoords(fallback, { latitude: lat, longitude: lon });
+        setCustomerCurrentDistrict(fallbackDist);
+        setDestinationDistrict(fallbackDist);
+        setLocationFeedback({
+          type: 'success',
+          text: 'GPS coordinates detected successfully!'
+        });
+      } finally {
+        setDetectingLocation(false);
+      }
+    } catch(err) {
+      setDetectingLocation(false);
+      setLocationFeedback({
+        type: 'error',
+        text: 'Unable to detect GPS position. Please check your location settings.'
+      });
+    }
   };
 
   const handleSelectSavedAddress = (addr) => {

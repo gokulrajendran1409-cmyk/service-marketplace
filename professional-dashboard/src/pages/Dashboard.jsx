@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { Geolocation } from "@capacitor/geolocation";
 import { 
   ClipboardList, CheckCheck, RefreshCw, XCircle, 
   DollarSign, Clock, Bell, Power, ChevronRight, 
@@ -105,28 +106,24 @@ function Dashboard() {
           localStorage.setItem("professional", JSON.stringify(updatedProf));
   };
 
-  const fetchLocation = () => {
-    if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser");
-      return;
-    }
+  const fetchLocation = async () => {
     setIsFetchingLocation(true);
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          await updateLocationFromCoordinates(position.coords.latitude, position.coords.longitude);
-        } catch (err) {
-          setCurrentLocation("Accurate Location Found");
-        } finally {
-          setIsFetchingLocation(false);
-        }
-      },
-      (error) => {
-        console.error(error);
-        setIsFetchingLocation(false);
-        alert("Unable to retrieve your location. Please check your browser permissions.");
+    try {
+      const perms = await Geolocation.requestPermissions();
+      if (perms.location !== 'granted' && perms.coarseLocation !== 'granted') throw new Error('Denied');
+      
+      const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+      try {
+        await updateLocationFromCoordinates(position.coords.latitude, position.coords.longitude);
+      } catch (err) {
+        setCurrentLocation("Accurate Location Found");
       }
-    );
+    } catch(err) {
+      console.error(err);
+      alert("Unable to retrieve your location. Please check your browser permissions.");
+    } finally {
+      setIsFetchingLocation(false);
+    }
   };
 
   useEffect(() => {
@@ -638,12 +635,16 @@ function Dashboard() {
           onClick={() => {
             setShowMapModal(true);
             if (!professional.work_lat || !professional.work_lng) {
-              if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                  (pos) => setMapCenter([pos.coords.latitude, pos.coords.longitude]),
-                  (err) => console.log("Location access denied, falling back to default.", err)
-                );
-              }
+              const fetchMapCenter = async () => {
+                try {
+                  await Geolocation.requestPermissions();
+                  const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+                  setMapCenter([pos.coords.latitude, pos.coords.longitude]);
+                } catch(err) {
+                  console.log("Location access denied, falling back to default.", err);
+                }
+              };
+              fetchMapCenter();
             }
           }}
           style={{ background: 'var(--bg-surface-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-light)', padding: '8px 14px', borderRadius: '12px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', transition: 'all 0.15s ease', whiteSpace: 'nowrap', flexShrink: 0, marginLeft: '10px' }}

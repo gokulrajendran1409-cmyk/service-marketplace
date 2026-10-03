@@ -1,3 +1,4 @@
+import { Geolocation } from "@capacitor/geolocation";
 import { useEffect, useState, useRef } from 'react';
 import {
   Check,
@@ -452,59 +453,56 @@ function Profile({ user, onUserUpdate, onLogout }) {
     setTimeout(() => setAddressSuccess(''), 3000);
   };
 
-  const handleDetectGpsForNewAddress = () => {
-    if (!navigator.geolocation) {
-      setAddressError('Geolocation is not supported by your browser');
-      return;
-    }
-    setDetectingGps(true);
-    setAddressError('');
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lon = pos.coords.longitude;
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`
-          );
-          if (!res.ok) throw new Error('Geocoding lookup failed');
-          const data = await res.json();
-          const a = data.address || {};
-          const street = [a.building, a.house_number, a.road, a.pedestrian, a.suburb]
-            .filter(Boolean)
-            .join(', ');
-          const landmark = a.neighbourhood || a.suburb ? `Near ${a.neighbourhood || a.suburb}` : '';
-          const city = a.city || a.town || a.village || 'Thiruvananthapuram';
-          const state = a.state || 'Kerala';
-          const pincode = a.postcode || '';
-
-          setNewAddress((prev) => ({
-            ...prev,
-            address_line: street || data.display_name || `Location (${lat.toFixed(4)}, ${lon.toFixed(4)})`,
-            landmark: landmark || prev.landmark,
-            city,
-            state,
-            pincode: pincode || prev.pincode,
-            latitude: lat,
-            longitude: lon,
-          }));
-        } catch {
-          setNewAddress((prev) => ({
-            ...prev,
-            address_line: `Current GPS Location (${lat.toFixed(4)}, ${lon.toFixed(4)})`,
-            latitude: lat,
-            longitude: lon,
-          }));
-        } finally {
-          setDetectingGps(false);
-        }
-      },
-      () => {
+  const handleDetectGpsForNewAddress = async () => {
+    try {
+      const perms = await Geolocation.requestPermissions();
+      if (perms.location !== 'granted' && perms.coarseLocation !== 'granted') {
+        setAddressError('Location permission denied by system.');
         setDetectingGps(false);
-        setAddressError('Could not detect GPS position. Please check your browser location permissions.');
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+        return;
+      }
+      
+      const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`
+        );
+        if (!res.ok) throw new Error('Geocoding lookup failed');
+        const data = await res.json();
+        const a = data.address || {};
+        const street = [a.building, a.house_number, a.road, a.pedestrian, a.suburb]
+          .filter(Boolean)
+          .join(', ');
+        const city = a.city || a.town || a.county || '';
+        const state = a.state || '';
+        const pincode = a.postcode || '';
+
+        setNewAddress((prev) => ({
+          ...prev,
+          address_line: street || data.display_name,
+          landmark: prev.landmark,
+          city,
+          state,
+          pincode: pincode || prev.pincode,
+          latitude: lat,
+          longitude: lon,
+        }));
+      } catch {
+        setNewAddress((prev) => ({
+          ...prev,
+          address_line: `Current GPS Location (${lat.toFixed(4)}, ${lon.toFixed(4)})`,
+          latitude: lat,
+          longitude: lon,
+        }));
+      } finally {
+        setDetectingGps(false);
+      }
+    } catch(e) {
+      setDetectingGps(false);
+      setAddressError('Could not detect GPS position. Please check your location permissions.');
+    }
   };
 
   const changeLanguage = (value) => {

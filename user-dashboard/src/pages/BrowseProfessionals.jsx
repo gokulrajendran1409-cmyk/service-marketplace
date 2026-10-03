@@ -1,3 +1,4 @@
+import { Geolocation } from "@capacitor/geolocation";
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowDownUp,
@@ -97,30 +98,31 @@ function BrowseProfessionals({ navigate, initialCategory = null }) {
     return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   };
 
-  const requestLocation = () => new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Location not supported'));
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const current = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        };
-        setLocation(current);
-        fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${current.latitude}&longitude=${current.longitude}&localityLanguage=en`)
-          .then(r => r.json())
-          .then(data => {
-            const place = data.locality || data.city || data.principalSubdivision || 'Thiruvananthapuram';
+  const requestLocation = () => new Promise(async (resolve, reject) => {
+    try {
+      const permissions = await Geolocation.requestPermissions();
+      if (permissions.location !== 'granted' && permissions.coarseLocation !== 'granted') {
+        reject(new Error('Location permission denied'));
+        return;
+      }
+      
+      const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+      const current = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      };
+      setLocation(current);
+      fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${current.latitude}&longitude=${current.longitude}&localityLanguage=en`)
+        .then(r => r.json())
+        .then(data => {
+          const place = data.locality || data.city || data.principalSubdivision || 'Thiruvananthapuram';
             setLocationName(place);
           })
           .catch(() => {});
         resolve(current);
-      },
-      () => reject(new Error('Location denied')),
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
-    );
+    } catch(e) {
+      reject(new Error('Location denied'));
+    }
   });
 
   const fetchAllProfessionals = async () => {

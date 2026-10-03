@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Geolocation } from "@capacitor/geolocation";
 import { Clock, CheckCircle, CheckCircle2, Ban, RefreshCw, XCircle, User, MapPin, Navigation, Loader2 } from 'lucide-react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -222,19 +223,18 @@ function MyRequests() {
     const token = localStorage.getItem('professionalToken');
 
     // Auto-detect and sync standby current location
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          setProfessionalLocation({ latitude: lat, longitude: lng, accuracy: Math.round(pos.coords.accuracy) });
-          setLocationStatus('ready');
-          syncCurrentLocation(lat, lng);
-        },
-        () => {},
-        { maximumAge: 60000, timeout: 10000 }
-      );
-    }
+    const initLoc = async () => {
+      try {
+        await Geolocation.requestPermissions();
+        const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setProfessionalLocation({ latitude: lat, longitude: lng, accuracy: Math.round(pos.coords.accuracy) });
+        setLocationStatus('ready');
+        syncCurrentLocation(lat, lng);
+      } catch(e) {}
+    };
+    initLoc();
 
     if (!professional.id || !token) return undefined;
 
@@ -256,32 +256,40 @@ function MyRequests() {
   useEffect(() => {
     if (!activeNavigationRequest) return;
     let watchId;
-    if (navigator.geolocation) {
-      watchId = navigator.geolocation.watchPosition(
-        async (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          setProfessionalLocation({ latitude: lat, longitude: lng, accuracy: position.coords.accuracy });
-          try {
-            await fetch(`${API_BASE}/api/professionals/requests/${activeNavigationRequest.id}/location`, {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${localStorage.getItem("professionalToken")}`
-              },
-              body: JSON.stringify({ latitude: lat, longitude: lng })
-            });
-          } catch (err) {
-            console.error("Failed to sync live location", err);
+    const startWatch = async () => {
+      try {
+        const perms = await Geolocation.requestPermissions();
+        if (perms.location !== 'granted' && perms.coarseLocation !== 'granted') return;
+
+        watchId = await Geolocation.watchPosition(
+          { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 },
+          async (position, err) => {
+            if (err) { console.error(err); return; }
+            if (!position) return;
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            setProfessionalLocation({ latitude: lat, longitude: lng, accuracy: position.coords.accuracy });
+            try {
+              await fetch(`${API_BASE}/api/professionals/requests/${activeNavigationRequest.id}/location`, {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${localStorage.getItem("professionalToken")}`
+                },
+                body: JSON.stringify({ latitude: lat, longitude: lng })
+              });
+            } catch (err) {
+              console.error("Failed to sync live location", err);
+            }
           }
-        },
-        (err) => console.error(err),
-        { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
-      );
-    }
+        );
+      } catch(e) {}
+    };
+    startWatch();
+
     return () => {
-      if (watchId != null && navigator.geolocation) {
-        navigator.geolocation.clearWatch(watchId);
+      if (watchId != null) {
+        Geolocation.clearWatch({ id: watchId });
       }
     };
   }, [activeNavigationRequest?.id]);
@@ -454,38 +462,36 @@ function MyRequests() {
     }
   };
 
-  const requestProfessionalLocation = () => new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      const locationError = new Error('Location services are not supported by this browser.');
-      setError(locationError.message);
-      reject(locationError);
-      return;
-    }
-
+  const requestProfessionalLocation = () => new Promise(async (resolve, reject) => {
     setLocationStatus('requesting');
     setError('');
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const currentLocation = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: Math.round(position.coords.accuracy),
-        };
-        setProfessionalLocation(currentLocation);
-        setLocationStatus('ready');
-        syncCurrentLocation(position.coords.latitude, position.coords.longitude);
-        resolve(currentLocation);
-      },
-      (locationError) => {
-        const message = locationError.code === locationError.PERMISSION_DENIED
-          ? 'Please allow location access to view the distance to customers.'
-          : 'We could not retrieve your location. Please try again.';
-        setLocationStatus('denied');
-        setError(message);
-        reject(new Error(message));
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-    );
+    try {
+      const perms = await Geolocation.requestPermissions();
+      if (perms.location !== 'granted' && perms.coarseLocation !== 'granted') {
+        const error = new Error('Permission denied');
+        error.code = 1;
+        error.PERMISSION_DENIED = 1;
+        throw error;
+      }
+
+      const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+      const currentLocation = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: Math.round(position.coords.accuracy),
+      };
+      setProfessionalLocation(currentLocation);
+      setLocationStatus('ready');
+      syncCurrentLocation(position.coords.latitude, position.coords.longitude);
+      resolve(currentLocation);
+    } catch(locationError) {
+      const message = locationError.code === 1
+        ? 'Please allow location access to view the distance to customers.'
+        : 'We could not retrieve your location. Please try again.';
+      setLocationStatus('denied');
+      setError(message);
+      reject(new Error(message));
+    }
   });
 
   const viewRequestLocation = async (request) => {
