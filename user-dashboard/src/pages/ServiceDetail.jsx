@@ -16,7 +16,7 @@ import {
 import { API } from '../constants';
 import SubcategorySlideshow from '../components/SubcategorySlideshow';
 
-const SERVER_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com');
+const SERVER_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'https://service-marketplace-af7p.onrender.com' : 'https://service-marketplace-af7p.onrender.com');
 
 const resolvePhotoUrl = (path) => {
   if (!path) return null;

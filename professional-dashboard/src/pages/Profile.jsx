@@ -7,7 +7,7 @@ import {
 import { useNavigate } from "react-router-dom";
 
 const API = import.meta.env.DEV
-  ? 'http://localhost:5000'
+  ? 'https://service-marketplace-af7p.onrender.com'
   : 'https://service-marketplace-af7p.onrender.com';
 
 const resolveProPhoto = (path) => {

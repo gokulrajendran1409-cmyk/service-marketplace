@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Geolocation } from "@capacitor/geolocation";
+import { NativeSettings, AndroidSettings, IOSSettings } from 'capacitor-native-settings';
 import { 
   ClipboardList, CheckCheck, RefreshCw, XCircle, 
   DollarSign, Clock, Bell, Power, ChevronRight, 
@@ -13,7 +14,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 const API = import.meta.env.DEV
-  ? 'http://localhost:5000'
+  ? 'https://service-marketplace-af7p.onrender.com'
   : 'https://service-marketplace-af7p.onrender.com';
 
 // Fix leaflet default marker icon issue (optional for Circle, but good practice)
@@ -75,7 +76,7 @@ function Dashboard() {
 
   // Map Modal State
   const [showMapModal, setShowMapModal] = useState(false);
-  const [mapCenter, setMapCenter] = useState(professional.work_lat && professional.work_lng ? [parseFloat(professional.work_lat), parseFloat(professional.work_lng)] : [19.0760, 72.8777]);
+  const [mapCenter, setMapCenter] = useState(professional.work_latitude && professional.work_longitude ? [parseFloat(professional.work_latitude), parseFloat(professional.work_longitude)] : [19.0760, 72.8777]);
   const [mapRadius, setMapRadius] = useState(professional.work_radius ? parseInt(professional.work_radius) : 10);
 
   const updateLocationFromCoordinates = async (latitude, longitude) => {
@@ -120,7 +121,15 @@ function Dashboard() {
       }
     } catch(err) {
       console.error(err);
-      alert("Unable to retrieve your location. Please check your browser permissions.");
+      alert("Please enable location in your device settings.");
+      try {
+        NativeSettings.open({
+          optionAndroid: AndroidSettings.Location,
+          optionIOS: IOSSettings.App
+        });
+      } catch (settingsErr) {
+        console.error("Could not open settings", settingsErr);
+      }
     } finally {
       setIsFetchingLocation(false);
     }
@@ -634,7 +643,7 @@ function Dashboard() {
         <button 
           onClick={() => {
             setShowMapModal(true);
-            if (!professional.work_lat || !professional.work_lng) {
+            if (!professional.work_latitude || !professional.work_longitude) {
               const fetchMapCenter = async () => {
                 try {
                   await Geolocation.requestPermissions();
@@ -715,7 +724,7 @@ function Dashboard() {
               
               <div style={{ height: '300px', borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-light)', marginBottom: '16px', position: 'relative', zIndex: 0 }}>
                 <MapContainer center={mapCenter} zoom={11} style={{ height: '100%', width: '100%' }}>
-                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  <TileLayer url="http://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}" />
                   <LocationPicker onSelect={setMapCenter} />
                   <Circle center={mapCenter} radius={mapRadius * 1000} pathOptions={{ color: 'var(--accent-primary)', fillColor: 'var(--accent-primary)', fillOpacity: 0.2 }} />
                   <CircleMarker
@@ -749,11 +758,45 @@ function Dashboard() {
               </div>
 
               <button 
-                onClick={() => {
-                  const updated = { ...professional, work_radius: mapRadius, work_lat: mapCenter[0], work_lng: mapCenter[1] };
-                  localStorage.setItem("professional", JSON.stringify(updated));
-                  setShowMapModal(false);
-                  window.location.reload();
+                onClick={async () => {
+                  try {
+                    // Reverse geocode on frontend to avoid backend network issues
+                    let locationName = null;
+                    try {
+                      const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${mapCenter[0]}&longitude=${mapCenter[1]}&localityLanguage=en`);
+                      if (geoRes.ok) {
+                        const data = await geoRes.json();
+                        locationName = data.locality || data.city || data.principalSubdivision || null;
+                      }
+                    } catch (e) {
+                      console.warn('Frontend geocode failed', e);
+                    }
+
+                    const token = localStorage.getItem('professionalToken');
+                    const res = await fetch(`${API}/api/professionals/work-area`, {
+                      method: 'PATCH',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                      },
+                      body: JSON.stringify({
+                        work_radius: mapRadius,
+                        work_latitude: mapCenter[0],
+                        work_longitude: mapCenter[1],
+                        work_location_name: locationName
+                      })
+                    });
+                    if (!res.ok) {
+                      const errData = await res.json().catch(() => ({}));
+                      throw new Error(errData.message || 'Failed to update work area');
+                    }
+                    const updated = { ...professional, work_radius: mapRadius, work_latitude: mapCenter[0], work_longitude: mapCenter[1] };
+                    localStorage.setItem("professional", JSON.stringify(updated));
+                    setShowMapModal(false);
+                    window.location.reload();
+                  } catch (err) {
+                    alert('Error saving work area: ' + err.message);
+                  }
                 }}
                 style={{ width: '100%', background: 'var(--accent-gradient)', color: 'white', border: 'none', padding: '14px', borderRadius: '12px', fontWeight: 700, fontSize: '15px', marginTop: '24px', cursor: 'pointer', transition: 'all 0.15s ease' }}
               >

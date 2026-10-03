@@ -1,5 +1,9 @@
 {
   "appId": "com.arthrop.app",
   "appName": "arthrop",
-  "webDir": "dist"
+  "webDir": "dist",
+  "server": {
+    "cleartext": true,
+    "androidScheme": "http"
+  }
 }

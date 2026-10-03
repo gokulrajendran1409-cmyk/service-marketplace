@@ -1,4 +1,5 @@
 import { Geolocation } from "@capacitor/geolocation";
+import { NativeSettings, AndroidSettings, IOSSettings } from 'capacitor-native-settings';
 import React, { useEffect, useState } from 'react';
 import {
   ArrowLeft,
@@ -171,15 +172,56 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
   const [loadingCats, setLoadingCats] = useState(true);
   const [loadingSubcats, setLoadingSubcats] = useState(true);
   const [loadingPros, setLoadingPros] = useState(false);
-  const [location, setLocation] = useState(null);
-  const [locationName, setLocationName] = useState('Thiruvananthapuram');
-  const [selectedDistrict, setSelectedDistrict] = useState('Thiruvananthapuram');
+  const [location, setLocation] = useState(() => { try { return JSON.parse(sessionStorage.getItem("servicesLocation")) || null; } catch { return null; } });
+  const [locationName, setLocationName] = useState(() => sessionStorage.getItem("servicesLocationName") || "Thiruvananthapuram");
+  const [selectedDistrict, setSelectedDistrict] = useState("Thiruvananthapuram");
   const [districtPricingTiers, setDistrictPricingTiers] = useState(DEFAULT_DISTRICT_TIERS);
-  const [locationStatus, setLocationStatus] = useState('idle');
-  const [locationError, setLocationError] = useState('');
+  const [locationStatus, setLocationStatus] = useState(() => sessionStorage.getItem("servicesLocationStatus") || "idle");
+  const [locationError, setLocationError] = useState("");
   const [booking, setBooking] = useState(null);
   const [profileProfessional, setProfileProfessional] = useState(null);
   const [showLocationModal, setShowLocationModal] = useState(false);
+  const [profileLocationName, setProfileLocationName] = useState("");
+
+  useEffect(() => {
+    if (profileProfessional) {
+      const lat = profileProfessional.work_latitude;
+      const lng = profileProfessional.work_longitude;
+      const fallbackLocation = [profileProfessional.city, profileProfessional.state].filter(Boolean).join(', ') || 'Kerala';
+      
+      if (profileProfessional.work_location_name) {
+        setProfileLocationName(profileProfessional.work_location_name);
+      } else if (lat && lng) {
+        setProfileLocationName("Finding location...");
+        fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`)
+          .then(res => res.json())
+          .then(data => {
+             const name = data.locality || data.city || data.principalSubdivision || fallbackLocation;
+             setProfileLocationName(name);
+          })
+          .catch(() => {
+             setProfileLocationName(fallbackLocation);
+          });
+      } else {
+        setProfileLocationName(fallbackLocation);
+      }
+    }
+  }, [profileProfessional]);
+
+  useEffect(() => {
+    if (location) {
+      sessionStorage.setItem("servicesLocation", JSON.stringify(location));
+      sessionStorage.setItem("servicesLocationStatus", "ready");
+    }
+  }, [location]);
+
+  useEffect(() => {
+    if (locationName) sessionStorage.setItem("servicesLocationName", locationName);
+  }, [locationName]);
+
+  useEffect(() => {
+    if (locationStatus) sessionStorage.setItem("servicesLocationStatus", locationStatus);
+  }, [locationStatus]);
   const [subcategories, setSubcategories] = useState([]);
   const [selectedSubcat, setSelectedSubcat] = useState(null);
   const [subcatProTab, setSubcatProTab] = useState('all');
@@ -269,7 +311,12 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
         reject(new Error('Location permission denied'));
         return;
       }
-      const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+      let position;
+      try {
+        position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
+      } catch (err) {
+        position = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 10000 });
+      }
       const current = {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
@@ -280,20 +327,29 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
       setLocationStatus('ready');
       resolve(current);
 
-      fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${current.latitude}&longitude=${current.longitude}&localityLanguage=en`)
+      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${current.latitude}&lon=${current.longitude}&zoom=18&addressdetails=1`)
         .then(response => {
           if (!response.ok) throw new Error('Reverse geocoding failed');
           return response.json();
         })
         .then(data => {
-          const place = data.locality || data.city || data.principalSubdivision || 'Thiruvananthapuram';
+          const addr = data.address || {};
+          const place = addr.neighbourhood || addr.suburb || addr.village || addr.town || addr.city || addr.county || 'Thiruvananthapuram';
           setLocationName(place);
           setLocation(prev => prev ? { ...prev, placeName: place } : prev);
         })
         .catch(() => {});
     } catch(e) {
         setLocationStatus('denied');
-        setLocationError('We could not retrieve your current location. Please try again.');
+        setLocationError(`Error: ${e.message || 'Please enable location in your device settings.'}`);
+        try {
+          NativeSettings.open({
+            optionAndroid: AndroidSettings.Location,
+            optionIOS: IOSSettings.App
+          });
+        } catch (settingsErr) {
+          console.error("Could not open settings", settingsErr);
+        }
         reject(e);
     }
   });
@@ -321,8 +377,8 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
         distance_from_user: targetLoc ? calculateDistanceInKm(
           targetLoc.latitude,
           targetLoc.longitude,
-          Number(professional.effective_latitude || professional.current_latitude || professional.registered_latitude),
-          Number(professional.effective_longitude || professional.current_longitude || professional.registered_longitude)
+          Number(professional.work_latitude || professional.effective_latitude || professional.current_latitude || professional.registered_latitude),
+          Number(professional.work_longitude || professional.effective_longitude || professional.current_longitude || professional.registered_longitude)
         ) : null,
       })) : []);
     } catch {
@@ -369,8 +425,8 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
         distance_from_user: calculateDistanceInKm(
           location.latitude,
           location.longitude,
-          Number(pro.effective_latitude || pro.current_latitude || pro.registered_latitude),
-          Number(pro.effective_longitude || pro.current_longitude || pro.registered_longitude)
+          Number(pro.work_latitude || pro.effective_latitude || pro.current_latitude || pro.registered_latitude),
+          Number(pro.work_longitude || pro.effective_longitude || pro.current_longitude || pro.registered_longitude)
         )
       })));
     }
@@ -379,7 +435,7 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
   const mapUrl = location ? (() => {
     const delta = 0.01;
     const { latitude, longitude } = location;
-    return `https://www.openstreetmap.org/export/embed.html?bbox=${longitude - delta}%2C${latitude - delta}%2C${longitude + delta}%2C${latitude + delta}&layer=mapnik&marker=${latitude}%2C${longitude}`;
+    return `https://maps.google.com/maps?q=${latitude},${longitude}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
   })() : '';
 
   const handleRequestSuccess = () => {
@@ -389,7 +445,7 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
   };
 
   const nearbyProfessionals = professionals.filter(
-    professional => professional.distance_from_user != null && professional.distance_from_user <= nearbyLimitKm
+    professional => professional.distance_from_user != null && professional.distance_from_user <= (professional.work_radius || nearbyLimitKm)
   );
 
   // Filter cards based on activeGroup and search query
@@ -429,7 +485,7 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
         </div>
       </div>
       <div className="pro-meta">
-        <span>📍 {pro.city || 'Kerala'}{pro.state ? `, ${pro.state}` : ''}</span>
+        <span>📍 {pro.work_location_name || pro.city || 'Kerala'}{(!pro.work_location_name && pro.state) ? `, ${pro.state}` : ''}</span>
         <span>⭐ {pro.experience_years || 1}y exp</span>
       </div>
       {pro.distance_from_user != null && (
@@ -795,122 +851,107 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
 
       {/* Location Modal */}
       {showLocationModal && (
-        <div className="modal-overlay" onClick={() => setShowLocationModal(false)}>
-          <div className="location-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Your Location</h2>
-              <button
-                className="modal-close"
-                onClick={() => setShowLocationModal(false)}
-              >
-                &times;
-              </button>
-            </div>
+        <div className="modal-overlay" style={{ backdropFilter: 'blur(4px)', background: 'rgba(15, 23, 42, 0.4)' }} onClick={() => setShowLocationModal(false)}>
+          <div className="location-modal" style={{ background: '#fff', borderRadius: '24px', overflow: 'hidden', padding: 0, border: 'none', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+            
+            <button
+              onClick={() => setShowLocationModal(false)}
+              style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
+            >
+              <span style={{ fontSize: 22, color: '#334155', lineHeight: 1, marginTop: '-2px' }}>&times;</span>
+            </button>
 
-            <div className="modal-body">
-              <div className="location-info-card">
-                <div className="location-info-icon">
-                  <MapPin size={24} />
-                </div>
-                <div className="location-info-text">
-                  <h3>Current Location</h3>
-                  <p>{locationStatus === 'ready'
-                    ? `${location?.placeName || locationName} (accuracy ~${location?.accuracy || 10}m)`
-                    : 'Enable location to see nearby professionals'}</p>
+            {location ? (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <iframe
+                  title="Your current location"
+                  src={mapUrl}
+                  loading="lazy"
+                  style={{ width: '100%', height: '320px', border: 'none' }}
+                />
+                <div style={{ padding: '24px', background: '#fff', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+                    <div style={{ padding: '12px', background: '#eff6ff', borderRadius: '14px' }}>
+                      <MapPin size={24} color="#2563eb" />
+                    </div>
+                    <div>
+                      <h3 style={{ margin: '0 0 6px 0', fontSize: '17px', color: '#0f172a', fontWeight: '800' }}>Your Service Location</h3>
+                      <p style={{ margin: 0, fontSize: '14px', color: '#64748b', lineHeight: '1.5' }}>
+                        {location.placeName || locationName}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={() => setShowLocationModal(false)}
+                    style={{
+                      background: '#2563eb',
+                      color: 'white',
+                      border: 'none',
+                      padding: '16px',
+                      borderRadius: '14px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      fontSize: '16px',
+                      width: '100%',
+                      transition: 'background 0.2s, transform 0.1s',
+                      boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
+                    }}
+                    onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.98)'}
+                    onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                  >
+                    Confirm & Continue
+                  </button>
                 </div>
               </div>
+            ) : (
+              <div style={{ padding: '48px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                <div style={{ width: 88, height: 88, background: '#eff6ff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+                  <MapPin size={44} color="#2563eb" />
+                </div>
+                <h3 style={{ margin: '0 0 12px 0', fontSize: '22px', color: '#0f172a', fontWeight: '800' }}>Find Services Near You</h3>
+                <p style={{ margin: '0 0 32px 0', fontSize: '15px', color: '#64748b', lineHeight: '1.6' }}>
+                  Enable location access so we can show you the best professionals available in your specific area.
+                </p>
 
-              {locationStatus !== 'ready' && (
+                {locationError && (
+                  <div style={{ padding: '14px 16px', background: '#fef2f2', color: '#991b1b', borderRadius: '12px', fontSize: '14px', marginBottom: '24px', width: '100%', border: '1px solid #fecaca', fontWeight: '500' }}>
+                    {locationError}
+                  </div>
+                )}
+
                 <button
-                  className="btn-enable-location"
                   onClick={() => {
                     requestLocation().catch(() => {});
                   }}
                   disabled={locationStatus === 'requesting'}
-                >
-                  {locationStatus === 'requesting' ? <RefreshCw size={16} className="spin" /> : <MapPin size={16} />}
-                  {locationStatus === 'requesting' ? 'Finding your location...' : 'Enable Location Access'}
-                </button>
-              )}
-
-              {locationError && <p className="location-modal-error">{locationError}</p>}
-
-              {location && (
-                <div className="location-map-container">
-                  <iframe
-                    title="Your current location"
-                    className="location-map-modal"
-                    src={mapUrl}
-                    loading="lazy"
-                  />
-                  <p className="map-info"><strong>{location.placeName || locationName}</strong> is shown on the map.</p>
-                </div>
-              )}
-
-              {/* District Selection Section */}
-              <div style={{ marginTop: 16, padding: '14px', background: '#F8FAFC', borderRadius: 12, border: '1px solid #E2E8F0' }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#1E293B', marginBottom: 6 }}>
-                  Choose Kerala District
-                </label>
-                <p style={{ margin: '0 0 10px', fontSize: 12, color: '#64748B' }}>
-                  Select your service district to see available professionals and district pricing.
-                </p>
-                <select
-                  value={selectedDistrict}
-                  onChange={(e) => handleSelectDistrict(e.target.value)}
                   style={{
+                    background: '#2563eb',
+                    color: 'white',
+                    border: 'none',
+                    padding: '16px',
+                    borderRadius: '14px',
+                    fontWeight: '700',
+                    cursor: locationStatus === 'requesting' ? 'wait' : 'pointer',
+                    fontSize: '16px',
                     width: '100%',
-                    padding: '9px 12px',
-                    borderRadius: 8,
-                    border: '1.5px solid #CBD5E1',
-                    fontSize: 13.5,
-                    fontWeight: 600,
-                    color: '#0F172A',
-                    background: '#FFFFFF',
-                    outline: 'none',
-                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '10px',
+                    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
+                    opacity: locationStatus === 'requesting' ? 0.7 : 1
                   }}
+                  onMouseDown={(e) => { if(locationStatus !== 'requesting') e.currentTarget.style.transform = 'scale(0.98)'; }}
+                  onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                  onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                 >
-                  <optgroup label="Tier 1: Current Pricing (0% Surge)">
-                    <option value="Kasaragod">Kasaragod (Current Pricing)</option>
-                    <option value="Pathanamthitta">Pathanamthitta (Current Pricing)</option>
-                    <option value="Idukki">Idukki (Current Pricing)</option>
-                    <option value="Wayanad">Wayanad (Current Pricing)</option>
-                    <option value="Kannur">Kannur (Current Pricing)</option>
-                    <option value="Palakkad">Palakkad (Current Pricing)</option>
-                  </optgroup>
-                  <optgroup label="Tier 2: 20% Increased Price">
-                    <option value="Thrissur">Thrissur (+20% Surge)</option>
-                    <option value="Kollam">Kollam (+20% Surge)</option>
-                    <option value="Alappuzha">Alappuzha (+20% Surge)</option>
-                    <option value="Kottayam">Kottayam (+20% Surge)</option>
-                    <option value="Malappuram">Malappuram (+20% Surge)</option>
-                  </optgroup>
-                  <optgroup label="Tier 3: 30% Increased Price">
-                    <option value="Ernakulam">Ernakulam (+30% Surge)</option>
-                    <option value="Thiruvananthapuram">Thiruvananthapuram (+30% Surge)</option>
-                    <option value="Kozhikode">Kozhikode (+30% Surge)</option>
-                  </optgroup>
-                </select>
-
-                <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
-                  <span style={{ color: '#475569' }}>Active Pricing Tier:</span>
-                  <span
-                    style={{
-                      background: districtPricingTiers[selectedDistrict]?.markup === 30 ? '#FEE2E2' : districtPricingTiers[selectedDistrict]?.markup === 20 ? '#FEF3C7' : '#E0F2FE',
-                      color: districtPricingTiers[selectedDistrict]?.markup === 30 ? '#991B1B' : districtPricingTiers[selectedDistrict]?.markup === 20 ? '#92400E' : '#0369A1',
-                      fontWeight: 700,
-                      padding: '2px 8px',
-                      borderRadius: 6,
-                    }}
-                  >
-                    {districtPricingTiers[selectedDistrict]?.markup > 0
-                      ? `+${districtPricingTiers[selectedDistrict]?.markup}% Surge`
-                      : 'Current Pricing (0%)'}
-                  </span>
-                </div>
+                  {locationStatus === 'requesting' ? <RefreshCw size={20} className="spin" /> : <MapPin size={20} />}
+                  {locationStatus === 'requesting' ? 'Detecting Location...' : 'Enable Location Access'}
+                </button>
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
@@ -951,7 +992,7 @@ function Services({ navigate, initialGroup = null, initialCategory = null, user 
             <div className="profile-details">
               <div><BriefcaseBusiness size={16} /><strong>Experience</strong><span>{profileProfessional.experience_years || 0} years</span></div>
               <div><CheckCircle2 size={16} /><strong>Completed work</strong><span>{profileProfessional.completed_requests || 0} jobs</span></div>
-              <div><MapPin size={16} /><strong>Location</strong><span>{[profileProfessional.city, profileProfessional.state].filter(Boolean).join(', ') || 'Kerala'}</span></div>
+              <div><MapPin size={16} /><strong>Location</strong><span>{profileLocationName}</span></div>
               {profileProfessional.distance_from_user != null && <div><MapPin size={16} /><strong>Distance</strong><span>{profileProfessional.distance_from_user.toFixed(2)} km away</span></div>}
             </div>
             <div className="profile-social-row">

@@ -27,7 +27,7 @@ import mechanicIcon from '../assets/category-icons/mechanic.png';
 import paintingIcon from '../assets/category-icons/painting.png';
 import beautyWellnessIcon from '../assets/category-icons/beauty_wellness.png';
 
-const SERVER_BASE = import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com';
+const SERVER_BASE = import.meta.env.DEV ? 'https://service-marketplace-af7p.onrender.com' : 'https://service-marketplace-af7p.onrender.com';
 
 const TEAL = '#00796B';
 
@@ -106,7 +106,12 @@ function BrowseProfessionals({ navigate, initialCategory = null }) {
         return;
       }
       
-      const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+      let position;
+      try {
+        position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
+      } catch (err) {
+        position = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 10000 });
+      }
       const current = {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
@@ -143,8 +148,8 @@ function BrowseProfessionals({ navigate, initialCategory = null }) {
         distance_from_user: loc ? calculateDistanceInKm(
           loc.latitude,
           loc.longitude,
-          Number(pro.effective_latitude || pro.current_latitude || pro.registered_latitude),
-          Number(pro.effective_longitude || pro.current_longitude || pro.registered_longitude)
+          Number(pro.work_latitude || pro.effective_latitude || pro.current_latitude || pro.registered_latitude),
+          Number(pro.work_longitude || pro.effective_longitude || pro.current_longitude || pro.registered_longitude)
         ) : null,
       })));
     } catch {
@@ -170,8 +175,8 @@ function BrowseProfessionals({ navigate, initialCategory = null }) {
         distance_from_user: calculateDistanceInKm(
           location.latitude,
           location.longitude,
-          Number(pro.effective_latitude || pro.current_latitude || pro.registered_latitude),
-          Number(pro.effective_longitude || pro.current_longitude || pro.registered_longitude)
+          Number(pro.work_latitude || pro.effective_latitude || pro.current_latitude || pro.registered_latitude),
+          Number(pro.work_longitude || pro.effective_longitude || pro.current_longitude || pro.registered_longitude)
         ),
       })));
     }
@@ -423,7 +428,7 @@ function BrowseProfessionals({ navigate, initialCategory = null }) {
                       <span>
                         {pro.distance_from_user != null
                           ? `${pro.distance_from_user.toFixed(1)} km`
-                          : [pro.city, pro.state].filter(Boolean).join(', ') || 'Kerala'}
+                          : [pro.work_location_name || pro.city, pro.work_location_name ? null : pro.state].filter(Boolean).join(', ') || 'Kerala'}
                       </span>
                       <span className="browse-pro-dot">•</span>
                       <Clock size={12} />
@@ -487,7 +492,7 @@ function BrowseProfessionals({ navigate, initialCategory = null }) {
               {profileProfessional.avg_rating && Number(profileProfessional.review_count) > 0 && (
                 <div><Star size={16} /><strong>Rating</strong><span>{Number(profileProfessional.avg_rating).toFixed(1)} ({profileProfessional.review_count} reviews)</span></div>
               )}
-              <div><MapPin size={16} /><strong>Location</strong><span>{[profileProfessional.city, profileProfessional.state].filter(Boolean).join(', ') || 'Kerala'}</span></div>
+              <div><MapPin size={16} /><strong>Location</strong><span>{profileProfessional.work_location_name || [profileProfessional.city, profileProfessional.state].filter(Boolean).join(', ') || 'Kerala'}</span></div>
               {profileProfessional.distance_from_user != null && (
                 <div><MapPin size={16} /><strong>Distance</strong><span>{profileProfessional.distance_from_user.toFixed(1)} km away</span></div>
               )}

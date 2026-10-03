@@ -15,7 +15,7 @@ import {
 import { MapContainer, CircleMarker, Polyline, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
-const API = import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com';
+const API = import.meta.env.DEV ? 'https://service-marketplace-af7p.onrender.com' : 'https://service-marketplace-af7p.onrender.com';
 
 const NAV_ITEMS = [
   { path: "/", label: "Home", icon: Home, end: true },
@@ -241,7 +241,7 @@ function IncomingRequestPanel() {
             {showLocationMap && professionalPoint && distanceKm != null && (
               <div className="incoming-request-map-wrap">
                 <MapContainer center={professionalPoint} zoom={12} scrollWheelZoom={false}>
-                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  <TileLayer url="http://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}" />
                   <CircleMarker center={professionalPoint} radius={8} pathOptions={{ color: '#F8FAFC', weight: 3, fillColor: '#0F172A', fillOpacity: 1 }} />
                   <CircleMarker center={[Number(request.latitude), Number(request.longitude)]} radius={8} pathOptions={{ color: '#F8FAFC', weight: 3, fillColor: '#DC2626', fillOpacity: 1 }} />
                   <Polyline positions={[professionalPoint, [Number(request.latitude), Number(request.longitude)] ]} pathOptions={{ color: 'var(--accent-primary)', weight: 4, dashArray: '8 8' }} />

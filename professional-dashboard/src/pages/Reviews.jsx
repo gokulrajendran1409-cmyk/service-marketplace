@@ -3,7 +3,7 @@ import { Star, ChevronLeft, RefreshCw, MessageSquareOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const API = import.meta.env.DEV
-  ? 'http://localhost:5000'
+  ? 'https://service-marketplace-af7p.onrender.com'
   : 'https://service-marketplace-af7p.onrender.com';
 
 function Reviews() {

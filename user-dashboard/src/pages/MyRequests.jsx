@@ -218,8 +218,8 @@ function CustomerRouteMap({ request, onRouteDistance, onGeologicalInfo }) {
         style={{ width: '100%', height: '100%', zIndex: 1 }}
       >
         <TileLayer
-          attribution="&copy; OpenStreetMap contributors"
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution="&copy; Google Maps"
+          url="http://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
         />
         <FitRouteBounds customerPoint={customerPoint} proCoords={proCoords} />
         <MapControls customerPoint={customerPoint} professionalPoint={proCoords} />

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { Geolocation } from '@capacitor/geolocation';
 import {
   X,
   ArrowLeft,
@@ -270,7 +271,7 @@ const detectDistrictFromTextOrCoords = (text, coords) => {
   return 'Thiruvananthapuram';
 };
 
-const SERVER_BASE = import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com';
+const SERVER_BASE = import.meta.env.DEV ? 'https://service-marketplace-af7p.onrender.com' : 'https://service-marketplace-af7p.onrender.com';
 
 export function BookingModal({
   professional = null,
@@ -531,7 +532,12 @@ export function BookingModal({
         text: 'Detecting your GPS position...'
       });
 
-      const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+      let pos;
+      try {
+        pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
+      } catch (err) {
+        pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 10000 });
+      }
       const lat = pos.coords.latitude;
       const lon = pos.coords.longitude;
       setDetectedCoords({ latitude: lat, longitude: lon });
@@ -583,7 +589,7 @@ export function BookingModal({
       setDetectingLocation(false);
       setLocationFeedback({
         type: 'error',
-        text: 'Unable to detect GPS position. Please check your location settings.'
+        text: `GPS Error: ${err.message || 'Unknown'}. Please try again.`
       });
     }
   };
@@ -794,6 +800,7 @@ export function BookingModal({
               category: p.category || serviceCategory,
               district: p.district || destinationDistrict,
               city: p.city,
+              work_location_name: p.work_location_name,
               verification_status: p.verification_status || 'verified',
               avg_rating: Number(p.avg_rating) || 5.0,
               review_count: Number(p.review_count) || 0,
@@ -1251,7 +1258,7 @@ export function BookingModal({
                     {detectingLocation
                       ? 'Detecting GPS position & address...'
                       : detectedCoords
-                      ? `${detectedCoords.latitude.toFixed(4)}, ${detectedCoords.longitude.toFixed(4)}`
+                      ? addressLine || `${detectedCoords.latitude.toFixed(4)}, ${detectedCoords.longitude.toFixed(4)}`
                       : 'Click to detect real-time GPS location'}
                   </small>
                 </div>
@@ -2114,7 +2121,7 @@ export function BookingModal({
                           <span>•</span>
                           <span>{pro.experience_years}+ yrs exp</span>
                           <span>•</span>
-                          <span style={{ color: '#0369A1', fontWeight: 600 }}>📍 {pro.district || destinationDistrict}</span>
+                          <span style={{ color: '#0369A1', fontWeight: 600 }}>📍 {pro.work_location_name || pro.city || pro.district || destinationDistrict}</span>
                           {pro.distance_km && (
                             <>
                               <span>•</span>

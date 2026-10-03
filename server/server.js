@@ -33,6 +33,9 @@ async function startServer() {
         await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_photo TEXT');
         await pool.query('ALTER TABLE professionals ADD COLUMN IF NOT EXISTS profile_photo TEXT');
         await pool.query('ALTER TABLE professionals ADD COLUMN IF NOT EXISTS is_online BOOLEAN NOT NULL DEFAULT FALSE');
+        await pool.query('ALTER TABLE professionals ADD COLUMN IF NOT EXISTS work_radius INTEGER DEFAULT 10');
+        await pool.query('ALTER TABLE professionals ADD COLUMN IF NOT EXISTS work_latitude DECIMAL(10, 8)');
+        await pool.query('ALTER TABLE professionals ADD COLUMN IF NOT EXISTS work_longitude DECIMAL(11, 8)');
         
         await pool.query('ALTER TABLE professionals DROP CONSTRAINT IF EXISTS professionals_verification_status_check');
         await pool.query("ALTER TABLE professionals ADD CONSTRAINT professionals_verification_status_check CHECK (verification_status IN ('incomplete', 'pending', 'verified', 'rejected'))");

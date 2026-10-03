@@ -14,6 +14,7 @@ import Profile from './pages/Profile';
 import ServiceAcceptedModal from './components/ServiceAcceptedModal';
 import ServiceCompletedModal from './components/ServiceCompletedModal';
 import { API } from './constants';
+import { App as CapacitorApp } from '@capacitor/app';
 
 const PAGES = [
   { id: 'home',     label: 'Home',        icon: House },
@@ -31,6 +32,7 @@ function App() {
   const [token, setToken] = useState(null);
   const [navigationGroup, setNavigationGroup] = useState(null);
   const [navigationCategory, setNavigationCategory] = useState(null);
+  const [pageHistory, setPageHistory] = useState(['home']);
 
   // Acceptance, Proximity, & Completion notification states
   const [acceptedNotification, setAcceptedNotification] = useState(null);
@@ -170,11 +172,40 @@ function App() {
     setNavigationGroup(target === 'services' ? group : null);
     setNavigationCategory(target === 'services' || target === 'professionals' ? category : null);
     setPage(target);
+    setPageHistory(prev => {
+      if (prev[prev.length - 1] === target) return prev;
+      return [...prev, target];
+    });
   };
 
   useEffect(() => {
     scrollAppToTop();
   }, [page]);
+
+  useEffect(() => {
+    const handleBackButton = () => {
+      if (stage !== 'app') {
+        CapacitorApp.exitApp();
+        return;
+      }
+      setPageHistory(prev => {
+        if (prev.length > 1) {
+          const newHistory = [...prev];
+          newHistory.pop();
+          const previousPage = newHistory[newHistory.length - 1];
+          setPage(previousPage);
+          return newHistory;
+        } else {
+          CapacitorApp.exitApp();
+          return prev;
+        }
+      });
+    };
+    CapacitorApp.addListener('backButton', handleBackButton);
+    return () => {
+      CapacitorApp.removeAllListeners();
+    };
+  }, [stage]);
 
   // Check backend notifications recorded in database
   const checkBackendNotifications = useCallback(async () => {

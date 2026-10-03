@@ -6,7 +6,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 const API_BASE = import.meta.env.DEV
-  ? 'http://localhost:5000'
+  ? 'https://service-marketplace-af7p.onrender.com'
   : 'https://service-marketplace-af7p.onrender.com';
 
 function calculateDistanceInKm(firstLatitude, firstLongitude, secondLatitude, secondLongitude) {
@@ -76,8 +76,8 @@ function RequestRouteMap({ request, onRouteDistance }) {
   return (
     <MapContainer className="request-map" center={professionalPoint} zoom={13} scrollWheelZoom>
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution="&copy; Google Maps"
+        url="http://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
       />
       <RouteBounds points={[professionalPoint, customerPoint]} />
       <Marker position={professionalPoint} icon={professionalIcon}>
@@ -155,7 +155,7 @@ function LiveNavigationMap({ request, professionalLocation, onClose }) {
       </div>
       <div style={{ flex: 1, position: 'relative' }}>
           <MapContainer center={mapCenter} zoom={16} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <TileLayer url="http://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}" />
           <MapResizeHandler />
           {validProfessionalPoint ? <Marker position={professionalPoint} icon={professionalIcon}><Popup>You are here</Popup></Marker> : null}
           {validCustomerPoint ? <Marker position={customerPoint} icon={customerIcon}><Popup>Customer</Popup></Marker> : null}

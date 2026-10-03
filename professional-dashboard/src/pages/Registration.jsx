@@ -63,7 +63,7 @@ export default function Registration() {
         data.append('profile_photo', profilePhoto);
       }
 
-      const api = import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com';
+      const api = import.meta.env.DEV ? 'https://service-marketplace-af7p.onrender.com' : 'https://service-marketplace-af7p.onrender.com';
       const response = await fetch(`${api}/api/professionals/register`, {
         method: 'POST',
         body: data

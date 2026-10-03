@@ -4,7 +4,7 @@ const MAX_STORED = 50; // keep at most 50 notifications in memory
 
 // Match the base URL used by every other fetch in the professional dashboard.
 const API_BASE = import.meta.env.DEV
-    ? "http://localhost:5000"
+    ? "https://service-marketplace-af7p.onrender.com"
     : "https://service-marketplace-af7p.onrender.com";
 
 /**

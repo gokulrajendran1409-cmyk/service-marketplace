@@ -164,7 +164,7 @@ export const CLEANING_SUBCATEGORIES = [
   }
 ];
 
-export const SERVER_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com');
+export const SERVER_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'https://service-marketplace-af7p.onrender.com' : 'https://service-marketplace-af7p.onrender.com');
 export const API = `${SERVER_BASE}/api/user`;
 export const AUTH_API = `${SERVER_BASE}/api/auth`;
 

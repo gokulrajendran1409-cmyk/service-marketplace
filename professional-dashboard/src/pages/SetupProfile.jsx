@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Camera, ChevronRight, CheckCircle2, ChevronLeft, MapPin, Briefcase, Info, Search } from 'lucide-react';
 
 const API = import.meta.env.DEV
-  ? 'http://localhost:5000'
+  ? 'https://service-marketplace-af7p.onrender.com'
   : 'https://service-marketplace-af7p.onrender.com';
 
 const resolveProPhoto = (path) => {

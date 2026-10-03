@@ -1,4 +1,6 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { App as CapacitorApp } from '@capacitor/app';
+import { useEffect } from "react";
 import "./App.css";
 import ProfessionalLayout from "./layouts/ProfessionalLayout";
 import Dashboard from "./pages/Dashboard";
@@ -34,9 +36,31 @@ function ProtectedRoute({ children, allowIncomplete = false }) {
   return children;
 }
 
+function HardwareBackButtonHandler() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const handleBackButton = () => {
+      if (location.pathname === "/" || location.pathname === "/login") {
+        CapacitorApp.exitApp();
+      } else {
+        navigate(-1);
+      }
+    };
+    CapacitorApp.addListener("backButton", handleBackButton);
+    return () => {
+      CapacitorApp.removeAllListeners();
+    };
+  }, [location, navigate]);
+
+  return null;
+}
+
 function App() {
   return (
     <BrowserRouter>
+      <HardwareBackButtonHandler />
       <Routes>
         <Route path="/register" element={<Registration />} />
         <Route path="/login" element={<Login />} />

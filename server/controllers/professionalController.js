@@ -880,6 +880,46 @@ exports.updateCurrentLocation = async (req, res) => {
     }
 };
 
+exports.updateWorkArea = async (req, res) => {
+    const professionalId = req.professionalId;
+    const radius = Number(req.body.work_radius);
+    const lat = Number(req.body.work_latitude);
+    const lng = Number(req.body.work_longitude);
+
+    if (!Number.isFinite(radius) || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+        return res.status(400).json({ message: 'Valid radius, latitude, and longitude are required' });
+    }
+
+    try {
+        let locationName = req.body.work_location_name || null;
+        
+        if (!locationName) {
+            try {
+                const geocodeRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`);
+                if (geocodeRes.ok) {
+                    const data = await geocodeRes.json();
+                    locationName = data.locality || data.city || data.principalSubdivision || 'Unknown Location';
+                }
+            } catch (err) {
+                console.error('Reverse geocode failed:', err);
+            }
+        }
+
+        const result = await db.query(
+            `UPDATE professionals
+             SET work_radius = $1, work_latitude = $2, work_longitude = $3, work_location_name = $4
+             WHERE id = $5
+             RETURNING id, work_radius, work_latitude, work_longitude, work_location_name`,
+            [radius, lat, lng, locationName, professionalId]
+        );
+
+        res.json({ message: 'Work area updated successfully', professional: result.rows[0] });
+    } catch (error) {
+        console.error('Update work area error:', error);
+        res.status(500).json({ message: 'Failed to update work area' });
+    }
+};
+
 exports.getEarnings = async (req, res) => {
     const professionalId = req.professionalId;
     const { period = 'month' } = req.query;

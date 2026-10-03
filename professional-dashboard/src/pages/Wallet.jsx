@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { ArrowUpRight, ArrowDownRight, RefreshCw, CheckCircle, Clock } from 'lucide-react';
 
 const API = import.meta.env.DEV
-  ? 'http://localhost:5000'
+  ? 'https://service-marketplace-af7p.onrender.com'
   : 'https://service-marketplace-af7p.onrender.com';
 
 const PERIODS = [

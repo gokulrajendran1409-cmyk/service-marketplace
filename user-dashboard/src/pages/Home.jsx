@@ -44,8 +44,8 @@ import beautyWellnessIcon from '../assets/category-icons/beauty_wellness.png';
 import landscapingIcon from '../assets/category-icons/landscaping.png';
 import otherServicesIcon from '../assets/category-icons/other_services.png';
 
-const SERVER_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com');
-const FALLBACK_SERVER = SERVER_BASE.includes('localhost') ? 'https://service-marketplace-af7p.onrender.com' : 'http://localhost:5000';
+const SERVER_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'https://service-marketplace-af7p.onrender.com' : 'https://service-marketplace-af7p.onrender.com');
+const FALLBACK_SERVER = SERVER_BASE.includes('localhost') ? 'https://service-marketplace-af7p.onrender.com' : 'https://service-marketplace-af7p.onrender.com';
 
 const resolveProPhoto = (path) => {
   if (!path) return null;
@@ -141,12 +141,18 @@ function Home({ navigate, unreadCount = 0, user: userProp }) {
         const perms = await Geolocation.requestPermissions();
         if (perms.location !== 'granted' && perms.coarseLocation !== 'granted') return;
         
-        const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+        let pos;
+        try {
+          pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
+        } catch (err) {
+          pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 10000 });
+        }
         setCurrentCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-        fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&localityLanguage=en`)
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&zoom=18&addressdetails=1`)
           .then((r) => r.json())
           .then((d) => {
-            setLocationName(d.locality || d.city || d.principalSubdivision || 'Thiruvananthapuram');
+            const addr = d.address || {};
+            setLocationName(addr.neighbourhood || addr.suburb || addr.village || addr.town || addr.city || addr.county || 'Thiruvananthapuram');
           })
           .catch(() => {});
       } catch(e) {}

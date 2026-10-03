@@ -451,6 +451,7 @@ exports.getProfessionals = async (req, res) => {
                    p.district, p.city, p.state, p.transport_mode, p.verified_at,
                    p.registered_latitude, p.registered_longitude,
                    p.current_latitude, p.current_longitude,
+                   p.work_latitude, p.work_longitude, p.work_radius, p.work_location_name,
                    COALESCE(p.current_latitude, p.registered_latitude) AS effective_latitude,
                    COALESCE(p.current_longitude, p.registered_longitude) AS effective_longitude,
                    CASE WHEN p.profile_photo IS NOT NULL
@@ -480,6 +481,7 @@ exports.getProfessionals = async (req, res) => {
                        p.district, p.city, p.state, p.transport_mode, p.verified_at,
                        p.registered_latitude, p.registered_longitude,
                        p.current_latitude, p.current_longitude,
+                       p.work_latitude, p.work_longitude, p.work_radius, p.work_location_name,
                        COALESCE(p.current_latitude, p.registered_latitude) AS effective_latitude,
                        COALESCE(p.current_longitude, p.registered_longitude) AS effective_longitude,
                        CASE WHEN p.profile_photo IS NOT NULL
@@ -508,8 +510,8 @@ exports.getProfessionals = async (req, res) => {
 
         const mapped = result.rows.map(p => {
             let distance = null;
-            const proLat = Number(p.effective_latitude);
-            const proLon = Number(p.effective_longitude);
+            const proLat = Number(p.work_latitude || p.effective_latitude);
+            const proLon = Number(p.work_longitude || p.effective_longitude);
             if (hasCoords && Number.isFinite(proLat) && Number.isFinite(proLon)) {
                 const dLat = (proLat - userLat) * Math.PI / 180;
                 const dLon = (proLon - userLon) * Math.PI / 180;

@@ -16,7 +16,7 @@ export default function Login() {
     setError("");
     setStatusMessage("");
     try {
-      const api = import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com';
+      const api = import.meta.env.DEV ? 'https://service-marketplace-af7p.onrender.com' : 'https://service-marketplace-af7p.onrender.com';
       const response = await fetch(`${api}/api/professionals/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

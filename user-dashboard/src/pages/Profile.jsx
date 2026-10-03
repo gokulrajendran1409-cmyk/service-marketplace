@@ -24,8 +24,8 @@ import {
 import { API } from '../constants';
 import { useTranslation } from 'react-i18next';
 
-const SERVER_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : 'https://service-marketplace-af7p.onrender.com');
-const FALLBACK_SERVER = SERVER_BASE.includes('localhost') ? 'https://service-marketplace-af7p.onrender.com' : 'http://localhost:5000';
+const SERVER_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'https://service-marketplace-af7p.onrender.com' : 'https://service-marketplace-af7p.onrender.com');
+const FALLBACK_SERVER = SERVER_BASE.includes('localhost') ? 'https://service-marketplace-af7p.onrender.com' : 'https://service-marketplace-af7p.onrender.com';
 
 const resolvePhotoUrl = (path) => {
   if (!path) return null;
@@ -462,7 +462,12 @@ function Profile({ user, onUserUpdate, onLogout }) {
         return;
       }
       
-      const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+      let pos;
+      try {
+        pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
+      } catch (err) {
+        pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 10000 });
+      }
       const lat = pos.coords.latitude;
       const lon = pos.coords.longitude;
       try {
