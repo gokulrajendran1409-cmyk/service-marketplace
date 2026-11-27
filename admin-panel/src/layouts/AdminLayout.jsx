@@ -5,12 +5,14 @@ import {
   LayoutDashboard, 
   Users, 
   UserCog, 
+  Gift,
   ShieldCheck, 
   ClipboardList, 
   Star, 
   CreditCard, 
   MessageSquareWarning, 
   Tags, 
+  MapPin,
   Search, 
   Bell, 
   Settings 
@@ -52,6 +54,9 @@ function AdminLayout() {
           <NavLink to="/professionals" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
             <UserCog className="nav-icon" /> Professionals
           </NavLink>
+          <NavLink to="/referrals" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+            <Gift className="nav-icon" /> Provider Referrals
+          </NavLink>
           <NavLink to="/verification" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
             <ShieldCheck className="nav-icon" /> Verification
           </NavLink>
@@ -69,6 +74,9 @@ function AdminLayout() {
           </NavLink>
           <NavLink to="/categories" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
             <Tags className="nav-icon" /> Services & Pricing
+          </NavLink>
+          <NavLink to="/pricing" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+            <MapPin className="nav-icon" /> Location & Category Pricing
           </NavLink>
         </nav>
       </aside>

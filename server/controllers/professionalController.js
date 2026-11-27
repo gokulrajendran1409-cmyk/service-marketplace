@@ -5,6 +5,7 @@ const { broadcast } = require('../utils/sseClients');
 const { notifyPro } = require('../utils/proSseClients');
 const { notifyCustomer } = require('../utils/customerSseClients');
 const { checkAndSend1HourReminders } = require('../services/reminderService');
+const { recordReferralCommission, syncReferrerEligibility } = require('../services/referralService');
 
 const JOURNEY_STEPS = ['accepted', 'start_navigation', 'on_the_way', 'arrived', 'working'];
 
@@ -33,7 +34,8 @@ exports.registerProfessional = async (req, res) => {
         const {
             email,
             password,
-            full_name
+            full_name,
+            referral_code
         } = req.body;
 
         if (!full_name?.trim() || !email?.trim() || !password) {
@@ -54,6 +56,22 @@ exports.registerProfessional = async (req, res) => {
                 return res.status(409).json({ message: 'An account with this email or phone already exists' });
             }
 
+            // Check referral code if provided
+            let referredById = null;
+            if (referral_code && referral_code.trim()) {
+                const refCheck = await client.query(
+                    'SELECT id FROM professionals WHERE UPPER(referral_code) = UPPER($1)',
+                    [referral_code.trim()]
+                );
+                if (refCheck.rows.length > 0) {
+                    referredById = refCheck.rows[0].id;
+                }
+            }
+
+            // Generate unique referral code for this new professional
+            const crypto = require('crypto');
+            const newRefCode = 'PRO' + crypto.randomBytes(3).toString('hex').toUpperCase();
+
             const passwordHash = await bcrypt.hash(password, 10);
             const userRes = await client.query(
                 'INSERT INTO users (name, email, phone, password_hash, profile_photo) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, phone, profile_photo',
@@ -64,8 +82,8 @@ exports.registerProfessional = async (req, res) => {
             // Insert into professionals
             const profQuery = `
             INSERT INTO professionals (
-                user_id, full_name, experience_years, password_hash, verification_status, profile_photo
-            ) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, profile_photo
+                user_id, full_name, experience_years, password_hash, verification_status, profile_photo, referral_code, referred_by_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, profile_photo, referral_code
         `;
         const profValues = [
             user.id,
@@ -73,7 +91,9 @@ exports.registerProfessional = async (req, res) => {
             0,
             passwordHash,
             'incomplete',
-            profilePhoto
+            profilePhoto,
+            newRefCode,
+            referredById
         ];
         
         const profResult = await client.query(profQuery, profValues);
@@ -88,7 +108,8 @@ exports.registerProfessional = async (req, res) => {
                     full_name, 
                     email: user.email, 
                     verification_status: 'incomplete',
-                    profile_photo: profilePhoto 
+                    profile_photo: profilePhoto,
+                    referral_code: newRefCode
                 }
             });
         } catch (err) {
@@ -275,7 +296,7 @@ exports.getProfessionalProfile = async (req, res) => {
                 `SELECT p.id, p.full_name, p.date_of_birth, p.address, p.pincode, p.bio,
                     p.category, p.sub_category, p.experience_years,
                     p.transport_mode, p.identity_type, p.profile_photo, p.identity_photo,
-                    p.verification_status, p.is_online, u.phone, u.email
+                    p.verification_status, p.is_online, p.referral_code, p.referred_by_id, u.phone, u.email
                  FROM professionals p
                  JOIN users u ON u.id = p.user_id
                  WHERE p.id = $1`,
@@ -1044,6 +1065,14 @@ exports.completeTask = async (req, res) => {
 
         await client.query('COMMIT');
 
+        // Check if referral commission applies and record it, and sync referrer eligibility
+        try {
+            await recordReferralCommission(requestId, db);
+            await syncReferrerEligibility(professionalId, db);
+        } catch (refErr) {
+            console.error('Error processing referral commission on completeTask:', refErr);
+        }
+
         // Real-time SSE notification to the customer
         notifyCustomer(customerId, 'requestUpdate', {
             requestId: requestId,
@@ -1217,6 +1246,118 @@ exports.getNotifications = async (req, res) => {
     }
 };
 
+// GET /api/professionals/referrals - Get referral overview, code, referred pros, and earnings
+exports.getReferralStats = async (req, res) => {
+    try {
+        const professionalId = req.professionalId;
+        const currentMonth = new Date().toISOString().slice(0, 7); // e.g., '2026-11'
+
+        // 1. Get pro info (referral code)
+        const proRes = await db.query(
+            `SELECT id, full_name, referral_code FROM professionals WHERE id = $1`,
+            [professionalId]
+        );
+        if (!proRes.rows.length) {
+            return res.status(404).json({ message: 'Professional not found' });
+        }
+        const pro = proRes.rows[0];
+
+        // 2. Count referrer's completed works in the current month
+        const countRes = await db.query(`
+            SELECT COUNT(*)::int as count
+            FROM service_requests sr
+            JOIN service_offers so ON sr.id = so.request_id AND so.status = 'accepted'
+            WHERE so.professional_id = $1
+              AND (sr.status = 'completed' OR sr.payment_status = 'paid')
+              AND TO_CHAR(sr.updated_at, 'YYYY-MM') = $2
+        `, [professionalId, currentMonth]);
+        const monthlyCompletedJobs = Number(countRes.rows[0]?.count || 0);
+        const monthlyTarget = 15;
+        const isEligible = monthlyCompletedJobs >= monthlyTarget;
+
+        // If newly reached 15, sync pending commissions for this month
+        if (isEligible) {
+            await syncReferrerEligibility(professionalId, db);
+        }
+
+        // 3. Get referred providers list
+        const referredListRes = await db.query(`
+            SELECT 
+                p.id, 
+                p.full_name, 
+                p.category, 
+                p.verification_status, 
+                p.created_at as joined_at,
+                COUNT(DISTINCT sr.id) FILTER (WHERE sr.status = 'completed' OR sr.payment_status = 'paid')::int as completed_jobs,
+                COALESCE(SUM(prc.commission_amount), 0)::numeric(10,2) as total_commission_generated
+            FROM professionals p
+            LEFT JOIN service_offers so ON so.professional_id = p.id AND so.status = 'accepted'
+            LEFT JOIN service_requests sr ON sr.id = so.request_id
+            LEFT JOIN provider_referral_commissions prc ON prc.referred_pro_id = p.id AND prc.referrer_id = $1
+            WHERE p.referred_by_id = $1
+            GROUP BY p.id, p.full_name, p.category, p.verification_status, p.created_at
+            ORDER BY p.created_at DESC
+        `, [professionalId]);
+
+        // 4. Get earnings breakdown
+        const earningsRes = await db.query(`
+            SELECT 
+                COALESCE(SUM(commission_amount) FILTER (WHERE status = 'eligible' OR status = 'paid'), 0)::numeric(10,2) as earned_commission,
+                COALESCE(SUM(commission_amount) FILTER (WHERE status = 'pending'), 0)::numeric(10,2) as pending_commission,
+                COALESCE(SUM(commission_amount) FILTER (WHERE month_year = $2 AND (status = 'eligible' OR status = 'paid')), 0)::numeric(10,2) as current_month_earned,
+                COALESCE(SUM(commission_amount) FILTER (WHERE month_year = $2 AND status = 'pending'), 0)::numeric(10,2) as current_month_pending
+            FROM provider_referral_commissions
+            WHERE referrer_id = $1
+        `, [professionalId, currentMonth]);
+
+        const earningsData = earningsRes.rows[0] || {};
+
+        // 5. Recent commission transactions
+        const historyRes = await db.query(`
+            SELECT 
+                prc.id,
+                prc.service_wage,
+                prc.commission_rate,
+                prc.commission_amount,
+                prc.month_year,
+                prc.status,
+                prc.created_at,
+                p.full_name as referred_pro_name,
+                sr.title as service_title
+            FROM provider_referral_commissions prc
+            JOIN professionals p ON p.id = prc.referred_pro_id
+            LEFT JOIN service_requests sr ON sr.id = prc.request_id
+            WHERE prc.referrer_id = $1
+            ORDER BY prc.created_at DESC
+            LIMIT 50
+        `, [professionalId]);
+
+        res.json({
+            referral_code: pro.referral_code,
+            commission_percentage: 2,
+            eligibility: {
+                monthly_completed_jobs: monthlyCompletedJobs,
+                monthly_target: monthlyTarget,
+                jobs_remaining: Math.max(0, monthlyTarget - monthlyCompletedJobs),
+                is_eligible: isEligible,
+                month_year: currentMonth
+            },
+            stats: {
+                total_referred: referredListRes.rows.length,
+                total_earned_commission: Number(earningsData.earned_commission || 0),
+                total_pending_commission: Number(earningsData.pending_commission || 0),
+                current_month_earned: Number(earningsData.current_month_earned || 0),
+                current_month_pending: Number(earningsData.current_month_pending || 0)
+            },
+            referred_providers: referredListRes.rows,
+            commissions: historyRes.rows
+        });
+    } catch (err) {
+        console.error('getReferralStats error:', err);
+        res.status(500).json({ message: 'Failed to fetch referral stats' });
+    }
+};
+
 // PATCH /api/professionals/notifications/:id/read - Mark notification as read
 exports.markNotificationRead = async (req, res) => {
     try {
@@ -1225,7 +1366,7 @@ exports.markNotificationRead = async (req, res) => {
         if (Number.isInteger(notifId)) {
             await db.query(
                 `UPDATE notifications SET is_read = true WHERE id = $1 AND (professional_id = $2 OR user_id = $3)`,
-                [notifId, professionalId, req.user.id]
+                [notifId, professionalId, req.user?.id || null]
             );
         }
         res.json({ success: true });
@@ -1234,5 +1375,6 @@ exports.markNotificationRead = async (req, res) => {
         res.status(500).json({ message: 'Failed to mark notification read' });
     }
 };
+
 
 

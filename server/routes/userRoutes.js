@@ -12,6 +12,8 @@ const {
 	getCategories,
 	getSubcategories,
 	getDistrictPricing,
+	lookupServicePrice,
+	getPricingLocations,
 	getProfessionals,
 	getCategoryReviews,
 	createRequest,
@@ -21,7 +23,10 @@ const {
 	cancelRequest,
 	createReview,
 	getNotifications,
-	markNotificationRead
+	markNotificationRead,
+	syncPhoneNotifications,
+	getPhoneNotifications,
+	deletePhoneNotifications
 } = require('../controllers/userController');
 const { protectCustomer } = require('../middleware/authMiddleware');
 
@@ -37,6 +42,8 @@ const upload = multer({
 router.get('/categories', getCategories);
 router.get('/subcategories', getSubcategories);
 router.get('/district-pricing', getDistrictPricing);
+router.get('/pricing/lookup', lookupServicePrice);
+router.get('/pricing/locations', getPricingLocations);
 router.get('/professionals', getProfessionals);
 router.get('/reviews', getCategoryReviews);
 router.get('/profile', protectCustomer, getProfile);
@@ -57,5 +64,10 @@ router.post('/requests/:id/review', protectCustomer, createReview);
 router.get('/notifications', protectCustomer, getNotifications);
 router.patch('/notifications/:id/read', protectCustomer, markNotificationRead);
 router.get('/notifications/stream', protectCustomer, streamNotifications);
+
+// Phone-wide notification sync routes
+router.post('/phone-notifications', protectCustomer, syncPhoneNotifications);
+router.get('/phone-notifications', protectCustomer, getPhoneNotifications);
+router.delete('/phone-notifications', protectCustomer, deletePhoneNotifications);
 
 module.exports = router;

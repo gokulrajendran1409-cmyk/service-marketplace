@@ -49,6 +49,7 @@ router.patch('/work-area', protectProfessional, professionalController.updateWor
 router.patch('/online-status', protectProfessionalBase, professionalController.updateOnlineStatus);
 router.put('/online-status', protectProfessionalBase, professionalController.updateOnlineStatus);
 router.get('/earnings', protectProfessional, professionalController.getEarnings);
+router.get('/referrals', protectProfessional, professionalController.getReferralStats);
 router.get('/reviews', protectProfessional, professionalController.getReviews);
 router.get('/notifications', protectProfessional, professionalController.getNotifications);
 router.patch('/notifications/:id/read', protectProfessional, professionalController.markNotificationRead);

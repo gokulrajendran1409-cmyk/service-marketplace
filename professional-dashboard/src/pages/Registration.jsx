@@ -8,7 +8,8 @@ export default function Registration() {
     first_name: '',
     last_name: '',
     email: '',
-    password: ''
+    password: '',
+    referral_code: ''
   });
 
   const [profilePhoto, setProfilePhoto] = useState(null);
@@ -59,6 +60,9 @@ export default function Registration() {
       data.append('full_name', `${formData.first_name.trim()} ${formData.last_name.trim()}`.trim());
       data.append('email', formData.email.trim());
       data.append('password', formData.password);
+      if (formData.referral_code?.trim()) {
+        data.append('referral_code', formData.referral_code.trim());
+      }
       if (profilePhoto) {
         data.append('profile_photo', profilePhoto);
       }
@@ -183,6 +187,22 @@ export default function Registration() {
           <div className="form-group full-width">
             <label>Password</label>
             <input type="password" name="password" value={formData.password} onChange={handleInputChange} className="form-input" minLength="6" placeholder="At least 6 characters" required />
+          </div>
+
+          <div className="form-group full-width">
+            <label>Provider Referral Code (Optional)</label>
+            <input 
+              type="text" 
+              name="referral_code" 
+              value={formData.referral_code} 
+              onChange={handleInputChange} 
+              className="form-input" 
+              placeholder="e.g. PRO3F8079 (Enter if referred by another provider)" 
+              style={{ textTransform: 'uppercase' }}
+            />
+            <small style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px', display: 'block' }}>
+              If another service provider invited you, enter their code here.
+            </small>
           </div>
 
           <button type="submit" className="submit-btn" style={{ marginTop: '24px' }} disabled={loading}>
