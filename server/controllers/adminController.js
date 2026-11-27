@@ -1385,8 +1385,143 @@ const deleteLocationPricing = async (req, res) => {
     }
 };
 
+// GET /api/admin/referrals - Comprehensive view of provider referrals, commissions, and monthly eligibility
+const getReferrals = async (req, res) => {
+    try {
+        const { month } = req.query;
+        const currentMonth = month || new Date().toISOString().slice(0, 7);
+
+        // 1. Overall referral stats
+        const overallStatsRes = await pool.query(`
+            SELECT 
+                COUNT(DISTINCT p.id) FILTER (WHERE p.referred_by_id IS NOT NULL)::int as total_referred_providers,
+                COUNT(DISTINCT p.referred_by_id) FILTER (WHERE p.referred_by_id IS NOT NULL)::int as active_referrers,
+                COALESCE(SUM(prc.commission_amount), 0)::numeric(10,2) as total_commissions_generated,
+                COALESCE(SUM(prc.commission_amount) FILTER (WHERE prc.status = 'eligible' OR prc.status = 'paid'), 0)::numeric(10,2) as total_eligible_commissions,
+                COALESCE(SUM(prc.commission_amount) FILTER (WHERE prc.status = 'pending'), 0)::numeric(10,2) as total_pending_commissions
+            FROM professionals p
+            LEFT JOIN provider_referral_commissions prc ON prc.referrer_id = p.referred_by_id
+        `);
+        const stats = overallStatsRes.rows[0];
+
+        // 2. Referrers overview (each provider who has referred someone)
+        const referrersRes = await pool.query(`
+            SELECT 
+                ref.id as referrer_id,
+                ref.full_name as referrer_name,
+                ref.referral_code,
+                ref.category as referrer_category,
+                ref.verification_status,
+                ref_user.email as referrer_email,
+                ref_user.phone as referrer_phone,
+                COUNT(DISTINCT referred.id)::int as total_referred_count,
+                -- Monthly jobs completed by referrer in selected month
+                (
+                    SELECT COUNT(*)::int
+                    FROM service_requests sr_m
+                    JOIN service_offers so_m ON so_m.request_id = sr_m.id AND so_m.status = 'accepted'
+                    WHERE so_m.professional_id = ref.id
+                      AND (sr_m.status = 'completed' OR sr_m.payment_status = 'paid')
+                      AND TO_CHAR(sr_m.updated_at, 'YYYY-MM') = $1
+                ) as monthly_completed_jobs,
+                -- Total commissions earned all time
+                COALESCE(SUM(prc.commission_amount) FILTER (WHERE prc.status = 'eligible' OR prc.status = 'paid'), 0)::numeric(10,2) as all_time_commission,
+                -- Selected month commission (eligible)
+                COALESCE(SUM(prc.commission_amount) FILTER (WHERE prc.month_year = $1 AND (prc.status = 'eligible' OR prc.status = 'paid')), 0)::numeric(10,2) as month_eligible_commission,
+                -- Selected month commission (pending threshold)
+                COALESCE(SUM(prc.commission_amount) FILTER (WHERE prc.month_year = $1 AND prc.status = 'pending'), 0)::numeric(10,2) as month_pending_commission
+            FROM professionals ref
+            JOIN users ref_user ON ref_user.id = ref.user_id
+            JOIN professionals referred ON referred.referred_by_id = ref.id
+            LEFT JOIN provider_referral_commissions prc ON prc.referrer_id = ref.id
+            GROUP BY ref.id, ref.full_name, ref.referral_code, ref.category, ref.verification_status, ref_user.email, ref_user.phone
+            ORDER BY total_referred_count DESC, all_time_commission DESC
+        `, [currentMonth]);
+
+        const referrers = referrersRes.rows.map(r => {
+            const monthlyJobs = Number(r.monthly_completed_jobs || 0);
+            return {
+                ...r,
+                monthly_completed_jobs: monthlyJobs,
+                monthly_target: 15,
+                is_eligible_this_month: monthlyJobs >= 15,
+                jobs_needed_for_eligibility: Math.max(0, 15 - monthlyJobs)
+            };
+        });
+
+        // 3. Detailed referral transactions / commission log
+        const transactionsRes = await pool.query(`
+            SELECT 
+                prc.id,
+                prc.referrer_id,
+                referrer.full_name as referrer_name,
+                prc.referred_pro_id,
+                referred.full_name as referred_pro_name,
+                prc.request_id,
+                sr.title as service_title,
+                prc.service_wage,
+                prc.commission_rate,
+                prc.commission_amount,
+                prc.month_year,
+                prc.status,
+                prc.created_at
+            FROM provider_referral_commissions prc
+            JOIN professionals referrer ON referrer.id = prc.referrer_id
+            JOIN professionals referred ON referred.id = prc.referred_pro_id
+            LEFT JOIN service_requests sr ON sr.id = prc.request_id
+            ORDER BY prc.created_at DESC
+            LIMIT 100
+        `);
+
+        // 4. Detailed referred providers list
+        const referredListRes = await pool.query(`
+            SELECT 
+                p.id,
+                p.full_name,
+                p.category,
+                p.verification_status,
+                p.created_at as joined_at,
+                u.email,
+                u.phone,
+                ref.id as referrer_id,
+                ref.full_name as referrer_name,
+                ref.referral_code as used_referral_code,
+                COUNT(DISTINCT sr.id) FILTER (WHERE sr.status = 'completed' OR sr.payment_status = 'paid')::int as completed_jobs,
+                COALESCE(SUM(prc.commission_amount), 0)::numeric(10,2) as total_commission_generated
+            FROM professionals p
+            JOIN users u ON u.id = p.user_id
+            JOIN professionals ref ON ref.id = p.referred_by_id
+            LEFT JOIN service_offers so ON so.professional_id = p.id AND so.status = 'accepted'
+            LEFT JOIN service_requests sr ON sr.id = so.request_id
+            LEFT JOIN provider_referral_commissions prc ON prc.referred_pro_id = p.id
+            GROUP BY p.id, p.full_name, p.category, p.verification_status, p.created_at, u.email, u.phone, ref.id, ref.full_name, ref.referral_code
+            ORDER BY p.created_at DESC
+        `);
+
+        res.json({
+            selected_month: currentMonth,
+            summary: {
+                total_referred_providers: Number(stats.total_referred_providers || 0),
+                active_referrers: Number(stats.active_referrers || 0),
+                total_commissions_generated: Number(stats.total_commissions_generated || 0),
+                total_eligible_commissions: Number(stats.total_eligible_commissions || 0),
+                total_pending_commissions: Number(stats.total_pending_commissions || 0),
+                monthly_target_required: 15,
+                commission_rate_percent: 2.0
+            },
+            referrers,
+            referred_providers: referredListRes.rows,
+            commissions: transactionsRes.rows
+        });
+    } catch (err) {
+        console.error('getReferrals error:', err);
+        res.status(500).json({ message: 'Failed to fetch referrals data' });
+    }
+};
+
 module.exports = {
     getDashboard,
+    getReferrals,
     getUsers,
     getPendingVerifications,
     approveProfessional,

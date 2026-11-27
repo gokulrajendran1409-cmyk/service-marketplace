@@ -8,6 +8,13 @@ export const getDashboard = async () => {
     return response.json();
 };
 
+export const getAdminReferrals = async (month) => {
+    const query = month ? `?month=${encodeURIComponent(month)}` : '';
+    const response = await fetch(`${API_URL}/admin/referrals${query}`);
+    if (!response.ok) throw new Error("Failed to load referrals");
+    return response.json();
+};
+
 export const getAdminCategories = async () => {
     const res = await fetch(`${API_URL}/admin/categories`);
     if (!res.ok) throw new Error('Failed to load categories');

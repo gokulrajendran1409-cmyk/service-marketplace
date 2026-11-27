@@ -1,6 +1,7 @@
 const express = require("express");
 const { 
     getDashboard, 
+    getReferrals,
     getUsers, 
     getPendingVerifications, 
     approveProfessional, 
@@ -50,6 +51,7 @@ const { addClient, removeClient } = require("../utils/sseClients");
 const router = express.Router();
 
 router.get("/dashboard", getDashboard);
+router.get("/referrals", getReferrals);
 router.get("/users", getUsers);
 router.get("/verifications", getPendingVerifications);
 router.get("/verifications/history", getAllVerifications);

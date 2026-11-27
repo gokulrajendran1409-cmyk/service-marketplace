@@ -5,6 +5,7 @@ import {
   LayoutDashboard, 
   Users, 
   UserCog, 
+  Gift,
   ShieldCheck, 
   ClipboardList, 
   Star, 
@@ -52,6 +53,9 @@ function AdminLayout() {
           </NavLink>
           <NavLink to="/professionals" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
             <UserCog className="nav-icon" /> Professionals
+          </NavLink>
+          <NavLink to="/referrals" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+            <Gift className="nav-icon" /> Provider Referrals
           </NavLink>
           <NavLink to="/verification" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
             <ShieldCheck className="nav-icon" /> Verification

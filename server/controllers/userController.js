@@ -1446,6 +1446,23 @@ exports.confirmPayment = async (req, res) => {
             return res.status(404).json({ message: 'Request not found or payment already confirmed' });
         }
 
+        // Record referral commission and sync eligibility
+        try {
+            const { recordReferralCommission, syncReferrerEligibility } = require('../services/referralService');
+            await recordReferralCommission(requestId, pool);
+
+            // Fetch the professional who completed this request to sync their eligibility
+            const proLookup = await pool.query(
+                `SELECT professional_id FROM service_offers WHERE request_id = $1 AND status = 'accepted' LIMIT 1`,
+                [requestId]
+            );
+            if (proLookup.rows.length > 0) {
+                await syncReferrerEligibility(proLookup.rows[0].professional_id, pool);
+            }
+        } catch (refErr) {
+            console.error('Error recording referral commission on confirmPayment:', refErr);
+        }
+
         const { broadcast: broadcastSse } = require('../utils/sseClients');
         broadcastSse('payment_confirmed', {
             id: requestId,

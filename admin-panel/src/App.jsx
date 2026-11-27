@@ -11,6 +11,7 @@ import Payments from "./pages/Payments";
 import Complaints from "./pages/Complaints";
 import Categories from "./pages/Categories";
 import LocationPricing from "./pages/LocationPricing";
+import Referrals from "./pages/Referrals";
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="users" element={<Users />} />
           <Route path="professionals" element={<Professionals />} />
+          <Route path="referrals" element={<Referrals />} />
           <Route path="verification" element={<Verification />} />
           <Route path="requests" element={<Requests />} />
           <Route path="reviews" element={<Reviews />} />
